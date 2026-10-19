@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 33% 96%;
+    --foreground: 222 33% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 33% 11%;
+    --primary: 0 74% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 20% 93%;
+    --secondary-foreground: 222 33% 16%;
+    --muted: 40 14% 91%;
+    --muted-foreground: 220 10% 40%;
+    --accent: 172 78% 30%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 74% 46%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 16% 86%;
+    --input: 40 16% 86%;
+    --ring: 0 74% 56%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-paper-100 text-ink-900 antialiased;
+    font-family: Sora, ui-sans-serif, system-ui, sans-serif;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-sos-500 ring-offset-2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.leaflet-container {
+  font-family: inherit;
+  background: #dce6df;
+}

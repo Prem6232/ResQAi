@@ -1,0 +1,9 @@
+{
+  "name": "SENTINELGRID",
+  "short_name": "SentinelGrid",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6F4EF",
+  "theme_color": "#121826",
+  "description": "Campus emergency coordination prototype. Not a certified dispatch system."
+}

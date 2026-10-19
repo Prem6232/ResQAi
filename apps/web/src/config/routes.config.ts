@@ -1,0 +1,38 @@
+export const routes = {
+  landing: "/",
+  login: "/login",
+  register: "/register",
+  unauthorized: "/unauthorized",
+  citizen: {
+    home: "/citizen",
+    alerts: "/citizen/alerts",
+    reports: "/citizen/reports",
+    report: (id: string) => `/citizen/reports/${id}`,
+    contacts: "/citizen/contacts",
+    sos: "/citizen/sos",
+    newReport: "/citizen/report/new",
+    privacy: "/citizen/privacy",
+  },
+  responder: {
+    feed: "/responder",
+    active: "/responder/active",
+    history: "/responder/history",
+    status: "/responder/status",
+  },
+  operator: {
+    live: "/operator",
+    responders: "/operator/responders",
+    analytics: "/operator/analytics",
+    incident: (id: string) => `/operator/incidents/${id}`,
+    duplicates: "/operator/duplicates",
+    audit: "/operator/audit",
+    settings: "/operator/settings",
+  },
+  admin: {
+    home: "/admin",
+    responders: "/admin/responders",
+    geofence: "/admin/geofence",
+    audit: "/admin/audit",
+    analytics: "/admin/analytics",
+  },
+} as const;
