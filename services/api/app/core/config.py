@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     
     # CORS
     CORS_ORIGINS: List[str] = ["*"]
+    
+    # Celery & Worker
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
+    
+    # AI Pipeline & Adapters
+    AI_ADAPTER_MODE: str = "mock" # "mock" or "live"
+    GEMINI_API_KEY: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

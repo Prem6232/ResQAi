@@ -37,10 +37,14 @@ build/
 *.apk
 *.aab
 *.ipa
+dist_apk/
 
 # Logs
 *.log
 npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
 
 # Claude/AI
 .claude/

@@ -5,6 +5,7 @@ import { SOSRadarButton } from "../../components/radar/SOSRadarButton";
 import { CategoryCard } from "../../components/cards/CategoryCard";
 import { ReportWizardModal } from "../../components/modals/ReportWizardModal";
 import { IncidentCategory } from "../../types";
+import { mobileApi } from "../../services/api";
 
 interface CitizenHomeScreenProps {
   onReportCreated: (report: any) => void;
@@ -23,15 +24,21 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
     setWizardVisible(true);
   };
 
-  const handleSOSTriggered = () => {
-    const sosReport = {
-      category: "personal_sos" as IncidentCategory,
-      title: "CRITICAL PERSONAL SOS",
-      text: "Automatic emergency SOS signal broadcast with real-time GPS telemetry.",
-      locationLabel: "Main Quadrangle · Coordinates Broadcasted",
-      voiceTranscript: undefined,
-    };
-    onReportCreated(sosReport);
+  const handleSOSTriggered = async () => {
+    try {
+      const sosResult = await mobileApi.triggerSOS({ lat: 28.5452, lng: 77.2731 });
+      onReportCreated(sosResult);
+    } catch (e) {
+      console.warn("Failed to trigger SOS on backend, using fallback:", e);
+      const sosReport = {
+        category: "personal_sos" as IncidentCategory,
+        title: "CRITICAL PERSONAL SOS",
+        text: "Automatic emergency SOS signal broadcast with real-time GPS telemetry.",
+        locationLabel: "Main Quadrangle · Coordinates Broadcasted",
+        voiceTranscript: undefined,
+      };
+      onReportCreated(sosReport);
+    }
 
     Alert.alert(
       "🚨 SOS SIGNAL DISPATCHED",

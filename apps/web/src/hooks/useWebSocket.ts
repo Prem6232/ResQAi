@@ -17,7 +17,18 @@ export function useWebSocket(enabled: boolean) {
     let timer: number | undefined;
 
     const connect = () => {
-      ws = new WebSocket(apiConfig.wsUrl);
+      let token = "";
+      const raw = localStorage.getItem("sg.tokens");
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          token = parsed.accessToken || "";
+        } catch {
+          // ignore
+        }
+      }
+      const wsUrl = token ? `${apiConfig.wsUrl}?token=${encodeURIComponent(token)}` : apiConfig.wsUrl;
+      ws = new WebSocket(wsUrl);
       ws.onopen = () => {
         setConnected(true);
         attempt = 0;

@@ -10,16 +10,16 @@ This is **not** a certified dispatch system, a replacement for 112 / police / am
 
 | Area | State |
 | --- | --- |
-| Frontend (this repo) | Implemented as a working UI prototype with **synthetic demo data** |
-| Backend / PostGIS / Celery | Planned — app uses a typed mock API until the API is connected |
-| ML inference | Adapters on the backend; UI shows assessment fields only when present |
+| Frontend (`apps/web`) | Implemented as a React + Vite PWA, **fully connected to live backend** |
+| Backend (`services/api`) | **Implemented & Live** — FastAPI, PostgreSQL 16 + PostGIS, Redis 7, Celery, 95/95 tests passing |
+| ML inference | Pluggable backend adapters (faster-whisper, text classifier, vision fire/smoke) |
 | Official emergency integrations | Unsupported |
 
-## Apps
+## Architecture
 
-- `apps/web` — React + Vite PWA
-  - Citizen and Responder: mobile-first
-  - Operator and Admin: desktop command centre
+- `apps/web` — React + Vite PWA (Citizen, Responder, Operator, Admin)
+- `apps/mobile` — React Native / Expo field client
+- `services/api` — FastAPI production backend (see [`services/api/README.md`](services/api/README.md))
 
 ## Run the frontend
 

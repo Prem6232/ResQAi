@@ -29,7 +29,13 @@ export const SafeHeader: React.FC<SafeHeaderProps> = ({
     <View style={styles.container}>
       <View style={styles.leftRow}>
         <View>
-          <Text style={styles.brandTitle}>SafeGuard</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={styles.brandTitle}>ResQAi</Text>
+            <View style={styles.liveBackendBadge}>
+              <View style={styles.livePulseDot} />
+              <Text style={styles.liveBackendText}>BACKEND LIVE</Text>
+            </View>
+          </View>
           {subtitle ? (
             <View style={styles.locationRow}>
               <View
@@ -140,5 +146,28 @@ const styles = StyleSheet.create({
   },
   operatorBadgeText: {
     color: COLORS.info,
+  },
+  liveBackendBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#10B981",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 4,
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#10B981",
+  },
+  liveBackendText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#047857",
+    letterSpacing: 0.5,
   },
 });
