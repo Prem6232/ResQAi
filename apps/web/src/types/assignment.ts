@@ -20,7 +20,7 @@ export interface Assignment {
   etaMinutes?: number;
   distanceKm?: number;
   routeNote?: string;
-  synthetic: true;
+  synthetic?: boolean;
 }
 
 export interface AssignmentEvent {

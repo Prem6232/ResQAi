@@ -1,16 +1,34 @@
 import { MobileHeader } from "@/components/common/Header";
 import { ResponderStatusToggle } from "@/components/coordination/ResponderStatusToggle";
 import { ResponderOfferCard } from "@/components/coordination/ResponderOfferCard";
-import { mockAssignments, mockIncidents } from "@/lib/mock-store";
-import { useState } from "react";
+import { mockApi } from "@/lib/mock-api";
+import { useState, useEffect } from "react";
+import type { Assignment } from "@/types/assignment";
+import type { Incident } from "@/types/incident";
 import { formatRelative } from "@/lib/utils";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 
 export function ResponderDashboard() {
   const [onDuty, setOnDuty] = useState(true);
-  const offer = mockAssignments.find((a) => a.status === "offered");
-  const incident = mockIncidents.find((i) => i.id === offer?.incidentId);
-  const resolved = mockIncidents.filter((i) => i.status === "resolved" || i.status === "closed");
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+
+  useEffect(() => {
+    mockApi.assignments().then(setAssignments);
+    mockApi.incidents().then(setIncidents);
+  }, []);
+
+  const offer = assignments.find((a) => a.status === "offered");
+  const incident = incidents.find((i) => i.id === offer?.incidentId);
+  const resolved = incidents.filter((i) => i.status === "resolved" || i.status === "closed");
+
+  const handleRespond = async (status: "accepted" | "declined") => {
+    if (offer) {
+      await mockApi.respondToOffer(offer.id, status);
+      const updated = await mockApi.assignments();
+      setAssignments(updated);
+    }
+  };
 
   return (
     <div>
@@ -24,8 +42,8 @@ export function ResponderDashboard() {
           <ResponderOfferCard
             incident={incident}
             assignment={offer}
-            onAccept={() => undefined}
-            onDecline={() => undefined}
+            onAccept={() => handleRespond("accepted")}
+            onDecline={() => handleRespond("declined")}
           />
         ) : (
           <p className="text-sm text-ink-700/50">No open offers.</p>

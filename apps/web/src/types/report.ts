@@ -34,7 +34,7 @@ export interface Report {
   deliveryState: DeliveryState;
   incidentId?: string;
   cancelledReason?: string;
-  synthetic: true;
+  synthetic?: boolean;
 }
 
 export interface ReportDraft {

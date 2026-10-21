@@ -1,8 +1,16 @@
-import { mockResponders } from "@/lib/mock-store";
+import { mockApi } from "@/lib/mock-api";
+import { useState, useEffect } from "react";
+import type { ResponderProfile } from "@/types/responder";
 import { Button } from "@/components/ui/button";
 import { Table, Td, Th } from "@/components/ui/table";
 
 export function ResponderApprovalTable() {
+  const [responders, setResponders] = useState<ResponderProfile[]>([]);
+
+  useEffect(() => {
+    mockApi.responders().then(setResponders);
+  }, []);
+
   return (
     <Table>
       <thead>
@@ -14,10 +22,10 @@ export function ResponderApprovalTable() {
         </tr>
       </thead>
       <tbody>
-        {mockResponders.map((r) => (
+        {responders.map((r) => (
           <tr key={r.id} className="border-t">
             <Td>{r.unitCode}</Td>
-            <Td>{r.type}</Td>
+            <Td>{r.type.replaceAll("_", " ")}</Td>
             <Td>{r.approved ? "Yes" : "No"}</Td>
             <Td>
               <Button size="sm" variant="command">

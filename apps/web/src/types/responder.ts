@@ -23,7 +23,7 @@ export interface ResponderProfile {
   currentJob?: string;
   shareLocation: boolean;
   approved: boolean;
-  synthetic: true;
+  synthetic?: boolean;
 }
 
 export interface NearbyAlert {

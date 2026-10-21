@@ -1,16 +1,35 @@
 import { ActiveTaskCard } from "@/features/responder/components/ActiveTaskCard";
 import { RouteGuidanceSheet } from "@/features/responder/components/RouteGuidanceSheet";
 import { StatusTransitionControls } from "@/features/responder/components/StatusTransitionControls";
-import { mockIncidents } from "@/lib/mock-store";
+import { mockApi } from "@/lib/mock-api";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { routes } from "@/config/routes.config";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { Incident } from "@/types/incident";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 
 export function ResponderTaskView() {
-  const incident = mockIncidents[0];
+  const [incident, setIncident] = useState<Incident | null>(null);
   const [arrived, setArrived] = useState(false);
+
+  useEffect(() => {
+    mockApi.incidents().then((incs) => {
+      if (incs.length > 0) setIncident(incs[0]);
+    });
+  }, []);
+
+  if (!incident) {
+    return (
+      <div className="rounded-3xl bg-white p-6 shadow-card text-center">
+        <p className="text-sm text-ink-700/50">No active assigned mission currently.</p>
+        <Button asChild className="mt-4" variant="outline">
+          <Link to={routes.responder.feed}>Back to Duty Feed</Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <ActiveTaskCard incident={incident} />

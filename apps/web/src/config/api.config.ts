@@ -1,6 +1,7 @@
 export const apiConfig = {
-  baseUrl: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1",
-  wsUrl: import.meta.env.VITE_WS_URL ?? "ws://localhost:8000/ws",
-  useMock: (import.meta.env.VITE_USE_MOCK_API ?? "true") !== "false",
-  requestTimeoutMs: 12_000,
+  baseUrl: import.meta.env.VITE_API_BASE_URL ?? "https://resqai-api.onrender.com/api/v1",
+  wsUrl: import.meta.env.VITE_WS_URL ?? "wss://resqai-api.onrender.com/ws",
+  useMock: import.meta.env.VITE_USE_MOCK_API === "true", // Default is FALSE (100% Live Backend)
+  requestTimeoutMs: 15_000,
 } as const;
+

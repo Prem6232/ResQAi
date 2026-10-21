@@ -36,7 +36,7 @@ export interface Incident {
   updatedAt: string;
   evidenceLabel: EvidenceLabel;
   hidePreciseLocationFromPublic: boolean;
-  synthetic: true;
+  synthetic?: boolean;
 }
 
 export interface IncidentStatusEvent {

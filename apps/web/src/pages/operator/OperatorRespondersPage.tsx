@@ -1,15 +1,24 @@
 import { CommandShell } from "@/components/common/CommandShell";
-import { mockResponders } from "@/lib/mock-store";
+import { mockApi } from "@/lib/mock-api";
+import { useState, useEffect } from "react";
+import type { ResponderProfile } from "@/types/responder";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { Table, Td, Th } from "@/components/ui/table";
 
 export function OperatorRespondersPage() {
+  const [responders, setResponders] = useState<ResponderProfile[]>([]);
+
+  useEffect(() => {
+    mockApi.responders().then(setResponders);
+  }, []);
+
   const counts = {
-    onDuty: mockResponders.filter((r) => r.status !== "offline" && r.status !== "off_duty").length,
-    available: mockResponders.filter((r) => r.status === "available").length,
-    busy: mockResponders.filter((r) => r.status === "busy").length,
-    offline: mockResponders.filter((r) => r.status === "offline").length,
+    onDuty: responders.filter((r) => r.status !== "offline" && r.status !== "off_duty").length,
+    available: responders.filter((r) => r.status === "available").length,
+    busy: responders.filter((r) => r.status === "busy").length,
+    offline: responders.filter((r) => r.status === "offline").length,
   };
+
   return (
     <CommandShell mode="operator" title="Responders">
       <div className="mb-5 grid grid-cols-4 gap-3">
@@ -30,7 +39,7 @@ export function OperatorRespondersPage() {
             </tr>
           </thead>
           <tbody>
-            {mockResponders.map((r) => (
+            {responders.map((r) => (
               <tr key={r.id} className="border-t">
                 <Td className="font-semibold">{r.unitCode}</Td>
                 <Td>{r.type.replaceAll("_", " ")}</Td>
