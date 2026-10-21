@@ -104,7 +104,12 @@ async def get_responder_profile_for_user(db: AsyncSession, user: User) -> Respon
 
 async def get_active_assignments_for_user(db: AsyncSession, user: User) -> List[AssignmentResponse]:
     """Return active assignments for authenticated responder, expiring timed out offers."""
-    profile = await get_responder_profile_for_user(db, user)
+    stmt_prof = select(ResponderProfile).where(ResponderProfile.user_id == user.id)
+    profile = (await db.execute(stmt_prof)).scalar_one_or_none()
+    if not profile:
+        if user.role in ["admin", "operator"]:
+            return []
+        raise NotFoundError("Responder profile not found for this account")
 
     stmt = (
         select(Assignment)
@@ -143,7 +148,12 @@ async def get_active_assignments_for_user(db: AsyncSession, user: User) -> List[
 
 async def get_assignment_history_for_user(db: AsyncSession, user: User) -> List[AssignmentResponse]:
     """Return past missions (completed, failed, cancelled, declined, expired)."""
-    profile = await get_responder_profile_for_user(db, user)
+    stmt_prof = select(ResponderProfile).where(ResponderProfile.user_id == user.id)
+    profile = (await db.execute(stmt_prof)).scalar_one_or_none()
+    if not profile:
+        if user.role in ["admin", "operator"]:
+            return []
+        raise NotFoundError("Responder profile not found for this account")
 
     stmt = (
         select(Assignment)

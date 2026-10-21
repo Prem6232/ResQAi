@@ -72,7 +72,11 @@ async def require_approved_responder(
     """
     Enforce responder vetting gate: Responders cannot receive, view, or accept
     assignments unless an Administrator has vetted and approved their account.
+    Admins and Operators have administrative access to responder resources.
     """
+    if current_user.role in ["admin", "operator"]:
+        return current_user
+
     if current_user.role != "responder":
         raise ForbiddenError(message="Only responders may access this resource")
 

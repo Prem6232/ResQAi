@@ -27,7 +27,7 @@ router = APIRouter()
 )
 async def get_all_responders(
     db: AsyncSession = Depends(get_db),
-    admin_user: User = Depends(require_roles(["admin", "operator"])),
+    admin_user: User = Depends(require_roles(["admin"])),
 ):
     """List all registered responder units and their vetting status."""
     return await service.list_all_responders(session=db)
@@ -38,7 +38,7 @@ async def get_all_responders(
     summary="Approve or revoke responder credentials (Admin only)",
 )
 async def approve_responder(
-    responder_id: uuid.UUID,
+    responder_id: str,
     payload: ResponderApprovalRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),

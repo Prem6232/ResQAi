@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,16 +71,22 @@ async def list_all_responders(session: AsyncSession) -> List[ResponderAdminOut]:
 
 async def approve_or_revoke_responder(
     session: AsyncSession,
-    responder_id: uuid.UUID,
+    responder_id: Union[uuid.UUID, str],
     approved: bool,
     admin_user: User,
     ip_address: Optional[str] = None,
 ) -> ResponderAdminOut:
     """Approve or revoke a responder profile and emit an immutable audit record."""
+    try:
+        r_uuid = uuid.UUID(str(responder_id))
+        cond = or_(ResponderProfile.id == r_uuid, ResponderProfile.user_id == r_uuid)
+    except (ValueError, AttributeError):
+        cond = (ResponderProfile.unit_code == str(responder_id))
+
     stmt = (
         select(ResponderProfile)
         .options(selectinload(ResponderProfile.user))
-        .where(or_(ResponderProfile.id == responder_id, ResponderProfile.user_id == responder_id))
+        .where(cond)
     )
     result = await session.execute(stmt)
     profile = result.scalar_one_or_none()

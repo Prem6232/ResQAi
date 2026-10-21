@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, model_validator
 from app.common.schemas import GeoPoint
 
 class ResponderAdminUserOut(BaseModel):
@@ -32,6 +32,15 @@ class ResponderAdminOut(BaseModel):
 
 class ResponderApprovalRequest(BaseModel):
     approved: bool = True
+    approve: Optional[bool] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def reconcile(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "approved" not in data and "approve" in data:
+                data["approved"] = data["approve"]
+        return data
 
 class OperatingAreaResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)

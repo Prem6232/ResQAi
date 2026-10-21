@@ -7,17 +7,29 @@ import { Link } from "react-router-dom";
 import { routes } from "@/config/routes.config";
 import { useState, useEffect } from "react";
 import type { Incident } from "@/types/incident";
+import type { Assignment } from "@/types/assignment";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 
 export function ResponderTaskView() {
   const [incident, setIncident] = useState<Incident | null>(null);
+  const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [arrived, setArrived] = useState(false);
 
   useEffect(() => {
+    mockApi.assignments().then((asgs) => {
+      if (asgs.length > 0) setAssignment(asgs[0]);
+    });
     mockApi.incidents().then((incs) => {
       if (incs.length > 0) setIncident(incs[0]);
     });
   }, []);
+
+  const handleArrived = async () => {
+    setArrived(true);
+    if (assignment) {
+      await mockApi.updateAssignmentStatus(assignment.id, "arrived");
+    }
+  };
 
   if (!incident) {
     return (
@@ -43,7 +55,7 @@ export function ResponderTaskView() {
           <StatusIndicator label={arrived ? "On scene" : "4 min"} tone={arrived ? "ok" : "info"} />
         </div>
         <div className="mt-4">
-          <StatusTransitionControls onArrived={() => setArrived(true)} />
+          <StatusTransitionControls onArrived={handleArrived} />
         </div>
         <Button asChild className="mt-3 w-full" variant="outline">
           <Link to={routes.responder.feed}>View incident details</Link>

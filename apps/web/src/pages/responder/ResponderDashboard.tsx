@@ -30,11 +30,20 @@ export function ResponderDashboard() {
     }
   };
 
+  const handleDutyChange = async (val: boolean) => {
+    setOnDuty(val);
+    try {
+      await mockApi.updateDuty(val);
+    } catch {
+      // safe fallback
+    }
+  };
+
   return (
     <div>
       <MobileHeader
         role="First responder"
-        right={<ResponderStatusToggle onDuty={onDuty} onChange={setOnDuty} />}
+        right={<ResponderStatusToggle onDuty={onDuty} onChange={handleDutyChange} />}
       />
       <h1 className="mt-2 font-display text-2xl font-extrabold">Awaiting response</h1>
       <div className="mt-4">

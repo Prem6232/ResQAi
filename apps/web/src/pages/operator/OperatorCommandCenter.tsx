@@ -79,7 +79,15 @@ export function OperatorCommandCenter() {
               <Button className="w-full" variant="outline" onClick={() => setModal("false")}>
                 Open false-report review
               </Button>
-              <OperatorOverrideControl />
+              <OperatorOverrideControl
+                incidentId={incident.id}
+                currentCategory={incident.category}
+                currentUrgency={incident.urgency}
+                onOverridden={async () => {
+                  const updated = await mockApi.incidents();
+                  setIncidents(updated);
+                }}
+              />
             </>
           ) : (
             <p className="text-sm text-ink-700/50">Select an incident to view triage assessment.</p>
@@ -90,13 +98,30 @@ export function OperatorCommandCenter() {
         open={modal === "dispatch"}
         title="Confirm assignment offer"
         onOpenChange={() => setModal(null)}
-        onConfirm={() => setModal(null)}
+        onConfirm={async (reason) => {
+          if (incident) {
+            const resp = responders.find((r) => r.status !== "offline") || responders[0];
+            if (resp) {
+              await mockApi.dispatchIncident(incident.id, resp.id, reason);
+              const updated = await mockApi.incidents();
+              setIncidents(updated);
+            }
+          }
+          setModal(null);
+        }}
       />
       <HumanOversightReviewModal
         open={modal === "false"}
         title="Documented false / malicious review"
         onOpenChange={() => setModal(null)}
-        onConfirm={() => setModal(null)}
+        onConfirm={async (reason) => {
+          if (incident) {
+            await mockApi.updateIncidentState(incident.id, "cancelled", reason);
+            const updated = await mockApi.incidents();
+            setIncidents(updated);
+          }
+          setModal(null);
+        }}
       />
     </CommandShell>
   );

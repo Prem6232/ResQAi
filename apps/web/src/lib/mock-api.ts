@@ -200,20 +200,24 @@ export const mockApi = {
   },
 
   async assignments(): Promise<Assignment[]> {
-    const res = await http.get("/responder/assignments");
-    return (res.data || []).map((a: any): Assignment => ({
-      id: String(a.id),
-      incidentId: String(a.incidentId || a.incident_id),
-      responderId: String(a.responderId || a.responder_id),
-      slotId: a.slotId || a.slot_id || "slot_1",
-      status: a.status || "offered",
-      offeredAt: a.offeredAt || a.offered_at || new Date().toISOString(),
-      acknowledgedAt: a.acknowledgedAt || a.acknowledged_at,
-      etaMinutes: a.etaMinutes ?? a.eta_minutes ?? 5,
-      distanceKm: a.distanceKm ?? a.distance_km ?? 0.8,
-      routeNote: a.routeNote || a.route_note,
-      synthetic: false,
-    }));
+    try {
+      const res = await http.get("/responder/assignments");
+      return (res.data || []).map((a: any): Assignment => ({
+        id: String(a.id),
+        incidentId: String(a.incidentId || a.incident_id),
+        responderId: String(a.responderId || a.responder_id),
+        slotId: a.slotId || a.slot_id || "slot_1",
+        status: a.status || "offered",
+        offeredAt: a.offeredAt || a.offered_at || new Date().toISOString(),
+        acknowledgedAt: a.acknowledgedAt || a.acknowledged_at,
+        etaMinutes: a.etaMinutes ?? a.eta_minutes ?? 5,
+        distanceKm: a.distanceKm ?? a.distance_km ?? 0.8,
+        routeNote: a.routeNote || a.route_note,
+        synthetic: false,
+      }));
+    } catch {
+      return [];
+    }
   },
 
   async alerts(): Promise<NearbyAlert[]> {
@@ -237,6 +241,53 @@ export const mockApi = {
       relationshipLabel: input.relationshipLabel,
       relationship_label: input.relationshipLabel,
     });
+    return res.data;
+  },
+
+  async deleteContact(id: string) {
+    const res = await http.delete(`/citizen/contacts/${id}`);
+    return res.data;
+  },
+
+  async updateDuty(isOnDuty: boolean) {
+    const res = await http.post("/responder/duty", {
+      isOnDuty,
+      is_on_duty: isOnDuty,
+    });
+    return res.data;
+  },
+
+  async duplicates() {
+    try {
+      const res = await http.get("/operator/duplicates");
+      return res.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async mergeReports(targetIncidentId: string, reportIds: string[], reason: string) {
+    const res = await http.post("/operator/actions/merge", {
+      targetIncidentId,
+      target_incident_id: targetIncidentId,
+      reportIds,
+      report_ids: reportIds,
+      reason,
+    });
+    return res.data;
+  },
+
+  async getSettings() {
+    try {
+      const res = await http.get("/operator/settings");
+      return res.data;
+    } catch {
+      return null;
+    }
+  },
+
+  async updateSettings(payload: any) {
+    const res = await http.put("/operator/settings", payload);
     return res.data;
   },
 

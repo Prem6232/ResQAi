@@ -6,6 +6,7 @@ export async function approveResponder(id: string, approved: boolean) {
     return { id, approved };
   }
   const res = await http.post(`/admin/responders/${id}/approve`, {
+    approved,
     approve: approved,
   });
   return res.data;
