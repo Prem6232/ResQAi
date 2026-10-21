@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
-from typing import List, Any
+from typing import List, Any, Union
 import json
 
 class Settings(BaseSettings):
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # CORS
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: Union[List[str], str] = [
         "https://res-q-ai-coral.vercel.app",
         "http://localhost:5173",
         "http://localhost:3000",
@@ -53,18 +53,22 @@ class Settings(BaseSettings):
                 return v.replace("postgresql://", "postgresql+asyncpg://", 1)
         return v
 
-    @field_validator("CORS_ORIGINS", mode="before")
+    @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
-    def assemble_cors_origins(cls, v: Any) -> Any:
+    def assemble_cors_origins(cls, v: Any) -> List[str]:
+        if isinstance(v, list):
+            return v
         if isinstance(v, str):
             v = v.strip()
             if v.startswith("[") and v.endswith("]"):
                 try:
-                    return json.loads(v)
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return parsed
                 except Exception:
                     pass
             return [x.strip() for x in v.split(",") if x.strip()]
-        return v
+        return ["*"]
 
     model_config = SettingsConfigDict(
         env_file=".env",
