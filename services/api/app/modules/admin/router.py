@@ -27,7 +27,7 @@ router = APIRouter()
 )
 async def get_all_responders(
     db: AsyncSession = Depends(get_db),
-    admin_user: User = Depends(require_roles(["admin"])),
+    admin_user: User = Depends(require_roles(["admin", "operator"])),
 ):
     """List all registered responder units and their vetting status."""
     return await service.list_all_responders(session=db)

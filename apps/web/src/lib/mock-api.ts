@@ -166,21 +166,31 @@ export const mockApi = {
       const res = await http.get(`/operator/incidents/${incidentId}/evidence`);
       return res.data;
     } catch {
-      return null;
+      try {
+        const fallback = await http.get(`/operator/incidents/${incidentId}`);
+        return fallback.data?.evidence || null;
+      } catch {
+        return null;
+      }
     }
   },
 
   async responders(): Promise<ResponderProfile[]> {
-    const res = await http.get("/admin/responders");
+    let res;
+    try {
+      res = await http.get("/operator/responders");
+    } catch {
+      res = await http.get("/admin/responders");
+    }
     return (res.data || []).map((r: any): ResponderProfile => ({
       id: String(r.id),
-      userId: String(r.userId || r.user_id),
+      userId: String(r.userId || r.user_id || r.id),
       unitCode: r.unitCode || r.unit_code || "UNIT-1",
       displayName: r.displayName || r.display_name || r.name || "Responder Unit",
       type: r.type || r.responderType || r.responder_type || "campus_security",
       status: r.status || (r.isOnDuty || r.is_on_duty ? "available" : "offline"),
       capabilities: r.capabilities || ["security_patrol"],
-      lastLocation: r.lastLocation || r.last_location,
+      lastLocation: r.lastLocation || r.last_location || (r.location ? r.location : undefined),
       lastLocationAt: r.lastLocationAt || r.last_location_at,
       currentJob: r.currentJob || r.current_job,
       shareLocation: Boolean(r.shareLocation ?? r.share_location ?? true),

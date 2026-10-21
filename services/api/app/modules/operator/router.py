@@ -70,6 +70,23 @@ async def get_incident(
     return await get_incident_detail(db, id)
 
 @router.get(
+    "/incidents/{id}/evidence",
+    response_model=Dict[str, Any],
+    status_code=status.HTTP_200_OK,
+    summary="Get incident evidence assessment"
+)
+async def get_incident_evidence(
+    id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(["operator", "admin"]))
+):
+    """
+    Fetch vision, text, and duplicate evidence assessments for an incident.
+    """
+    detail = await get_incident_detail(db, id)
+    return detail.evidence or {"vision": None, "text": None, "duplicates": []}
+
+@router.get(
     "/responders",
     response_model=List[Dict[str, Any]],
     status_code=status.HTTP_200_OK,
