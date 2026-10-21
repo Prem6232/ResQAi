@@ -9,6 +9,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-sos-500 text-white shadow-sos hover:bg-sos-600",
+        brand: "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-blue-500/25 hover:from-sky-600 hover:to-blue-700",
         duty: "bg-duty-500 text-white hover:bg-duty-600",
         command: "bg-command-500 text-white hover:bg-command-600",
         outline: "border border-ink-900/10 bg-white text-ink-800 hover:bg-paper-50",

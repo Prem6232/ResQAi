@@ -25,9 +25,12 @@ export function CommandSidebar({ mode }: { mode: "operator" | "admin" }) {
 
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-black/5 bg-white">
-      <div className="px-5 py-6">
-        <p className="font-display text-xl font-extrabold">SENTINELGRID</p>
-        <p className="mt-1 text-xs text-ink-700/50">Command centre · synthetic drill</p>
+      <div className="flex items-center gap-3 px-5 py-6">
+        <img src="/logo-tight.png" alt="ResQAI" className="h-8 w-auto object-contain" />
+        <div>
+          <p className="font-display text-lg font-extrabold leading-tight">ResQAI</p>
+          <p className="mt-0.5 text-xs text-ink-700/50">Command centre</p>
+        </div>
       </div>
       <nav className="flex-1 space-y-1 px-3">
         {items.map((item) => (

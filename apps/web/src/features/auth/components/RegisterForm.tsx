@@ -47,7 +47,7 @@ export function RegisterForm() {
         <Label htmlFor="campus">Campus code</Label>
         <Input id="campus" className="mt-1" {...form.register("campusCode")} />
       </div>
-      <Button className="w-full" type="submit">
+      <Button variant="brand" className="w-full shadow-md shadow-blue-500/20" type="submit">
         Create citizen account
       </Button>
     </form>

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ResQAi Mobile",
-    "slug": "resqai-mobile",
+    "name": "ResQAI",
+    "slug": "resqai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

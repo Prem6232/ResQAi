@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { COLORS } from "../../theme";
 import { Role } from "../../types";
 
@@ -28,9 +28,14 @@ export const SafeHeader: React.FC<SafeHeaderProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.leftRow}>
-        <View>
+        <Image
+          source={require("../../../assets/logo-tight.png")}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+        <View style={styles.brandTextCol}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Text style={styles.brandTitle}>ResQAi</Text>
+            <Text style={styles.brandTitle}>ResQAI</Text>
             <View style={styles.liveBackendBadge}>
               <View style={styles.livePulseDot} />
               <Text style={styles.liveBackendText}>BACKEND LIVE</Text>
@@ -91,9 +96,17 @@ const styles = StyleSheet.create({
   leftRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 10,
+  },
+  logoImage: {
+    width: 36,
+    height: 36,
+  },
+  brandTextCol: {
+    justifyContent: "center",
   },
   brandTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     color: COLORS.textPrimary,
     letterSpacing: -0.5,

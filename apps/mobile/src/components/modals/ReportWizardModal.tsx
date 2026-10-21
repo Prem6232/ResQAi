@@ -84,7 +84,7 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
     onSubmit({
       category: selectedCategory,
       title,
-      text: description || "Citizen emergency report submitted via SafeGuard App.",
+      text: description || "Citizen emergency report submitted via ResQAI App.",
       locationLabel,
       voiceTranscript: voiceTranscript || undefined,
     });

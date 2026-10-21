@@ -52,7 +52,7 @@ export function LoginForm() {
         <Input id="password" type="password" className="mt-1" {...form.register("password")} />
       </div>
       {error ? <p className="text-sm text-sos-600">{error}</p> : null}
-      <Button className="w-full" type="submit">
+      <Button variant="brand" className="w-full shadow-md shadow-blue-500/20" type="submit">
         Continue
       </Button>
     </form>
