@@ -1,4 +1,4 @@
-import { createContext, useCallback, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useMemo, useState, useEffect, type ReactNode } from "react";
 import type { AuthTokens, LoginPayload, RegisterPayload, SessionUser } from "@/types/auth";
 import { mockApi } from "@/lib/mock-api";
 
@@ -29,7 +29,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokens(nextTokens);
     localStorage.setItem("sg.session", JSON.stringify({ user: nextUser, tokens: nextTokens }));
     localStorage.setItem("sg.tokens", JSON.stringify(nextTokens));
+    window.dispatchEvent(new Event("sg:auth-changed"));
   };
+
+  useEffect(() => {
+    const sync = () => {
+      const current = readStored();
+      setUser(current?.user ?? null);
+      setTokens(current?.tokens ?? null);
+    };
+    window.addEventListener("sg:auth-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("sg:auth-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
 
   const login = useCallback(async (p: LoginPayload) => {
     const res = await mockApi.login(p);
