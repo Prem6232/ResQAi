@@ -36,16 +36,14 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - name: Accept Android Licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Install Mobile Dependencies
         working-directory: apps/mobile
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Make Gradlew Executable
         working-directory: apps/mobile/android
