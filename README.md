@@ -270,9 +270,14 @@ npm run start
 # Run directly on a connected USB device or Android Studio Emulator
 npm run android
 
-# Build a release/debug APK from the command line
+# Build a release/debug APK locally from the command line
 npm run build:apk
 ```
+
+#### Continuous Delivery & Direct Download:
+- **Automatic GitHub Actions Build:** Whenever code inside `apps/mobile/**` is pushed to `main`, GitHub Actions automatically compiles `ResQAi-mobile.apk` and updates the latest release.
+- **Direct APK Download:** [`https://github.com/Prem6232/ResQAi/releases/latest/download/ResQAi-mobile.apk`](https://github.com/Prem6232/ResQAi/releases/latest/download/ResQAi-mobile.apk)
+- **Interactive Web Downloader:** The web landing page (`apps/web`) features a **Get APK** button in both the header and hero section with direct downloads, QR code scanner, and sideload guides.
 
 #### Android Studio:
 Open the native project directly in Android Studio at:

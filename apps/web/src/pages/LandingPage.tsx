@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { routes } from "@/config/routes.config";
 import { Button } from "@/components/ui/button";
 import { HealthIndicator } from "@/components/common/HealthIndicator";
+import { GetApkModal } from "@/components/common/GetApkModal";
 import {
   ShieldAlert,
   Radio,
@@ -16,9 +18,13 @@ import {
   Activity,
   MapPin,
   Lock,
+  Download,
+  Smartphone,
 } from "lucide-react";
 
 export function LandingPage() {
+  const [apkModalOpen, setApkModalOpen] = useState(false);
+
   const roles = [
     {
       role: "Citizen Portal",
@@ -97,8 +103,17 @@ export function LandingPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <HealthIndicator />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setApkModalOpen(true)}
+              className="border-sky-300 bg-sky-50/70 text-sky-800 hover:bg-sky-100 hover:text-sky-900 font-semibold gap-1.5 shadow-sm text-xs sm:text-sm px-2.5 sm:px-3"
+            >
+              <Smartphone className="h-3.5 w-3.5 text-sky-600" />
+              <span>Get APK</span>
+            </Button>
             <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
               <Link to={routes.login}>Sign in</Link>
             </Button>
@@ -142,6 +157,19 @@ export function LandingPage() {
               <Link to={routes.login} className="flex items-center gap-2">
                 Open Command Portal <ArrowRight className="h-4 w-4" />
               </Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              onClick={() => setApkModalOpen(true)}
+              className="h-12 border-sky-300 bg-sky-50/80 text-sky-800 hover:bg-sky-100 hover:text-sky-900 px-6 font-semibold shadow-sm flex items-center gap-2"
+            >
+              <Download className="h-4 w-4 text-sky-600" />
+              <span>Get APK</span>
+              <span className="rounded bg-sky-200/80 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-900">
+                Android
+              </span>
             </Button>
             <Button asChild variant="outline" size="lg" className="h-12 border-slate-300 bg-white px-6 text-slate-700 hover:bg-slate-100">
               <Link to={routes.register}>Create citizen account</Link>
@@ -267,6 +295,9 @@ export function LandingPage() {
           </p>
         </footer>
       </main>
+
+      {/* Get APK Modal */}
+      <GetApkModal open={apkModalOpen} onOpenChange={setApkModalOpen} />
     </div>
   );
 }
