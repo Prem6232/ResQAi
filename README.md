@@ -1,9 +1,10 @@
 # 🛡️ ResQAi / SENTINELGRID
 
-**Repository now maintained by @yuvrajkhonde**
 <div align="center">
 
 **Next-Generation Campus & Community Emergency Response, AI-Powered Multimodal Triage, and Real-Time Dispatch Platform**
+
+**Co-developed & maintained by [@Prem6232](https://github.com/Prem6232) & [@yuvrajkhonde](https://github.com/yuvrajkhonde)**
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
@@ -330,6 +331,13 @@ All accounts are pre-seeded with password **`demo1234`**:
 - **Zero Binary Bloat**: Large APK binaries (`dist_apk/`) and C++ build intermediates (`.cxx/`, `.gradle/`) are excluded from version control.
 - **Privacy Coarsening**: Citizens only receive spatial coordinates coarsened to a 100m grid for nearby advisories to protect private reporter locations.
 - **Vetting Gate**: Responders must be marked `is_approved = true` in the administrative directory before they can receive or accept tactical missions.
+
+---
+
+## 👥 Maintainers & Collaborators
+
+- **[@Prem6232](https://github.com/Prem6232)** — Creator & Maintainer
+- **[@yuvrajkhonde](https://github.com/yuvrajkhonde)** — Collaborator & Maintainer (Joined collaboration)
 
 ---
 
