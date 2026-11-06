@@ -49,3 +49,8 @@ npm-debug.log*
 
 # Claude/AI
 .claude/
+
+# Temporary directories
+new_repo/
+temp_repo/
+

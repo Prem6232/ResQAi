@@ -1,5 +1,6 @@
 # 🛡️ ResQAi / SENTINELGRID
 
+**Repository now maintained by @yuvrajkhonde**
 <div align="center">
 
 **Next-Generation Campus & Community Emergency Response, AI-Powered Multimodal Triage, and Real-Time Dispatch Platform**
