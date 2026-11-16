@@ -1,4 +1,4 @@
-import { useOfflineSync } from "@/context/OfflineSyncContext";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { Button } from "@/components/ui/button";
 
 export function OfflineReportDraftsList() {

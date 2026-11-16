@@ -1,24 +1,49 @@
-import { CampusBaseMap } from "@/components/maps/CampusBaseMap";
-import { RoutePolyline } from "@/components/maps/RoutePolyline";
-import { mapConfig } from "@/config/map.config";
-import type { RoutePath } from "@/types/geospatial";
+import { LiveResponderMap } from "@/components/maps/LiveResponderMap";
+import type { AssignmentIncidentSummary } from "@/types/assignment";
+import type { GeoPoint } from "@/types/common";
+import type { Incident } from "@/types/incident";
 
-const demoRoute: RoutePath = {
-  coordinates: [
-    [mapConfig.campusCenter.lat, mapConfig.campusCenter.lng],
-    [mapConfig.campusCenter.lat + 0.0012, mapConfig.campusCenter.lng + 0.001],
-  ],
-  durationMinutes: 4,
-  distanceKm: 0.7,
-  source: "demo_adapter",
-  liveTraffic: false,
-  guaranteedSafe: false,
-};
+export function RouteGuidanceSheet({
+  fromPoint,
+  toPoint,
+  targetIncident,
+  durationMinutes,
+  distanceKm,
+  enableAutoPing = false,
+  onLocationSynced,
+}: {
+  fromPoint?: GeoPoint;
+  toPoint?: GeoPoint;
+  targetIncident?: Incident | AssignmentIncidentSummary | null;
+  durationMinutes?: number;
+  distanceKm?: number;
+  enableAutoPing?: boolean;
+  onLocationSynced?: (point: GeoPoint) => void;
+}) {
+  const resolvedTarget: AssignmentIncidentSummary | null =
+    targetIncident ??
+    (toPoint
+      ? {
+          id: "active-target",
+          title: "Incident Location",
+          category: "other",
+          urgency: "high",
+          status: "assigned",
+          location: toPoint,
+          locationLabel: "Mission destination",
+        }
+      : null);
 
-export function RouteGuidanceSheet() {
   return (
-    <CampusBaseMap height={280}>
-      <RoutePolyline route={demoRoute} />
-    </CampusBaseMap>
+    <LiveResponderMap
+      mode="responder"
+      height={280}
+      selfPoint={fromPoint}
+      targetIncident={resolvedTarget}
+      etaMinutes={durationMinutes}
+      distanceKm={distanceKm}
+      enableAutoPing={enableAutoPing}
+      onLocationSynced={onLocationSynced}
+    />
   );
 }

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
-import type { Assignment } from "@/types/assignment";
+import type { Assignment, AssignmentIncidentSummary } from "@/types/assignment";
 import type { Incident } from "@/types/incident";
 
 export function ResponderOfferCard({
@@ -9,7 +9,7 @@ export function ResponderOfferCard({
   onAccept,
   onDecline,
 }: {
-  incident: Incident;
+  incident: Incident | AssignmentIncidentSummary;
   assignment: Assignment;
   onAccept: () => void;
   onDecline: () => void;

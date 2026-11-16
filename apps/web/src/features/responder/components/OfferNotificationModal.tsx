@@ -1,33 +1,63 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ResponderOfferCard } from "@/components/coordination/ResponderOfferCard";
 import { mockApi } from "@/lib/mock-api";
-import { useState, useEffect } from "react";
-import type { Assignment } from "@/types/assignment";
-import type { Incident } from "@/types/incident";
+import { useLiveEvents } from "@/hooks/useLiveEvents";
+import { playAlertChime } from "@/lib/audioAlerts";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { Assignment, AssignmentIncidentSummary } from "@/types/assignment";
 
-export function OfferNotificationModal() {
+function isResponderSoundEnabled(): boolean {
+  try {
+    return localStorage.getItem("sg.responder.sound") !== "false";
+  } catch {
+    return true;
+  }
+}
+
+export function OfferNotificationModal({ onResponded }: { onResponded?: () => void }) {
+  const { events } = useLiveEvents();
   const [open, setOpen] = useState(false);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
-  const [incident, setIncident] = useState<Incident | null>(null);
+  const [incident, setIncident] = useState<AssignmentIncidentSummary | null>(null);
+  const lastEventIdRef = useRef<string | null>(null);
+
+  const checkOffers = useCallback(async (triggerChime: boolean) => {
+    const assignments = await mockApi.assignments();
+    const off = assignments.find((a) => a.status === "offered");
+    if (off?.incident) {
+      setAssignment(off);
+      setIncident(off.incident);
+      setOpen(true);
+      if (triggerChime && isResponderSoundEnabled()) {
+        playAlertChime("offer");
+      }
+    } else {
+      setOpen(false);
+    }
+  }, []);
 
   useEffect(() => {
-    Promise.all([mockApi.assignments(), mockApi.incidents()]).then(([as, incs]) => {
-      const off = as.find((a) => a.status === "offered");
-      if (off) {
-        setAssignment(off);
-        const inc = incs.find((i) => i.id === off.incidentId);
-        if (inc) {
-          setIncident(inc);
-          setOpen(true);
-        }
-      }
-    });
-  }, []);
+    void checkOffers(false);
+  }, [checkOffers]);
+
+  useEffect(() => {
+    if (events.length === 0) return;
+    const latest = events[0];
+    if (latest.id === lastEventIdRef.current) return;
+    lastEventIdRef.current = latest.id;
+
+    if (latest.type === "assignment.offered") {
+      void checkOffers(true);
+    } else if (latest.type === "assignment.updated") {
+      void checkOffers(false);
+    }
+  }, [events, checkOffers]);
 
   const handleRespond = async (status: "accepted" | "declined") => {
     if (assignment) {
       await mockApi.respondToOffer(assignment.id, status);
       setOpen(false);
+      onResponded?.();
     }
   };
 

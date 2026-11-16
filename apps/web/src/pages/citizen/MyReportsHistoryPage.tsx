@@ -22,7 +22,7 @@ export function MyReportsHistoryPage() {
           <Link key={r.id} to={routes.citizen.report(r.id)} className="block rounded-3xl bg-white p-4 shadow-card">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-semibold">{categoryMeta[r.category].label}</p>
+                <p className="font-semibold">{(categoryMeta[r.category] ?? categoryMeta.other).label}</p>
                 <p className="text-xs text-ink-700/50">{formatRelative(r.createdAt)}</p>
               </div>
               <StatusIndicator

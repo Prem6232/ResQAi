@@ -1,14 +1,13 @@
 import { http } from "@/lib/axios";
-import { apiConfig } from "@/config/api.config";
 
-export async function dispatchResponder(incidentId: string, responderId: string) {
-  if (apiConfig.useMock) {
-    return { incidentId, responderId, status: "offered" as const };
-  }
+export async function dispatchResponder(incidentId: string, responderId: string, note?: string) {
   const res = await http.post("/operator/actions/dispatch", {
     incidentId,
+    incident_id: incidentId,
     responderId,
+    responder_id: responderId,
     slotId: "slot_1",
+    note,
   });
   return res.data;
 }

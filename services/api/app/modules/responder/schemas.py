@@ -123,3 +123,19 @@ class DispatchRecommendation(BaseModel):
     etaMinutes: int
     score: float
     matchReason: str
+
+
+class ResponderSelfProfileResponse(BaseModel):
+    id: str
+    userId: str
+    unitCode: str
+    displayName: str
+    responderType: str
+    capabilities: List[str] = []
+    isOnDuty: bool
+    availabilityStatus: str
+    shareLocation: bool = True
+    approved: bool = True
+    lastLocation: Optional[Dict[str, Any]] = None
+    lastPingAt: Optional[str] = None
+

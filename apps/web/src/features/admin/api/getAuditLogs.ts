@@ -1,5 +1,4 @@
 import { http } from "@/lib/axios";
-import { apiConfig } from "@/config/api.config";
 
 export interface AuditLogRow {
   id: string;
@@ -7,29 +6,37 @@ export interface AuditLogRow {
   actor: string;
   action: string;
   target: string;
-  synthetic: true;
+  synthetic: boolean;
+}
+
+interface RawAuditLog {
+  id: string;
+  createdAt?: string;
+  created_at?: string;
+  at?: string;
+  actorEmail?: string;
+  actor_email?: string;
+  actor?: string;
+  action?: string;
+  targetId?: string;
+  target_id?: string;
+  target?: string;
+  synthetic?: boolean;
 }
 
 export async function getAuditLogs(): Promise<AuditLogRow[]> {
-  if (apiConfig.useMock) {
-    return [
-      {
-        id: "aud_1",
-        at: new Date().toISOString(),
-        actor: "operator@campus.demo",
-        action: "VIEW_INCIDENT",
-        target: "inc_402",
-        synthetic: true as const,
-      },
-    ];
-  }
   const res = await http.get("/admin/audit-logs");
-  return (res.data?.items || res.data || []).map((l: any) => ({
+  const rawItems: RawAuditLog[] = Array.isArray(res.data?.items)
+    ? res.data.items
+    : Array.isArray(res.data)
+      ? res.data
+      : [];
+  return rawItems.map((l) => ({
     id: String(l.id),
-    at: l.createdAt || l.created_at || new Date().toISOString(),
-    actor: l.actorEmail || l.actor_email || "admin@campus.demo",
+    at: l.at || l.createdAt || l.created_at || new Date().toISOString(),
+    actor: l.actorEmail || l.actor_email || l.actor || "system",
     action: l.action || "SYSTEM_EVENT",
-    target: l.targetId || l.target_id || "general",
-    synthetic: true as const,
+    target: l.target || l.targetId || l.target_id || "general",
+    synthetic: Boolean(l.synthetic ?? true),
   }));
 }

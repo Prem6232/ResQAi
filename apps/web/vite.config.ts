@@ -36,8 +36,28 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
-    host: true,
+    port: 3000,
+    host: "0.0.0.0",
+    allowedHosts: true,
+    hmr: process.env.DISABLE_HMR !== "true",
+    watch: process.env.DISABLE_HMR === "true" ? null : {},
+    proxy: {
+      "/api/v1": {
+        target: "https://resqai-api.onrender.com",
+        changeOrigin: true,
+        headers: {
+          Origin: "https://res-q-ai-coral.vercel.app",
+        },
+      },
+      "/ws": {
+        target: "wss://resqai-api.onrender.com",
+        ws: true,
+        changeOrigin: true,
+        headers: {
+          Origin: "https://res-q-ai-coral.vercel.app",
+        },
+      },
+    },
   },
   test: {
     environment: "jsdom",

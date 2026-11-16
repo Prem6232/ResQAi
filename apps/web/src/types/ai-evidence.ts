@@ -16,6 +16,7 @@ export interface VisionAssessment {
   modelScore?: number;
   modelVersion?: string;
   adapter: "live_model" | "unavailable" | "labelled_demo_adapter";
+  explanation?: string;
 }
 
 export interface DuplicateCandidate {

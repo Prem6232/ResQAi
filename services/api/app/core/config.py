@@ -15,12 +15,17 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
     
-    # MinIO / S3
+    # MinIO / S3 / R2 / Supabase Storage
     S3_ENDPOINT_URL: str = "http://localhost:9000"
+    S3_PUBLIC_ENDPOINT_URL: str = ""
+    S3_REGION: str = "us-east-1"
     S3_ACCESS_KEY: str = "minioadmin"
     S3_SECRET_KEY: str = "minioadminpassword123"
     S3_BUCKET_NAME: str = "sentinelgrid-evidence"
-    
+
+    # Geospatial / Routing
+    OSRM_BASE_URL: str = "https://router.project-osrm.org"
+
     # Security / JWT
     JWT_SECRET: str = "dev_jwt_secret_sentinelgrid_supersecure_32chars_min"
     JWT_ALGORITHM: str = "HS256"
@@ -42,6 +47,7 @@ class Settings(BaseSettings):
     # AI Pipeline & Adapters
     AI_ADAPTER_MODE: str = "mock" # "mock" or "live"
     GEMINI_API_KEY: str = ""
+    VISION_INFERENCE_URL: str = ""
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

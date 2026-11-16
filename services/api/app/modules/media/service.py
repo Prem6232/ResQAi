@@ -39,14 +39,19 @@ ALLOWED_MIME_TYPES = {
     "video/quicktime": "video",
 }
 
-def get_s3_client():
+def get_s3_client(for_public_presign: bool = False):
+    endpoint = (
+        settings.S3_PUBLIC_ENDPOINT_URL
+        if for_public_presign and settings.S3_PUBLIC_ENDPOINT_URL
+        else settings.S3_ENDPOINT_URL
+    )
     return boto3.client(
         "s3",
-        endpoint_url=settings.S3_ENDPOINT_URL,
+        endpoint_url=endpoint,
         aws_access_key_id=settings.S3_ACCESS_KEY,
         aws_secret_access_key=settings.S3_SECRET_KEY,
         config=Config(signature_version="s3v4"),
-        region_name="us-east-1",
+        region_name=settings.S3_REGION or "us-east-1",
     )
 
 def ensure_bucket_exists():
@@ -81,7 +86,7 @@ async def create_presigned_upload(
         )
 
     ensure_bucket_exists()
-    s3 = get_s3_client()
+    s3 = get_s3_client(for_public_presign=True)
 
     asset_id = uuid.uuid4()
     kind = ALLOWED_MIME_TYPES[mime]
@@ -108,6 +113,7 @@ async def create_presigned_upload(
     db.add(media_asset)
     await db.commit()
 
+    public_base = settings.S3_PUBLIC_ENDPOINT_URL or settings.S3_ENDPOINT_URL
     try:
         presigned_url = s3.generate_presigned_url(
             "put_object",
@@ -121,7 +127,7 @@ async def create_presigned_upload(
     except Exception as e:
         logger.error(f"Failed to generate presigned upload URL: {e}")
         # Fallback URL for testing
-        presigned_url = f"{settings.S3_ENDPOINT_URL}/{settings.S3_BUCKET_NAME}/{s3_key}"
+        presigned_url = f"{public_base}/{settings.S3_BUCKET_NAME}/{s3_key}"
 
     return PresignedUrlResponse(
         mediaAssetId=str(asset_id),
@@ -173,7 +179,8 @@ async def confirm_media_asset(
 
 async def get_media_url(asset_id: uuid.UUID, s3_key: str) -> str:
     """Generate temporary presigned GET URL for media download/preview."""
-    s3 = get_s3_client()
+    s3 = get_s3_client(for_public_presign=True)
+    public_base = settings.S3_PUBLIC_ENDPOINT_URL or settings.S3_ENDPOINT_URL
     try:
         url = s3.generate_presigned_url(
             "get_object",
@@ -183,7 +190,7 @@ async def get_media_url(asset_id: uuid.UUID, s3_key: str) -> str:
         return url
     except Exception as e:
         logger.warning(f"Could not generate presigned GET url: {e}")
-        return f"{settings.S3_ENDPOINT_URL}/{settings.S3_BUCKET_NAME}/{s3_key}"
+        return f"{public_base}/{settings.S3_BUCKET_NAME}/{s3_key}"
 
 async def get_media_asset_response(db: AsyncSession, asset_id: str) -> MediaAssetResponse:
     try:

@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.modules.auth.dependencies import require_roles, require_approved_responder
+from app.modules.auth.dependencies import get_current_user, require_roles, require_approved_responder
 from app.models.entities import User
 from app.modules.responder.schemas import (
     AssignmentResponse,
@@ -12,6 +12,7 @@ from app.modules.responder.schemas import (
     LocationPingRequest,
     DutyUpdateRequest,
     AssignmentNotesRequest,
+    ResponderSelfProfileResponse,
 )
 from app.modules.responder.service import (
     get_active_assignments_for_user,
@@ -21,9 +22,23 @@ from app.modules.responder.service import (
     ingest_responder_location_ping,
     append_assignment_notes,
     toggle_duty_status,
+    get_responder_self_profile,
 )
 
 responder_router = APIRouter()
+
+@responder_router.get(
+    "/profile",
+    response_model=ResponderSelfProfileResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get authenticated responder profile & capabilities"
+)
+async def get_self_profile(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(["responder", "operator", "admin"]))
+):
+    """Fetch unit code, capabilities, duty status, approval state, and last known location."""
+    return await get_responder_self_profile(db, current_user)
 
 @responder_router.get(
     "/assignments",

@@ -1,16 +1,27 @@
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { http } from "@/lib/axios";
+import { mockApi } from "@/lib/mock-api";
 
 export function DemoDrillModeToggle() {
   const [on, setOn] = useState(true);
 
+  useEffect(() => {
+    mockApi.analyticsSummary().then((sum) => {
+      if (sum) setOn(sum.syntheticDrillMode);
+    });
+  }, []);
+
   const handleToggle = async (val: boolean) => {
+    const prev = on;
     setOn(val);
     try {
-      await http.post("/admin/drill-mode", { enabled: val, drillMode: val });
+      const res = await http.post("/admin/drill-mode", { enabled: val, drillMode: val });
+      if (typeof res.data?.drillMode === "boolean") {
+        setOn(res.data.drillMode);
+      }
     } catch {
-      // safe fallback
+      setOn(prev);
     }
   };
 

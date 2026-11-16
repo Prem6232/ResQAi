@@ -1,14 +1,14 @@
 import * as ToastPrimitive from "@radix-ui/react-toast";
-import { createContext, useContext, useState, type ReactNode } from "react";
-
-type ToastMsg = { id: string; title: string; description?: string };
-
-const ToastCtx = createContext<(msg: Omit<ToastMsg, "id">) => void>(() => undefined);
+import { useCallback, useState, type ReactNode } from "react";
+import { ToastCtx, type ToastMsg } from "@/components/ui/toastContext";
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
-  const push = (msg: Omit<ToastMsg, "id">) =>
-    setToasts((t) => [...t, { ...msg, id: crypto.randomUUID() }]);
+  const push = useCallback(
+    (msg: Omit<ToastMsg, "id">) =>
+      setToasts((t) => [...t, { ...msg, id: crypto.randomUUID() }]),
+    []
+  );
 
   return (
     <ToastCtx.Provider value={push}>
@@ -34,8 +34,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </ToastPrimitive.Provider>
     </ToastCtx.Provider>
   );
-}
-
-export function useToast() {
-  return useContext(ToastCtx);
 }

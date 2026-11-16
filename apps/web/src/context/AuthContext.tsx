@@ -1,17 +1,7 @@
-import { createContext, useCallback, useMemo, useState, useEffect, type ReactNode } from "react";
+import { useCallback, useMemo, useState, useEffect, type ReactNode } from "react";
 import type { AuthTokens, LoginPayload, RegisterPayload, SessionUser } from "@/types/auth";
 import { mockApi } from "@/lib/mock-api";
-
-interface AuthState {
-  user: SessionUser | null;
-  tokens: AuthTokens | null;
-  loading: boolean;
-  login: (p: LoginPayload) => Promise<SessionUser>;
-  register: (p: RegisterPayload) => Promise<SessionUser>;
-  logout: () => void;
-}
-
-export const AuthContext = createContext<AuthState | null>(null);
+import { AuthContext } from "@/context/authContextStore";
 
 function readStored(): { user: SessionUser; tokens: AuthTokens } | null {
   const raw = localStorage.getItem("sg.session");

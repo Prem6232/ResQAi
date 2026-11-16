@@ -1,0 +1,6 @@
+{
+  "name": "ResQAI — SENTINELGRID",
+  "description": "Campus and community emergency reporting, AI triage support, and responder dispatch coordination platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

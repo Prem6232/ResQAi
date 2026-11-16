@@ -32,6 +32,7 @@ export interface NearbyAlert {
   title: string;
   distanceLabel: string;
   statusLabel: string;
-  tone: "active" | "caution";
+  tone: "active" | "caution" | "warning" | "info";
   coarsened: true;
+  location?: { lat: number; lng: number };
 }

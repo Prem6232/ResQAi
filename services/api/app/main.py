@@ -24,6 +24,7 @@ from app.modules.responder import responder_router
 from app.modules.realtime import realtime_router
 from app.modules.admin import admin_router
 from app.modules.analytics import analytics_router
+from app.modules.geospatial import geospatial_router
 
 # 1. Initialize logging
 setup_logging(level="DEBUG" if settings.ENVIRONMENT == "development" else "INFO")
@@ -62,6 +63,7 @@ app.include_router(duplicates_router, prefix=f"{settings.API_V1_PREFIX}/operator
 app.include_router(responder_router, prefix=f"{settings.API_V1_PREFIX}/responder", tags=["Responder Workspace"])
 app.include_router(admin_router, prefix=f"{settings.API_V1_PREFIX}/admin", tags=["Admin Controls"])
 app.include_router(analytics_router, prefix=f"{settings.API_V1_PREFIX}/analytics", tags=["Operational Analytics"])
+app.include_router(geospatial_router, prefix=settings.API_V1_PREFIX, tags=["Geospatial & Routing"])
 app.include_router(realtime_router, prefix=settings.API_V1_PREFIX, tags=["Realtime Gateway"])
 app.include_router(realtime_router, tags=["Realtime Gateway"]) # Direct /ws mounting
 

@@ -23,8 +23,8 @@ export function LiveQueueTable({
             selectedId === inc.id ? "border-command-500 bg-command-50" : "border-black/5 bg-white",
           )}
         >
-          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", urgencyMeta[inc.urgency].className)}>
-            {urgencyMeta[inc.urgency].label}
+          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", (urgencyMeta[inc.urgency] ?? urgencyMeta.high).className)}>
+            {(urgencyMeta[inc.urgency] ?? urgencyMeta.high).label}
           </span>
           <p className="mt-1 text-sm font-semibold">{inc.title}</p>
           <p className="text-xs text-ink-700/50">

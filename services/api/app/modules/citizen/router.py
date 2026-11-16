@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
@@ -10,6 +10,8 @@ from app.modules.citizen.schemas import (
     ReportCreateRequest,
     ReportResponse,
     CancelReportRequest,
+    PrivacyDeletionRequest,
+    PrivacyDeletionResponse,
 )
 from app.modules.citizen.service import (
     create_sos_beacon,
@@ -17,6 +19,7 @@ from app.modules.citizen.service import (
     list_citizen_reports,
     get_citizen_report,
     cancel_citizen_report,
+    request_citizen_data_deletion,
 )
 
 router = APIRouter()
@@ -105,3 +108,24 @@ async def cancel_report(
     Cancel a report if the linked incident has not yet been dispatched or confirmed.
     """
     return await cancel_citizen_report(db, current_user, id, payload.reason)
+
+@router.post(
+    "/privacy/deletion-request",
+    response_model=PrivacyDeletionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit personal data deletion request"
+)
+async def submit_privacy_deletion_request(
+    request: Request,
+    payload: PrivacyDeletionRequest = PrivacyDeletionRequest(),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Persist citizen personal-data deletion request into the immutable audit log."""
+    ip_addr = request.client.host if request.client else None
+    return await request_citizen_data_deletion(
+        db=db,
+        user=current_user,
+        reason=payload.reason,
+        ip_address=ip_addr,
+    )

@@ -11,7 +11,7 @@ from geoalchemy2.shape import from_shape, to_shape
 from app.core.exceptions import AppException, NotFoundError, ForbiddenError
 from app.core.outbox import create_outbox_event
 from app.common.spatial import haversine_distance, coarsen_coordinates
-from app.models.entities import Report, Incident, IncidentReport, MediaAsset, TrustedContact, User
+from app.models.entities import Report, Incident, IncidentReport, MediaAsset, TrustedContact, User, AuditLog
 from app.modules.media.schemas import MediaAssetResponse
 from app.modules.media.service import get_media_url
 from app.modules.citizen.schemas import (
@@ -21,6 +21,7 @@ from app.modules.citizen.schemas import (
     TrustedContactCreate,
     TrustedContactResponse,
     NearbyAlertResponse,
+    PrivacyDeletionResponse,
 )
 
 logger = logging.getLogger("sentinelgrid.citizen.service")
@@ -481,3 +482,36 @@ async def get_nearby_alerts(
             )
 
     return alerts
+
+async def request_citizen_data_deletion(
+    db: AsyncSession,
+    user: User,
+    reason: Optional[str] = None,
+    ip_address: Optional[str] = None,
+) -> PrivacyDeletionResponse:
+    """Persist citizen personal-data deletion request into the immutable audit trail."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    audit = AuditLog(
+        user_id=user.id,
+        actor_email=user.email,
+        action="DATA_DELETION_REQUEST",
+        target_entity="User",
+        target_id=str(user.id),
+        details={
+            "reason": reason or "Citizen requested personal data deletion",
+            "status": "queued",
+            "requestedAt": now_iso,
+        },
+        ip_address=ip_address,
+    )
+    db.add(audit)
+    await db.commit()
+    await db.refresh(audit)
+
+    return PrivacyDeletionResponse(
+        ok=True,
+        requestId=str(audit.id),
+        status="queued",
+        recordedAt=now_iso,
+        message="Deletion request logged for administrator review and compliance fulfillment.",
+    )

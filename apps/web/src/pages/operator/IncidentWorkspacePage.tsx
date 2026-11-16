@@ -1,28 +1,49 @@
 import { CommandShell } from "@/components/common/CommandShell";
 import { IncidentDetailSheet } from "@/features/operator/components/IncidentDetailSheet";
-import { mockApi } from "@/lib/mock-api";
+import { mockApi, type IncidentDetail } from "@/lib/mock-api";
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import type { Incident } from "@/types/incident";
 
 export function IncidentWorkspacePage() {
   const { id } = useParams();
-  const [incident, setIncident] = useState<Incident | null>(null);
+  const [detail, setDetail] = useState<IncidentDetail | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    mockApi.incidents().then((list) => {
-      const found = list.find((i) => i.id === id) ?? list[0] ?? null;
-      setIncident(found);
-    });
+    let active = true;
+    setLoading(true);
+    (async () => {
+      try {
+        if (id) {
+          const d = await mockApi.incidentDetail(id);
+          if (active && d) {
+            setDetail(d);
+            return;
+          }
+        }
+        const list = await mockApi.incidents();
+        if (active && list.length > 0) {
+          const fallbackDetail = await mockApi.incidentDetail(list[0].id);
+          if (active) setDetail(fallbackDetail);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   return (
-    <CommandShell mode="operator" title={`Incident ${incident?.publicCode || ""}`}>
-      <div className="max-w-xl rounded-3xl bg-white p-6 shadow-card">
-        {incident ? (
-          <IncidentDetailSheet incident={incident} />
-        ) : (
+    <CommandShell mode="operator" title={`Incident ${detail?.incident.publicCode || ""}`}>
+      <div className="max-w-2xl rounded-3xl bg-white p-6 shadow-card">
+        {loading ? (
           <p className="text-sm text-ink-700/50">Loading incident details...</p>
+        ) : detail ? (
+          <IncidentDetailSheet incident={detail.incident} detail={detail} />
+        ) : (
+          <p className="text-sm text-ink-700/50">Incident not found.</p>
         )}
       </div>
     </CommandShell>

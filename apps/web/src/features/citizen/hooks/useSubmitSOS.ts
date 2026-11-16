@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { submitReport } from "../api/submitReport";
-import { useOfflineSync } from "@/context/OfflineSyncContext";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { newId } from "@/lib/utils";
 import type { IncidentCategory } from "@/types/incident";
 import type { GeoPoint } from "@/types/common";
@@ -16,6 +16,7 @@ export function useSubmitSOS() {
       location: GeoPoint;
       locationLabel: string;
       channel: "sos" | "form" | "voice";
+      mediaAssetIds?: string[];
     }) => {
       const idempotencyKey = newId("idem");
       if (!online) {

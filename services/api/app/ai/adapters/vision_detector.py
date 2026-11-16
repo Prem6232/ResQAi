@@ -36,6 +36,17 @@ class VisionDetectorAdapter(BaseAIAdapter):
 
     async def _live_detection(self, s3_key: Optional[str], file_bytes: Optional[bytes]) -> VisionDetectionSchema:
         from app.core.config import settings
+        if settings.VISION_INFERENCE_URL:
+            import httpx
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                resp = await client.post(
+                    settings.VISION_INFERENCE_URL.rstrip("/") + "/detect",
+                    json={"s3_key": s3_key},
+                )
+                if resp.status_code == 200:
+                    return VisionDetectionSchema(**resp.json())
+                raise ValueError(f"Vision service responded with HTTP {resp.status_code}")
+
         if not settings.GEMINI_API_KEY:
             raise ValueError("Live vision engine credentials not configured")
         return self._mock_detection()

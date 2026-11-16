@@ -121,3 +121,14 @@ class ReportResponse(BaseModel):
     cancelledReason: Optional[str] = None
     cancelled_reason: Optional[str] = None
     synthetic: bool = True
+
+class PrivacyDeletionRequest(BaseModel):
+    reason: Optional[str] = Field(default="Citizen requested personal data deletion")
+
+class PrivacyDeletionResponse(BaseModel):
+    ok: bool = True
+    requestId: str
+    status: str = "queued"
+    recordedAt: str
+    message: str
+

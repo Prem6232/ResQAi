@@ -53,4 +53,4 @@ npm-debug.log*
 # Temporary directories
 new_repo/
 temp_repo/
-
+.playwright-cli/

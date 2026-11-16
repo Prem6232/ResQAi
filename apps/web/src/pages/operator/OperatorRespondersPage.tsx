@@ -4,9 +4,13 @@ import { useState, useEffect } from "react";
 import type { ResponderProfile } from "@/types/responder";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { Table, Td, Th } from "@/components/ui/table";
+import { LiveResponderMap } from "@/components/maps/LiveResponderMap";
+import { formatRelative } from "@/lib/utils";
+import { formatCoordinates } from "@/components/maps/liveResponderMapUtils";
 
 export function OperatorRespondersPage() {
   const [responders, setResponders] = useState<ResponderProfile[]>([]);
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     mockApi.responders().then(setResponders);
@@ -27,6 +31,16 @@ export function OperatorRespondersPage() {
         <Tile n={counts.busy} l="Busy" />
         <Tile n={counts.offline} l="Offline" />
       </div>
+      <div className="mb-5">
+        <LiveResponderMap
+          mode="control_room"
+          height={340}
+          responders={responders}
+          selectedResponderId={selectedId}
+          onSelectResponder={(r) => setSelectedId(r.id)}
+          onRespondersUpdated={setResponders}
+        />
+      </div>
       <div className="rounded-3xl bg-white p-4 shadow-card">
         <Table>
           <thead>
@@ -39,20 +53,41 @@ export function OperatorRespondersPage() {
             </tr>
           </thead>
           <tbody>
-            {responders.map((r) => (
-              <tr key={r.id} className="border-t">
-                <Td className="font-semibold">{r.unitCode}</Td>
-                <Td>{r.type.replaceAll("_", " ")}</Td>
-                <Td>
-                  <StatusIndicator
-                    label={r.status.replaceAll("_", " ")}
-                    tone={r.status === "available" ? "ok" : r.status === "busy" ? "warn" : "neutral"}
-                  />
-                </Td>
-                <Td>{r.lastLocation ? "Shared (authorized)" : "Hidden / stale"}</Td>
-                <Td>{r.currentJob ?? "None"}</Td>
-              </tr>
-            ))}
+            {responders.map((r) => {
+              const isSelected = selectedId === r.id;
+              return (
+                <tr
+                  key={r.id}
+                  onClick={() => setSelectedId(r.id)}
+                  className={`cursor-pointer border-t transition hover:bg-paper-50 ${
+                    isSelected ? "bg-command-50/70" : ""
+                  }`}
+                >
+                  <Td className="font-semibold">
+                    {r.unitCode}
+                    <span className="ml-2 text-xs font-normal text-ink-700/60">{r.displayName}</span>
+                  </Td>
+                  <Td>{r.type.replaceAll("_", " ")}</Td>
+                  <Td>
+                    <StatusIndicator
+                      label={r.status.replaceAll("_", " ")}
+                      tone={r.status === "available" ? "ok" : r.status === "busy" ? "warn" : "neutral"}
+                    />
+                  </Td>
+                  <Td>
+                    {r.lastLocation && r.shareLocation ? (
+                      <span className="text-xs text-ink-700/80">
+                        {formatCoordinates(r.lastLocation.lat, r.lastLocation.lng)}
+                        {r.lastLocationAt ? ` · ${formatRelative(r.lastLocationAt)}` : ""}
+                      </span>
+                    ) : (
+                      "Hidden / stale"
+                    )}
+                  </Td>
+                  <Td>{r.currentJob ?? "None"}</Td>
+                </tr>
+              );
+            })}
           </tbody>
         </Table>
       </div>

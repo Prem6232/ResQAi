@@ -21,9 +21,9 @@ export function MobileHeader({
           <p className="text-[11px] text-ink-700/50">{user?.campusName}</p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         {right}
-        <Badge className="bg-black/5 text-ink-700">{role}</Badge>
+        <Badge className="whitespace-nowrap bg-black/5 text-ink-700">{role}</Badge>
       </div>
     </header>
   );

@@ -25,7 +25,9 @@ from app.modules.responder.schemas import (
     LocationPingRequest,
     DutyUpdateRequest,
     DispatchRecommendation,
+    ResponderSelfProfileResponse,
 )
+from app.modules.realtime.publisher import broadcast_outbox_event
 
 logger = logging.getLogger("sentinelgrid.responder.service")
 
@@ -101,6 +103,33 @@ async def get_responder_profile_for_user(db: AsyncSession, user: User) -> Respon
     if not profile:
         raise NotFoundError("Responder profile not found for this account")
     return profile
+
+async def get_responder_self_profile(db: AsyncSession, user: User) -> ResponderSelfProfileResponse:
+    """Return full responder profile details (unit code, capabilities, duty state, last location)."""
+    profile = await get_responder_profile_for_user(db, user)
+    last_loc = None
+    if profile.last_known_location is not None:
+        lat, lng = extract_lat_lng(profile.last_known_location)
+        last_loc = {"lat": lat, "lng": lng, "source": "gps"}
+    last_ping_iso = (
+        profile.last_ping_at.replace(tzinfo=timezone.utc).isoformat()
+        if profile.last_ping_at
+        else None
+    )
+    return ResponderSelfProfileResponse(
+        id=str(profile.id),
+        userId=str(profile.user_id),
+        unitCode=profile.unit_code,
+        displayName=profile.display_name or user.full_name or profile.unit_code,
+        responderType=profile.responder_type,
+        capabilities=profile.capabilities or [],
+        isOnDuty=bool(profile.is_on_duty),
+        availabilityStatus=profile.availability_status,
+        shareLocation=bool(profile.share_location),
+        approved=bool(profile.is_approved),
+        lastLocation=last_loc,
+        lastPingAt=last_ping_iso,
+    )
 
 async def get_active_assignments_for_user(db: AsyncSession, user: User) -> List[AssignmentResponse]:
     """Return active assignments for authenticated responder, expiring timed out offers."""
@@ -437,11 +466,15 @@ async def ingest_responder_location_ping(
     lat: float,
     lng: float
 ) -> Dict[str, Any]:
-    """Update responder GPS location telemetry and recalculate active mission ETA."""
+    """Update responder GPS location telemetry, recalculate ETA, and broadcast responder.location."""
     profile = await get_responder_profile_for_user(db, user)
 
     profile.last_known_location = point_to_wkt(lat, lng)
     profile.last_ping_at = datetime.utcnow()
+
+    eta_min = None
+    dist_km = None
+    incident_id_str = None
 
     # Recalculate ETA for active en_route mission
     stmt = (
@@ -459,12 +492,42 @@ async def ingest_responder_location_ping(
         dist_km, eta_min = calculate_route(lat, lng, inc_lat, inc_lng)
         active_asg.distance_km = dist_km
         active_asg.eta_minutes = eta_min
+        incident_id_str = str(active_asg.incident_id)
+
+    outbox_ev = await create_outbox_event(
+        session=db,
+        aggregate_type="ResponderProfile",
+        aggregate_id=profile.id,
+        event_type="responder.location",
+        payload={
+            "responder_id": str(profile.id),
+            "responderId": str(profile.id),
+            "unit_code": profile.unit_code,
+            "unitCode": profile.unit_code,
+            "lat": lat,
+            "lng": lng,
+            "availability_status": profile.availability_status,
+            "availabilityStatus": profile.availability_status,
+            "eta_minutes": eta_min,
+            "etaMinutes": eta_min,
+            "distance_km": dist_km,
+            "incident_id": incident_id_str,
+        },
+    )
 
     await db.commit()
+
+    try:
+        await broadcast_outbox_event(outbox_ev)
+    except Exception as e:
+        logger.warning(f"Failed immediate broadcast for responder.location: {e}")
+
     return {
         "ok": True,
         "at": datetime.utcnow().replace(tzinfo=timezone.utc).isoformat(),
-        "point": {"lat": lat, "lng": lng, "source": "gps"}
+        "point": {"lat": lat, "lng": lng, "source": "gps"},
+        "etaMinutes": eta_min,
+        "distanceKm": dist_km,
     }
 
 async def append_assignment_notes(

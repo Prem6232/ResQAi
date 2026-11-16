@@ -1,18 +1,32 @@
 import { Polygon } from "react-leaflet";
-import { mapConfig } from "@/config/map.config";
+import { mockApi } from "@/lib/mock-api";
+import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useState } from "react";
+import { polygonLngLatToLatLng, syntheticCampusPolygon } from "./mapConstants";
 
-export const syntheticCampusPolygon: [number, number][] = [
-  [mapConfig.campusCenter.lat + 0.003, mapConfig.campusCenter.lng - 0.003],
-  [mapConfig.campusCenter.lat + 0.003, mapConfig.campusCenter.lng + 0.003],
-  [mapConfig.campusCenter.lat - 0.003, mapConfig.campusCenter.lng + 0.003],
-  [mapConfig.campusCenter.lat - 0.003, mapConfig.campusCenter.lng - 0.003],
-];
+export function PerimeterPolygon({ positions }: { positions?: [number, number][] }) {
+  const { user } = useAuth();
+  const [livePositions, setLivePositions] = useState<[number, number][] | null>(null);
 
-export function PerimeterPolygon() {
+  useEffect(() => {
+    if (positions || !user) return;
+    let active = true;
+    mockApi.getOperatingArea(user.activeRole).then((area) => {
+      if (!active || !area?.polygon?.length) return;
+      const latLngs = polygonLngLatToLatLng(area.polygon);
+      if (latLngs.length >= 3) {
+        setLivePositions(latLngs);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [positions, user]);
+
   return (
     <Polygon
-      positions={syntheticCampusPolygon}
-      pathOptions={{ color: "#0F8A7A", weight: 1, fillOpacity: 0.04 }}
+      positions={positions ?? livePositions ?? syntheticCampusPolygon}
+      pathOptions={{ color: "#0F8A7A", weight: 2, fillOpacity: 0.06 }}
     />
   );
 }

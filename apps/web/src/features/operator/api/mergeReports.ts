@@ -1,13 +1,11 @@
 import { http } from "@/lib/axios";
-import { apiConfig } from "@/config/api.config";
 
-export async function mergeReports(reportIds: string[], reason: string, targetIncidentId?: string) {
-  if (apiConfig.useMock || !targetIncidentId) {
-    return { reportIds, reason, preservedEvidence: true };
-  }
+export async function mergeReports(reportIds: string[], reason: string, targetIncidentId: string) {
   const res = await http.post("/operator/actions/merge", {
     targetIncidentId,
+    target_incident_id: targetIncidentId,
     reportIds,
+    report_ids: reportIds,
     reason: reason || "Reports merged by operator",
   });
   return res.data;

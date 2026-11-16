@@ -9,22 +9,39 @@ const colors: Record<string, string> = {
   other: "#64748B",
 };
 
-export function IncidentMarker({ incident }: { incident: Incident }) {
+export function IncidentMarker({
+  incident,
+  selected = false,
+  onSelect,
+}: {
+  incident: Incident;
+  selected?: boolean;
+  onSelect?: (incident: Incident) => void;
+}) {
   const lat = incident.hidePreciseLocationFromPublic
     ? incident.location.lat + 0.0008
     : incident.location.lat;
   const lng = incident.hidePreciseLocationFromPublic
     ? incident.location.lng - 0.0008
     : incident.location.lng;
+  const strokeColor = selected ? "#0F172A" : colors[incident.category] || "#64748B";
   return (
     <CircleMarker
       center={[lat, lng]}
-      radius={incident.urgency === "critical" ? 14 : 9}
+      radius={incident.urgency === "critical" ? (selected ? 16 : 14) : selected ? 12 : 9}
       pathOptions={{
-        color: colors[incident.category],
-        fillColor: colors[incident.category],
-        fillOpacity: 0.35,
+        color: strokeColor,
+        weight: selected ? 3.5 : 2,
+        fillColor: colors[incident.category] || "#64748B",
+        fillOpacity: selected ? 0.55 : 0.35,
       }}
+      eventHandlers={
+        onSelect
+          ? {
+              click: () => onSelect(incident),
+            }
+          : undefined
+      }
     >
       <Tooltip>
         {incident.hidePreciseLocationFromPublic

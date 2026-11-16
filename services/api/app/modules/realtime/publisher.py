@@ -67,14 +67,18 @@ def get_target_channels_for_event(event: OutboxEvent) -> Tuple[List[str], List[s
     internal_channels.append("operator:all")
     redis_channels.append("sentinelgrid:ws:operator")
 
-    # 2. Responders receive mission offers, updates, and telemetry
-    if event.event_type.startswith("assignment.") or "responder_id" in payload:
-        responder_id = payload.get("responder_id")
+    # 2. Responders receive mission offers, updates, and telemetry (never citizens)
+    if (
+        event.event_type == "responder.location"
+        or event.event_type.startswith("assignment.")
+        or "responder_id" in payload
+    ):
+        responder_id = payload.get("responder_id") or payload.get("responderId")
         if responder_id:
             resp_str = str(responder_id)
             internal_channels.append(f"responder:{resp_str}")
             redis_channels.append(f"sentinelgrid:ws:responder:{resp_str}")
-        else:
+        elif event.event_type != "responder.location":
             internal_channels.append("responder:all")
             redis_channels.append("sentinelgrid:ws:responder:all")
 
