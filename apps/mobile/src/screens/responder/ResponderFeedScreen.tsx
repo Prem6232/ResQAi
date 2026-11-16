@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   Switch,
 } from "react-native";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, SHADOWS } from "../../theme";
 import { ResponderJob } from "../../types";
+import { TacticalCampusMap, MapIncidentMarker, MapResponderMarker } from "../../components/map/TacticalCampusMap";
 
 interface ResponderFeedScreenProps {
   isOnDuty: boolean;
@@ -27,6 +29,57 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
   onAcceptJob,
   onDeclineJob,
 }) => {
+  const [secondsRemaining, setSecondsRemaining] = useState(88);
+
+  // 90-second response window countdown
+  useEffect(() => {
+    if (!featuredJob || featuredJob.status !== "offered") return;
+    setSecondsRemaining(88);
+    const interval = setInterval(() => {
+      setSecondsRemaining((s) => (s > 1 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [featuredJob?.id, featuredJob?.status]);
+
+  // Construct tactical map incident markers
+  const mapIncidents: MapIncidentMarker[] = [];
+  if (featuredJob && featuredJob.location) {
+    mapIncidents.push({
+      id: featuredJob.id,
+      title: featuredJob.title,
+      category: featuredJob.category,
+      urgency: featuredJob.urgency,
+      lat: featuredJob.location.lat,
+      lng: featuredJob.location.lng,
+      locationLabel: featuredJob.locationLabel,
+      distanceLabel: featuredJob.distance,
+      tone: "active",
+    });
+  } else if (featuredJob) {
+    mapIncidents.push({
+      id: featuredJob.id,
+      title: featuredJob.title,
+      category: featuredJob.category,
+      urgency: featuredJob.urgency,
+      lat: 28.5460,
+      lng: 77.2735,
+      locationLabel: featuredJob.locationLabel,
+      distanceLabel: featuredJob.distance,
+      tone: "active",
+    });
+  }
+
+  const mapResponders: MapResponderMarker[] = [
+    {
+      id: "resp-f2",
+      unitCode: "F-2",
+      displayName: "Unit F-2",
+      lat: 28.5455,
+      lng: 77.2735,
+      isOnDuty,
+    },
+  ];
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -35,12 +88,18 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
       >
         {/* On Duty Header Toggle */}
         <View style={styles.dutyCard}>
-          <View>
-            <Text style={styles.dutyTitle}>Responder Duty Mode</Text>
+          <View style={styles.dutyInfo}>
+            <View style={styles.dutyTitleRow}>
+              <View style={[styles.dutyStatusDot, { backgroundColor: isOnDuty ? "#10B981" : "#94A3B8" }]} />
+              <Text style={styles.dutyTitle}>Responder Duty State</Text>
+            </View>
             <Text style={styles.dutySubtitle}>
-              {isOnDuty ? "Broadcasting telemetry to dispatch" : "Off duty - no dispatch calls"}
+              {isOnDuty
+                ? "Broadcasting GPS telemetry to campus dispatch"
+                : "Off duty · No automatic dispatch calls assigned"}
             </Text>
           </View>
+
           <View style={styles.dutyToggleRow}>
             <Text
               style={[
@@ -54,18 +113,44 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
               value={isOnDuty}
               onValueChange={onToggleDuty}
               trackColor={{ false: "#CBD5E1", true: "#10B981" }}
-              thumbColor={"#FFFFFF"}
+              thumbColor="#FFFFFF"
             />
           </View>
         </View>
 
+        {/* Live Responder Tactical Proximity Map */}
+        <View style={styles.mapSectionHeader}>
+          <Text style={styles.sectionTitle}>Field Tactical Proximity</Text>
+          <View style={styles.gpsPill}>
+            <Feather name="navigation" size={12} color="#0284C7" />
+            <Text style={styles.gpsPillText}>Telemetry Active</Text>
+          </View>
+        </View>
+
+        <View style={styles.mapContainer}>
+          <TacticalCampusMap
+            height={220}
+            selfPoint={{ lat: 28.5455, lng: 77.2735 }}
+            incidents={mapIncidents}
+            responders={mapResponders}
+            showRoute={Boolean(featuredJob)}
+            targetIncident={mapIncidents[0] || null}
+          />
+        </View>
+
         <Text style={styles.sectionTitle}>Awaiting response</Text>
 
-        {/* Featured Job Card (From Reference Image 2 Screen 1) */}
+        {/* Featured Job Card */}
         {featuredJob && featuredJob.status === "offered" ? (
           <View style={styles.featuredCard}>
-            <View style={styles.featuredBadge}>
-              <Text style={styles.featuredBadgeText}>FEATURED JOB</Text>
+            <View style={styles.featuredHeader}>
+              <View style={styles.featuredBadge}>
+                <Text style={styles.featuredBadgeText}>DISPATCH OFFER</Text>
+              </View>
+              <View style={styles.countdownBadge}>
+                <Feather name="clock" size={12} color="#E11D48" />
+                <Text style={styles.countdownText}>{secondsRemaining}s to respond</Text>
+              </View>
             </View>
 
             <Text style={styles.jobTitle}>{featuredJob.title}</Text>
@@ -74,15 +159,22 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
             {/* Chips row: HIGH | 1.2 km | Est. 5 min */}
             <View style={styles.chipsRow}>
               <View style={[styles.chip, styles.chipUrgent]}>
-                <Text style={styles.chipUrgentText}>HIGH</Text>
+                <Text style={styles.chipUrgentText}>CRITICAL</Text>
               </View>
               <View style={styles.chip}>
                 <Text style={styles.chipText}>{featuredJob.distance}</Text>
               </View>
               <View style={styles.chip}>
-                <Text style={styles.chipText}>{featuredJob.eta}</Text>
+                <Text style={styles.chipText}>ETA ~ {featuredJob.eta}</Text>
               </View>
             </View>
+
+            {featuredJob.aiSummary && (
+              <View style={styles.aiTriageBox}>
+                <Text style={styles.aiTriageLabel}>AI TRIAGE ASSESSMENT</Text>
+                <Text style={styles.aiTriageText}>{featuredJob.aiSummary}</Text>
+              </View>
+            )}
 
             {/* Buttons: Decline | Accept */}
             <View style={styles.actionRow}>
@@ -98,35 +190,59 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
                 onPress={() => onAcceptJob(featuredJob)}
                 style={styles.acceptBtn}
               >
-                <Text style={styles.acceptBtnText}>ACCEPT</Text>
+                <Text style={styles.acceptBtnText}>Accept Mission</Text>
               </TouchableOpacity>
             </View>
           </View>
+        ) : featuredJob && (featuredJob.status === "accepted" || featuredJob.status === "en_route" || featuredJob.status === "arrived") ? (
+          <View style={styles.activeMissionCard}>
+            <View style={styles.activeMissionHeader}>
+              <View style={styles.activePill}>
+                <Text style={styles.activePillText}>ACTIVE EN ROUTE MISSION</Text>
+              </View>
+              <Text style={styles.activeEtaText}>{featuredJob.eta}</Text>
+            </View>
+            <Text style={styles.activeTitle}>{featuredJob.title}</Text>
+            <Text style={styles.activeLocation}>{featuredJob.locationLabel}</Text>
+            <Text style={styles.activeHint}>Switch to Active Navigation tab for live walkway routing.</Text>
+          </View>
         ) : (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No open offers right now.</Text>
-            <Text style={styles.emptySub}>All reported incidents are assigned or resolved.</Text>
+          <View style={styles.noJobCard}>
+            <Feather name="shield" size={28} color="#94A3B8" />
+            <Text style={styles.noJobTitle}>No Active Dispatch Offers</Text>
+            <Text style={styles.noJobSub}>
+              {isOnDuty
+                ? "Standing by on campus grid. You will be notified when an emergency occurs near your patrol zone."
+                : "You are currently marked off-duty. Toggle switch above to receive dispatch offers."}
+            </Text>
           </View>
         )}
 
-        {/* Past Resolved Incidents */}
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
-          Recent logs
+        {/* Resolved / Past Jobs */}
+        <Text style={[styles.sectionTitle, { marginTop: 22 }]}>
+          Completed missions
         </Text>
+
         <View style={styles.resolvedList}>
-          {resolvedJobs.map((job) => (
-            <View key={job.id} style={styles.resolvedCard}>
-              <View style={styles.resolvedInfo}>
-                <Text style={styles.resolvedTitle}>{job.title}</Text>
-                <Text style={styles.resolvedLocation}>
-                  {job.locationLabel} · {job.timeAgo}
-                </Text>
+          {resolvedJobs.length > 0 ? (
+            resolvedJobs.slice(0, 4).map((job) => (
+              <View key={job.id} style={styles.resolvedCard}>
+                <View style={styles.resolvedInfo}>
+                  <Text style={styles.resolvedTitle}>{job.title}</Text>
+                  <Text style={styles.resolvedMeta}>
+                    {job.locationLabel} · {job.distance}
+                  </Text>
+                </View>
+                <View style={styles.resolvedBadge}>
+                  <Text style={styles.resolvedBadgeText}>COMPLETED</Text>
+                </View>
               </View>
-              <View style={styles.resolvedPill}>
-                <Text style={styles.resolvedPillText}>Resolved</Text>
-              </View>
+            ))
+          ) : (
+            <View style={styles.emptyPastJobs}>
+              <Text style={styles.emptyPastText}>No past missions completed in this session.</Text>
             </View>
-          ))}
+          )}
         </View>
       </ScrollView>
     </View>
@@ -139,189 +255,318 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 40,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 28,
   },
   dutyCard: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: COLORS.surface,
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     padding: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: COLORS.borderSubtle,
-    marginBottom: 20,
+    borderRadius: 16,
+    marginBottom: 14,
     ...SHADOWS.card,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  dutyInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  dutyTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  dutyStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
   },
   dutyTitle: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "800",
     color: COLORS.textPrimary,
   },
   dutySubtitle: {
     fontSize: 11,
-    color: COLORS.textSecondary,
+    color: "#64748B",
     marginTop: 2,
   },
   dutyToggleRow: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 8,
   },
   dutyStatusText: {
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: COLORS.textPrimary,
-    letterSpacing: -0.4,
-    marginBottom: 14,
-  },
-  featuredCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1.5,
-    borderColor: "#FCD34D",
-    ...SHADOWS.cardHover,
-  },
-  featuredBadge: {
-    backgroundColor: "#FEF3C7",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: "flex-start",
-    marginBottom: 10,
-  },
-  featuredBadgeText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#B45309",
-    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  mapSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.textPrimary,
+  },
+  gpsPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  gpsPillText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#0284C7",
+  },
+  mapContainer: {
+    marginBottom: 16,
+  },
+  featuredCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 16,
+    marginTop: 8,
+    borderWidth: 1.5,
+    borderColor: COLORS.sosPrimary,
+    ...SHADOWS.cardHover,
+  },
+  featuredHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  featuredBadge: {
+    backgroundColor: "#FEE2E2",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  featuredBadgeText: {
+    color: "#E11D48",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  countdownBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFF1F2",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  countdownText: {
+    color: "#E11D48",
+    fontSize: 11,
+    fontWeight: "700",
   },
   jobTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "800",
     color: COLORS.textPrimary,
   },
   jobLocation: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-    marginBottom: 14,
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+    marginBottom: 12,
   },
   chipsRow: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 18,
+    marginBottom: 12,
   },
   chip: {
-    backgroundColor: COLORS.surfaceSubtle,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 8,
-  },
-  chipText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.textSecondary,
   },
   chipUrgent: {
     backgroundColor: "#FEE2E2",
   },
   chipUrgentText: {
-    fontSize: 12,
+    color: "#B91C1C",
+    fontSize: 10,
     fontWeight: "800",
-    color: "#DC2626",
+  },
+  chipText: {
+    color: "#475569",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  aiTriageBox: {
+    backgroundColor: "#F8FAFC",
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  aiTriageLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#64748B",
+    marginBottom: 2,
+  },
+  aiTriageText: {
+    fontSize: 11,
+    color: "#334155",
   },
   actionRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
   },
   declineBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
     backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: "center",
   },
   declineBtnText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#64748B",
   },
   acceptBtn: {
-    flex: 1.5,
-    paddingVertical: 12,
+    flex: 2,
+    backgroundColor: COLORS.dutyPrimary,
     borderRadius: 12,
-    backgroundColor: "#059669",
+    paddingVertical: 12,
     alignItems: "center",
-    ...SHADOWS.card,
   },
   acceptBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: 0.5,
   },
-  emptyCard: {
-    backgroundColor: COLORS.surface,
-    padding: 24,
+  activeMissionCard: {
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
-    alignItems: "center",
+    padding: 16,
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: COLORS.borderSubtle,
+    borderColor: "#0284C7",
+    ...SHADOWS.card,
   },
-  emptyText: {
-    fontSize: 15,
+  activeMissionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  activePill: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  activePillText: {
+    color: "#0284C7",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  activeEtaText: {
+    fontSize: 12,
     fontWeight: "700",
+    color: "#0284C7",
+  },
+  activeTitle: {
+    fontSize: 16,
+    fontWeight: "800",
     color: COLORS.textPrimary,
   },
-  emptySub: {
+  activeLocation: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  activeHint: {
+    fontSize: 11,
+    color: "#0284C7",
+    marginTop: 8,
+    fontWeight: "500",
+  },
+  noJobCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 24,
+    alignItems: "center",
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  noJobTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginTop: 8,
+  },
+  noJobSub: {
+    fontSize: 11,
+    color: "#64748B",
+    textAlign: "center",
     marginTop: 4,
+    paddingHorizontal: 12,
   },
   resolvedList: {
-    gap: 10,
+    gap: 8,
+    marginTop: 8,
   },
   resolvedCard: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: COLORS.surface,
-    padding: 14,
-    borderRadius: 16,
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: COLORS.borderSubtle,
-    ...SHADOWS.card,
+    borderColor: "#E2E8F0",
   },
   resolvedInfo: {
     flex: 1,
   },
   resolvedTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: COLORS.textPrimary,
   },
-  resolvedLocation: {
-    fontSize: 12,
-    color: COLORS.textMuted,
+  resolvedMeta: {
+    fontSize: 11,
+    color: "#64748B",
     marginTop: 2,
   },
-  resolvedPill: {
+  resolvedBadge: {
     backgroundColor: "#ECFDF5",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 8,
   },
-  resolvedPillText: {
-    color: "#059669",
-    fontSize: 11,
+  resolvedBadgeText: {
+    fontSize: 9,
     fontWeight: "700",
+    color: "#059669",
+  },
+  emptyPastJobs: {
+    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  emptyPastText: {
+    fontSize: 12,
+    color: "#94A3B8",
   },
 });

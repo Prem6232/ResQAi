@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
-import { COLORS } from "../../theme";
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from "react-native";
+import { COLORS, SHADOWS } from "../../theme";
 import { SOSRadarButton } from "../../components/radar/SOSRadarButton";
 import { CategoryCard } from "../../components/cards/CategoryCard";
+import { TacticalCampusMap } from "../../components/map/TacticalCampusMap";
 import { ReportWizardModal } from "../../components/modals/ReportWizardModal";
 import { IncidentCategory } from "../../types";
 import { mobileApi } from "../../services/api";
+import { Feather } from "@expo/vector-icons";
 
 interface CitizenHomeScreenProps {
   onReportCreated: (report: any) => void;
@@ -18,6 +20,7 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
 }) => {
   const [wizardVisible, setWizardVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<IncidentCategory>("fire_smoke");
+  const [sosSending, setSosSending] = useState(false);
 
   const handleOpenWizard = (category: IncidentCategory) => {
     setSelectedCategory(category);
@@ -25,9 +28,20 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
   };
 
   const handleSOSTriggered = async () => {
+    if (sosSending) return;
+    setSosSending(true);
+
     try {
       const sosResult = await mobileApi.triggerSOS({ lat: 28.5452, lng: 77.2731 });
       onReportCreated(sosResult);
+      Alert.alert(
+        "🚨 SOS SIGNAL BROADCASTED",
+        "Your emergency beacon and live location have been instantly transmitted to Campus Security, Medical Teams, and your 3 Trusted Contacts.",
+        [
+          { text: "View My Report Status", onPress: onNavigateToReports },
+          { text: "Dismiss", style: "cancel" },
+        ]
+      );
     } catch (e) {
       console.warn("Failed to trigger SOS on backend, using fallback:", e);
       const sosReport = {
@@ -35,22 +49,16 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
         title: "CRITICAL PERSONAL SOS",
         text: "Automatic emergency SOS signal broadcast with real-time GPS telemetry.",
         locationLabel: "Main Quadrangle · Coordinates Broadcasted",
-        voiceTranscript: undefined,
       };
       onReportCreated(sosReport);
+      Alert.alert(
+        "🚨 SOS SIGNAL DISPATCHED (OFFLINE QUEUE)",
+        "Emergency beacon queued locally and transmitting to security desk.",
+        [{ text: "OK", onPress: onNavigateToReports }]
+      );
+    } finally {
+      setSosSending(false);
     }
-
-    Alert.alert(
-      "🚨 SOS SIGNAL DISPATCHED",
-      "Your emergency beacon and live location have been sent to Campus Security, Campus Medical Team, and your 3 Trusted Contacts.",
-      [
-        {
-          text: "View My Report Status",
-          onPress: onNavigateToReports,
-        },
-        { text: "Dismiss", style: "cancel" },
-      ]
-    );
   };
 
   return (
@@ -59,8 +67,34 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* Campus Pilot Grid Status Strip */}
+        <View style={styles.gridStatusStrip}>
+          <View style={styles.statusPill}>
+            <View style={styles.pulseGreenDot} />
+            <Text style={styles.statusPillText}>Campus Safety Grid · Live</Text>
+          </View>
+          <Text style={styles.geofenceText}>Northridge Geofenced</Text>
+        </View>
+
         {/* Animated Concentric SOS Push Radar */}
         <SOSRadarButton onSOSTriggered={handleSOSTriggered} />
+
+        {/* Live Campus Map Overview */}
+        <View style={styles.mapSectionHeader}>
+          <Text style={styles.sectionHeading}>Campus Tactical Overview</Text>
+          <View style={styles.safeZoneBadge}>
+            <Feather name="shield" size={12} color="#059669" />
+            <Text style={styles.safeZoneText}>All Muster Points Open</Text>
+          </View>
+        </View>
+
+        <View style={styles.mapCard}>
+          <TacticalCampusMap
+            height={200}
+            selfPoint={{ lat: 28.5455, lng: 77.2735 }}
+            interactive={true}
+          />
+        </View>
 
         {/* Section Heading */}
         <Text style={styles.sectionHeading}>Report incident</Text>
@@ -107,6 +141,10 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
             onPress={() => handleOpenWizard("hazard")}
           />
         </View>
+
+        <View style={styles.footerNote}>
+          <Text style={styles.footerText}>ResQAi Emergency Coordination Platform · Campus Pilot</Text>
+        </View>
       </ScrollView>
 
       {/* Report Creation Wizard Modal */}
@@ -131,17 +169,80 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 24,
+    paddingBottom: 28,
+  },
+  gridStatusStrip: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  pulseGreenDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#16A34A",
+    marginRight: 6,
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#15803D",
+  },
+  geofenceText: {
+    fontSize: 11,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  mapSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 16,
+    marginBottom: 10,
   },
   sectionHeading: {
     fontSize: 15,
     fontWeight: "700",
     color: COLORS.textPrimary,
-    marginTop: 18,
-    marginBottom: 12,
+  },
+  safeZoneBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F0FDF4",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#DCFCE7",
+  },
+  safeZoneText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#16A34A",
+  },
+  mapCard: {
+    marginBottom: 16,
   },
   gridRow: {
     flexDirection: "row",
     marginBottom: 12,
+  },
+  footerNote: {
+    alignItems: "center",
+    marginTop: 12,
+  },
+  footerText: {
+    fontSize: 11,
+    color: "#94A3B8",
   },
 });

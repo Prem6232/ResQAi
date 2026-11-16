@@ -39,7 +39,7 @@ export default function App() {
   const [role, setRole] = useState<Role>("citizen");
   const [citizenTab, setCitizenTab] = useState<CitizenTab>("home");
   const [responderTab, setResponderTab] = useState<ResponderTab>("feed");
-  
+
   const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [reportWizardVisible, setReportWizardVisible] = useState(false);
 
@@ -50,18 +50,18 @@ export default function App() {
   const [featuredJob, setFeaturedJob] = useState<ResponderJob | null>(null);
   const [resolvedJobs, setResolvedJobs] = useState<ResponderJob[]>([]);
   const [responderProfile, setResponderProfile] = useState<ResponderProfile>({
-    unitCode: "RESQ-DELTA-01",
-    unitName: "Delta Quick Response",
-    station: "Central Campus Post",
+    unitCode: "F-2",
+    unitName: "Fire Unit F-2",
+    station: "Northridge Central Station",
     crewCount: 4,
     isOnDuty: true,
     availability: "available",
-    skills: ["First Aid", "Fire Containment", "HazMat Triage"],
+    skills: ["First Aid", "Firefighting", "Rescue Operations"],
     shareLiveLocation: true,
     alertSound: true,
-    todayJobsCount: 3,
-    avgArrivalMinutes: 4.2,
-    acceptanceRatePct: 96,
+    todayJobsCount: 4,
+    avgArrivalMinutes: 3.5,
+    acceptanceRatePct: 98,
   });
 
   // Initialize and synchronize with FastAPI backend
@@ -76,17 +76,25 @@ export default function App() {
         if (role === "citizen") {
           const [fetchedReports, fetchedAlerts, fetchedContacts] = await Promise.all([
             mobileApi.getCitizenReports(),
-            mobileApi.getNearbyAlerts(),
+            mobileApi.getNearbyAlerts({ lat: 28.5452, lng: 77.2731 }),
             mobileApi.getContacts(),
           ]);
           if (fetchedReports.length) setReports(fetchedReports);
           if (fetchedAlerts.length) setAlerts(fetchedAlerts);
           if (fetchedContacts.length) setContacts(fetchedContacts);
         } else if (role === "responder") {
-          const assignments = await mobileApi.getResponderAssignments();
+          const [assignments, history, prof] = await Promise.all([
+            mobileApi.getResponderAssignments(),
+            mobileApi.getResponderHistory(),
+            mobileApi.getResponderProfile(),
+          ]);
+
+          if (prof) setResponderProfile(prof);
           if (assignments.length) {
             setFeaturedJob(assignments[0]);
-            setResolvedJobs(assignments.slice(1));
+            setResolvedJobs(assignments.slice(1).concat(history));
+          } else if (history.length) {
+            setResolvedJobs(history);
           }
         }
 
@@ -94,6 +102,7 @@ export default function App() {
           console.log("Realtime event received on mobile:", event);
           if (role === "citizen") {
             mobileApi.getCitizenReports().then((r) => r.length && setReports(r));
+            mobileApi.getNearbyAlerts().then((a) => a.length && setAlerts(a));
           } else if (role === "responder") {
             mobileApi.getResponderAssignments().then((a) => {
               if (a.length) {
@@ -115,7 +124,7 @@ export default function App() {
     };
   }, [role]);
 
-  // New Citizen Report handler with backend persistence
+  // Citizen Report Creation handler
   const handleCreateReport = async (newRep: {
     category: IncidentCategory;
     title: string;
@@ -146,6 +155,31 @@ export default function App() {
         voiceTranscript: newRep.voiceTranscript,
       };
       setReports((prev) => [reportItem, ...prev]);
+    }
+  };
+
+  // Contact Handlers
+  const handleAddContact = async (contactInput: { name: string; phone: string; relation: string }) => {
+    const saved = await mobileApi.addContact(contactInput);
+    setContacts((prev) => [saved, ...prev]);
+  };
+
+  const handleDeleteContact = async (id: string) => {
+    await mobileApi.deleteContact(id);
+    setContacts((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  // Duty Toggle Handler
+  const handleToggleDuty = async (val: boolean) => {
+    setResponderProfile((prev) => ({
+      ...prev,
+      isOnDuty: val,
+      availability: val ? "available" : "off_duty",
+    }));
+    try {
+      await mobileApi.updateDuty(val, val ? "available" : "off_duty");
+    } catch (e) {
+      console.warn("Duty toggle warning", e);
     }
   };
 
@@ -188,6 +222,15 @@ export default function App() {
     }
   };
 
+  // Responder Mission Completed
+  const handleMarkCompleted = async () => {
+    if (featuredJob) {
+      setResolvedJobs((prev) => [{ ...featuredJob, status: "completed" }, ...prev]);
+      setFeaturedJob(null);
+      setResponderTab("feed");
+    }
+  };
+
   // Operator Verify & Dispatch
   const handleVerifyAndDispatch = () => {
     console.log("Verified & Dispatched from Control Room");
@@ -216,7 +259,8 @@ export default function App() {
           return (
             <CitizenContactsScreen
               contacts={contacts}
-              onAddContact={(c) => setContacts([c, ...contacts])}
+              onAddContact={handleAddContact}
+              onDeleteContact={handleDeleteContact}
             />
           );
       }
@@ -226,9 +270,7 @@ export default function App() {
           return (
             <ResponderFeedScreen
               isOnDuty={responderProfile.isOnDuty}
-              onToggleDuty={(val) =>
-                setResponderProfile({ ...responderProfile, isOnDuty: val })
-              }
+              onToggleDuty={handleToggleDuty}
               featuredJob={featuredJob}
               resolvedJobs={resolvedJobs}
               onAcceptJob={handleAcceptJob}
@@ -240,6 +282,7 @@ export default function App() {
             <ResponderActiveNavScreen
               activeJob={featuredJob}
               onMarkArrived={handleMarkArrived}
+              onMarkCompleted={handleMarkCompleted}
             />
           );
         case "history":

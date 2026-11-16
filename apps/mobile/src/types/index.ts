@@ -6,7 +6,9 @@ export type IncidentCategory =
   | "water_flood"
   | "medical"
   | "personal_sos"
-  | "hazard";
+  | "personal_safety"
+  | "hazard"
+  | "other";
 
 export type IncidentUrgency = "low" | "medium" | "high" | "critical";
 
@@ -18,6 +20,11 @@ export type ReportStatus =
   | "on_scene"
   | "resolved"
   | "false_alarm";
+
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+}
 
 export interface TrustedContact {
   id: string;
@@ -39,6 +46,8 @@ export interface NearbyAlert {
   status: "active" | "responders_on_scene" | "in_review";
   badgeText: string;
   coordinate: { x: number; y: number }; // Relative 0..100 in radar grid
+  location?: GeoPoint;
+  tone?: "active" | "caution" | "resolved";
   urgency: IncidentUrgency;
   createdAt: string;
 }
@@ -53,6 +62,7 @@ export interface CitizenReport {
   currentStep: number; // 1: Received, 2: Verified, 3: Dispatched, 4: Resolved
   stepDetails?: string;
   locationLabel: string;
+  location?: GeoPoint;
   mediaUri?: string;
   voiceTranscript?: string;
 }
@@ -60,15 +70,20 @@ export interface CitizenReport {
 export interface ResponderJob {
   id: string;
   incidentNumber: number;
+  incidentId?: string;
   title: string;
   category: IncidentCategory;
   urgency: IncidentUrgency;
   locationLabel: string;
+  location?: GeoPoint;
   distance: string;
+  distanceKm?: number;
   eta: string;
+  etaMinutes?: number;
   timeAgo: string;
   status: "offered" | "accepted" | "en_route" | "arrived" | "completed" | "declined";
   aiSummary?: string;
+  routeNote?: string;
 }
 
 export interface ResponderProfile {
@@ -84,15 +99,60 @@ export interface ResponderProfile {
   todayJobsCount: number;
   avgArrivalMinutes: number;
   acceptanceRatePct: number;
+  lastLocation?: GeoPoint;
+}
+
+export interface CampusBuilding {
+  id: string;
+  name: string;
+  code: string;
+  lat: number;
+  lng: number;
+  type: "academic" | "library" | "hostel" | "medical" | "admin" | "sports" | "gate";
+}
+
+export interface MapIncidentItem {
+  id: string;
+  title: string;
+  category: IncidentCategory;
+  urgency: IncidentUrgency;
+  location: GeoPoint;
+  locationLabel: string;
+  status: string;
+  tone?: "active" | "caution" | "resolved";
+  distanceKm?: number;
+  etaMinutes?: number;
+}
+
+export interface MapResponderItem {
+  id: string;
+  unitCode: string;
+  displayName: string;
+  responderType: string;
+  isOnDuty: boolean;
+  availabilityStatus: "available" | "busy" | "off_duty";
+  location: GeoPoint;
+}
+
+export interface OperatorKPISummary {
+  totalIncidents: number;
+  activeIncidents: number;
+  resolvedIncidents: number;
+  openReportsCount: number;
+  activeRespondersCount: number;
+  avgArrivalTimeMinutes: number;
+  avgResponseTimeSeconds: number;
+  falseAlarmRate: number;
+  syntheticDrillMode: boolean;
 }
 
 // -------------------------------------------------------------
-// ML Model Input / Output Specifications (Where real models connect)
+// ML Model Input / Output Specifications
 // -------------------------------------------------------------
 export interface MLTextClassificationOutput {
   suggestedCategory: IncidentCategory;
   suggestedUrgency: IncidentUrgency;
-  modelConfidence: number; // 0.0 - 1.0
+  modelConfidence: number;
   extractedLocation?: string;
   explanation: string;
 }

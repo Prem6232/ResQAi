@@ -4,8 +4,13 @@ import {
   NearbyAlert,
   TrustedContact,
   ResponderJob,
+  ResponderProfile,
   IncidentCategory,
   Role,
+  OperatorKPISummary,
+  MapIncidentItem,
+  MapResponderItem,
+  GeoPoint,
 } from "../types";
 
 let currentAccessToken: string | null = null;
@@ -18,6 +23,10 @@ export const mobileApi = {
 
   setAccessToken(token: string | null) {
     currentAccessToken = token;
+  },
+
+  getRole(): Role {
+    return currentRole;
   },
 
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -33,7 +42,7 @@ export const mobileApi = {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), 12000);
 
     try {
       const response = await fetch(url, {
@@ -63,7 +72,7 @@ export const mobileApi = {
         database: res.database,
         postgis: res.postgis_version,
       };
-    } catch (e) {
+    } catch {
       return { connected: false, status: "offline" };
     }
   },
@@ -85,24 +94,46 @@ export const mobileApi = {
     return { accessToken: token, user: res.user };
   },
 
+  async getMe(): Promise<any> {
+    return this.request("/auth/me");
+  },
+
   // 3. Citizen Reports
   async getCitizenReports(): Promise<CitizenReport[]> {
     try {
       const rawList = await this.request<any[]>("/citizen/reports");
-      return rawList.map((item) => ({
-        id: item.id,
-        title: item.text?.slice(0, 40) || `Incident #${item.id.slice(0, 6)}`,
-        category: (item.category as IncidentCategory) || "hazard",
-        timestamp: new Date(item.created_at || item.createdAt || Date.now()).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        status: item.delivery_state === "cancelled" ? "false_alarm" : (item.processing_state as any) || "in_review",
-        statusLabel: item.delivery_state || item.processing_state || "In review",
-        currentStep: item.delivery_state === "delivered" ? 3 : 2,
-        stepDetails: item.text,
-        locationLabel: item.location_label || item.locationLabel || "Campus Quad",
-      }));
+      return (rawList || []).map((item) => {
+        let lat = 28.5452;
+        let lng = 77.2731;
+        if (item.location) {
+          lat = typeof item.location.lat === "number" ? item.location.lat : lat;
+          lng = typeof item.location.lng === "number" ? item.location.lng : lng;
+        }
+
+        const isResolved = item.delivery_state === "delivered" || item.processing_state === "resolved";
+        const isDispatched = item.processing_state === "verified" || item.processing_state === "dispatched";
+
+        let currentStep = 1;
+        if (isResolved) currentStep = 4;
+        else if (isDispatched) currentStep = 3;
+        else if (item.processing_state === "in_review" || item.processing_state === "triaged") currentStep = 2;
+
+        return {
+          id: item.id,
+          title: item.text?.slice(0, 48) || `Incident #${item.id.slice(0, 6)}`,
+          category: (item.category as IncidentCategory) || "hazard",
+          timestamp: new Date(item.created_at || item.createdAt || Date.now()).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          status: item.delivery_state === "cancelled" ? "false_alarm" : (item.processing_state as any) || "in_review",
+          statusLabel: item.delivery_state || item.processing_state || "In review",
+          currentStep,
+          stepDetails: item.text || "Report logged in PostGIS grid.",
+          locationLabel: item.location_label || item.locationLabel || "Campus Quadrangle",
+          location: { lat, lng },
+        };
+      });
     } catch (e) {
       console.warn("Failed to fetch citizen reports from backend", e);
       return [];
@@ -150,6 +181,7 @@ export const mobileApi = {
       currentStep: 2,
       stepDetails: "Persisted in PostgreSQL PostGIS, queued for operator triage.",
       locationLabel: input.locationLabel,
+      location: { lat, lng },
     };
   },
 
@@ -184,27 +216,42 @@ export const mobileApi = {
       currentStep: 3,
       stepDetails: "Critical alert broadcasted to Security & Medical teams.",
       locationLabel: "Main Quadrangle · Coordinates Broadcasted",
+      location: { lat, lng },
     };
   },
 
   // 4. Nearby Alerts
-  async getNearbyAlerts(): Promise<NearbyAlert[]> {
+  async getNearbyAlerts(coords?: { lat: number; lng: number }): Promise<NearbyAlert[]> {
+    const lat = coords?.lat ?? 28.5452;
+    const lng = coords?.lng ?? 77.2731;
+
     try {
-      const list = await this.request<any[]>("/citizen/alerts");
-      return list.map((item, idx) => ({
-        id: item.id || `alert_${idx}`,
-        title: item.title || "Campus Advisory",
-        category: (item.category as IncidentCategory) || "hazard",
-        distance: item.distance_label || item.distanceLabel || "300m away",
-        distanceMeters: 300,
-        locationLabel: item.location_label || item.locationLabel || "Campus Ground",
-        description: item.status_label || item.statusLabel || "Active monitoring in progress",
-        status: item.tone === "active" ? "active" : "in_review",
-        badgeText: item.tone?.toUpperCase() || "ACTIVE",
-        coordinate: { x: 50 + (idx * 15) % 40, y: 50 + (idx * 20) % 40 },
-        urgency: "high",
-        createdAt: "Active",
-      }));
+      const list = await this.request<any[]>(`/citizen/alerts/nearby?lat=${lat}&lng=${lng}`);
+      return (list || []).map((item, idx) => {
+        let alertLat = lat + ((idx % 3) - 1) * 0.0015;
+        let alertLng = lng + ((idx % 2) - 0.5) * 0.002;
+        if (item.location && typeof item.location.lat === "number") {
+          alertLat = item.location.lat;
+          alertLng = item.location.lng;
+        }
+
+        return {
+          id: item.id || `alert_${idx}`,
+          title: item.title || "Campus Safety Notice",
+          category: (item.category as IncidentCategory) || "hazard",
+          distance: item.distance_label || item.distanceLabel || "150m away",
+          distanceMeters: 150,
+          locationLabel: item.location_label || item.locationLabel || "Campus Perimeter",
+          description: item.status_label || item.statusLabel || "Active monitoring in progress",
+          status: item.tone === "active" ? "active" : "in_review",
+          badgeText: item.tone?.toUpperCase() || (item.status ? String(item.status).toUpperCase() : "ACTIVE"),
+          coordinate: { x: 50 + ((idx * 15) % 40), y: 50 + ((idx * 20) % 40) },
+          location: { lat: alertLat, lng: alertLng },
+          tone: item.tone || "active",
+          urgency: item.tone === "active" ? "high" : "medium",
+          createdAt: "Active",
+        };
+      });
     } catch (e) {
       console.warn("Failed to fetch alerts from backend", e);
       return [];
@@ -215,10 +262,10 @@ export const mobileApi = {
   async getContacts(): Promise<TrustedContact[]> {
     try {
       const list = await this.request<any[]>("/citizen/contacts");
-      return list.map((c) => ({
+      return (list || []).map((c) => ({
         id: c.id,
         name: c.name,
-        initials: c.name.slice(0, 2).toUpperCase(),
+        initials: (c.name || "EC").slice(0, 2).toUpperCase(),
         relation: c.relationship_label || c.relationshipLabel || "Emergency Contact",
         phone: c.phone,
         status: c.is_active ? "active" : "pending",
@@ -249,25 +296,117 @@ export const mobileApi = {
     };
   },
 
-  // 6. Responder Assignments
+  async deleteContact(id: string): Promise<void> {
+    await this.request(`/citizen/contacts/${id}`, { method: "DELETE" });
+  },
+
+  // 6. Responder Endpoints
+  async getResponderProfile(): Promise<ResponderProfile | null> {
+    try {
+      const p = await this.request<any>("/responder/profile");
+      let lastLoc: GeoPoint | undefined;
+      if (p.lastLocation) {
+        lastLoc = {
+          lat: Number(p.lastLocation.lat || 28.5455),
+          lng: Number(p.lastLocation.lng || 77.2735),
+        };
+      }
+      return {
+        unitCode: p.unitCode || "F-2",
+        unitName: p.displayName || `Unit ${p.unitCode}`,
+        station: "Northridge Central Station",
+        crewCount: 4,
+        isOnDuty: Boolean(p.isOnDuty),
+        availability: p.availabilityStatus || "available",
+        skills: p.capabilities || ["first_aid", "firefighting", "rescue"],
+        shareLiveLocation: Boolean(p.shareLocation),
+        alertSound: true,
+        todayJobsCount: 4,
+        avgArrivalMinutes: 3.5,
+        acceptanceRatePct: 98,
+        lastLocation: lastLoc,
+      };
+    } catch (e) {
+      console.warn("Failed to fetch responder profile", e);
+      return null;
+    }
+  },
+
+  async updateDuty(isOnDuty: boolean, availabilityStatus: string = "available"): Promise<any> {
+    return this.request("/responder/duty", {
+      method: "PATCH",
+      body: JSON.stringify({
+        isOnDuty,
+        availabilityStatus: isOnDuty ? availabilityStatus : "off_duty",
+      }),
+    });
+  },
+
+  async sendLocationPing(lat: number, lng: number): Promise<any> {
+    return this.request("/responder/location", {
+      method: "POST",
+      body: JSON.stringify({ lat, lng, source: "gps" }),
+    });
+  },
+
   async getResponderAssignments(): Promise<ResponderJob[]> {
     try {
       const list = await this.request<any[]>("/responder/assignments");
-      return list.map((a, idx) => ({
-        id: a.id,
-        incidentNumber: idx + 101,
-        title: a.incident_title || a.incidentTitle || `Assignment #${a.id.slice(0, 6)}`,
-        category: (a.category as IncidentCategory) || "fire_smoke",
-        urgency: (a.urgency as any) || "high",
-        locationLabel: a.location_label || a.locationLabel || "North Campus Block C",
-        distance: "450m",
-        eta: "3 mins",
-        timeAgo: "Live dispatch",
-        status: a.status || "offered",
-        aiSummary: a.notes || "Immediate field response requested.",
-      }));
+      return (list || []).map((a, idx) => {
+        const inc = a.incident || {};
+        let loc: GeoPoint | undefined;
+        if (inc.location && typeof inc.location.lat === "number") {
+          loc = { lat: inc.location.lat, lng: inc.location.lng };
+        }
+
+        const distKm = a.distanceKm ?? a.distance_km ?? 0.45;
+        const etaMin = a.etaMinutes ?? a.eta_minutes ?? 3;
+
+        return {
+          id: a.id,
+          incidentNumber: idx + 101,
+          incidentId: a.incidentId || a.incident_id,
+          title: inc.title || a.incidentTitle || `Assignment #${a.id.slice(0, 6)}`,
+          category: (inc.category as IncidentCategory) || "fire_smoke",
+          urgency: (inc.urgency as any) || "high",
+          locationLabel: inc.locationLabel || inc.location_label || "North Campus Block C",
+          location: loc,
+          distance: `${distKm.toFixed(1)} km`,
+          distanceKm: distKm,
+          eta: `${etaMin} min`,
+          etaMinutes: etaMin,
+          timeAgo: "Live dispatch",
+          status: a.status || "offered",
+          aiSummary: a.routeNote || a.notes || "Immediate field response requested.",
+          routeNote: a.routeNote,
+        };
+      });
     } catch (e) {
       console.warn("Failed to fetch responder assignments", e);
+      return [];
+    }
+  },
+
+  async getResponderHistory(): Promise<ResponderJob[]> {
+    try {
+      const list = await this.request<any[]>("/responder/history");
+      return (list || []).map((a, idx) => {
+        const inc = a.incident || {};
+        return {
+          id: a.id,
+          incidentNumber: idx + 201,
+          incidentId: a.incidentId || a.incident_id,
+          title: inc.title || `Mission #${a.id.slice(0, 6)}`,
+          category: (inc.category as IncidentCategory) || "hazard",
+          urgency: (inc.urgency as any) || "medium",
+          locationLabel: inc.locationLabel || "Campus Zone",
+          distance: `${(a.distanceKm || 0.8).toFixed(1)} km`,
+          eta: "Resolved",
+          timeAgo: "Completed",
+          status: a.status || "completed",
+        };
+      });
+    } catch {
       return [];
     }
   },
@@ -275,24 +414,120 @@ export const mobileApi = {
   async respondToOffer(assignmentId: string, accept: boolean): Promise<any> {
     return this.request(`/responder/offers/${assignmentId}/respond`, {
       method: "POST",
-      body: JSON.stringify({ accept, reason: accept ? "Accepted by mobile responder" : "Declined by mobile responder" }),
-    });
-  },
-
-  async updateAssignmentStatus(assignmentId: string, status: string): Promise<any> {
-    return this.request(`/responder/assignments/${assignmentId}/status`, {
-      method: "POST",
-      body: JSON.stringify({ status, note: `Status updated to ${status} via mobile console.` }),
-    });
-  },
-
-  async sendLocationPing(lat: number, lng: number): Promise<any> {
-    return this.request("/responder/location-ping", {
-      method: "POST",
       body: JSON.stringify({
-        location: { lat, lng, accuracy_meters: 4.0, source: "gps" },
-        battery_level: 95,
+        status: accept ? "accepted" : "declined",
+        reason: accept ? "Accepted by field responder" : "Declined by field responder",
       }),
     });
+  },
+
+  async updateAssignmentStatus(assignmentId: string, status: string, reason?: string): Promise<any> {
+    return this.request(`/responder/assignments/${assignmentId}/status`, {
+      method: "POST",
+      body: JSON.stringify({
+        status,
+        reason: reason || `Transitioned to ${status} from mobile console.`,
+      }),
+    });
+  },
+
+  async addAssignmentNotes(assignmentId: string, notes: string): Promise<any> {
+    return this.request(`/responder/assignments/${assignmentId}/notes`, {
+      method: "POST",
+      body: JSON.stringify({ notes }),
+    });
+  },
+
+  // 7. Operator & Analytics Endpoints
+  async getOperatorIncidents(): Promise<MapIncidentItem[]> {
+    try {
+      const list = await this.request<any[]>("/operator/incidents");
+      return (list || []).map((item) => {
+        let lat = 28.5452;
+        let lng = 77.2731;
+        if (item.location && typeof item.location.lat === "number") {
+          lat = item.location.lat;
+          lng = item.location.lng;
+        }
+
+        return {
+          id: item.id,
+          title: item.title || `Incident #${item.publicCode || item.id.slice(0, 6)}`,
+          category: (item.category as IncidentCategory) || "hazard",
+          urgency: item.urgency || "high",
+          location: { lat, lng },
+          locationLabel: item.locationLabel || item.location_label || "Campus Perimeter",
+          status: item.status || "reported",
+          tone: item.status === "resolved" ? "resolved" : item.urgency === "critical" ? "active" : "caution",
+        };
+      });
+    } catch (e) {
+      console.warn("Failed to fetch operator incidents", e);
+      return [];
+    }
+  },
+
+  async getOperatorResponders(): Promise<MapResponderItem[]> {
+    try {
+      const list = await this.request<any[]>("/operator/responders");
+      return (list || []).map((r) => {
+        let lat = 28.5455;
+        let lng = 77.2735;
+        if (r.location && typeof r.location.lat === "number") {
+          lat = r.location.lat;
+          lng = r.location.lng;
+        }
+
+        return {
+          id: r.id,
+          unitCode: r.unitCode || r.unit_code || "Unit",
+          displayName: r.displayName || r.display_name || r.unitCode || "Responder",
+          responderType: r.responderType || r.responder_type || "campus_security",
+          isOnDuty: Boolean(r.isOnDuty ?? r.is_on_duty ?? true),
+          availabilityStatus: r.availabilityStatus || r.availability_status || "available",
+          location: { lat, lng },
+        };
+      });
+    } catch (e) {
+      console.warn("Failed to fetch operator responders", e);
+      return [];
+    }
+  },
+
+  async getAnalyticsSummary(): Promise<OperatorKPISummary | null> {
+    try {
+      return await this.request<OperatorKPISummary>("/analytics/summary");
+    } catch {
+      return null;
+    }
+  },
+
+  async dispatchResponder(incidentId: string, responderId: string, note?: string): Promise<any> {
+    return this.request("/operator/actions/dispatch", {
+      method: "POST",
+      body: JSON.stringify({
+        incidentId,
+        responderId,
+        note: note || "Immediate mobile dispatch order issued.",
+      }),
+    });
+  },
+
+  async getWalkwayRoute(from: GeoPoint, to: GeoPoint): Promise<{ distanceKm: number; durationMinutes: number; coordinates: Array<[number, number]> }> {
+    try {
+      const url = `/routing/route?from_lat=${from.lat}&from_lng=${from.lng}&to_lat=${to.lat}&to_lng=${to.lng}&profile=foot`;
+      return await this.request<any>(url);
+    } catch {
+      // Direct straight line fallback if routing engine is unreachable
+      return {
+        distanceKm: 0.25,
+        durationMinutes: 3,
+        coordinates: [
+          [from.lat, from.lng],
+          [(from.lat + to.lat) / 2, from.lng],
+          [to.lat, to.lng],
+        ],
+      };
+    }
   },
 };
