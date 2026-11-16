@@ -43,14 +43,14 @@ export default defineConfig({
     watch: process.env.DISABLE_HMR === "true" ? null : {},
     proxy: {
       "/api/v1": {
-        target: "https://resqai-api.onrender.com",
+        target: "https://resqai-6s8c.onrender.com",
         changeOrigin: true,
         headers: {
           Origin: "https://res-q-ai-coral.vercel.app",
         },
       },
       "/ws": {
-        target: "wss://resqai-api.onrender.com",
+        target: "wss://resqai-6s8c.onrender.com",
         ws: true,
         changeOrigin: true,
         headers: {

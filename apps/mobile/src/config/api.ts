@@ -5,7 +5,7 @@ import { Platform } from "react-native";
  * - Production Cloud: resqai-api.onrender.com (HTTPS / WSS)
  * - Local Development: 192.168.1.5:8000 (Physical device Wi-Fi) or 10.0.2.2:8000 (Android Emulator)
  */
-export const PROD_HOST = "resqai-api.onrender.com";
+export const PROD_HOST = "resqai-6s8c.onrender.com";
 export const LOCAL_HOST = Platform.OS === "android" ? "10.0.2.2:8000" : "localhost:8000";
 
 // Connect to live cloud backend so physical phones work anywhere immediately
