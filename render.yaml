@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: resqai-api
+    runtime: docker
+    rootDir: services/api
+    dockerfilePath: Dockerfile
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    envVars:
+      - key: PROJECT_NAME
+        value: SENTINELGRID
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: resqai-postgres
+          property: connectionString
+      - key: REDIS_URL
+        value: redis://localhost:6379/0
+      - key: CELERY_BROKER_URL
+        value: redis://localhost:6379/0
+      - key: CELERY_RESULT_BACKEND
+        value: redis://localhost:6379/0
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AI_ADAPTER_MODE
+        value: mock
+      - key: OSRM_BASE_URL
+        value: https://router.project-osrm.org
+      - key: CORS_ORIGINS
+        value: '["*"]'
+
+databases:
+  - name: resqai-postgres
+    databaseName: sentinelgrid_db
+    user: sentinel_user
+    plan: free
+    region: singapore
