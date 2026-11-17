@@ -1,14 +1,18 @@
-import React, { useRef, useMemo, useEffect } from "react";
+import React, { useRef, useMemo, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  Modal,
+  SafeAreaView,
+  StatusBar,
+  Dimensions,
   Platform,
 } from "react-native";
 import { WebView, WebViewMessageEvent } from "react-native-webview";
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { COLORS } from "../../theme";
 import { GeoPoint, IncidentCategory, IncidentUrgency } from "../../types";
 
@@ -61,6 +65,7 @@ export interface LeafletMapViewProps {
   onMapClick?: (coords: GeoPoint) => void;
   interactive?: boolean;
   mapStyle?: "standard" | "satellite" | "dark";
+  allowFullscreen?: boolean;
 }
 
 export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
@@ -77,11 +82,14 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
   onSelectResponder,
   onMapClick,
   interactive = true,
+  allowFullscreen = true,
 }) => {
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const webViewRef = useRef<any>(null);
+  const fullscreenWebViewRef = useRef<any>(null);
   const WebViewComponent = WebView as any;
 
-  // Fallback landmarks in Bhopal if no incidents are active
+  // Key Bhopal landmarks for authentic city rendering
   const bhopalLandmarks = useMemo(
     () => [
       { name: "Upper Lake (Bada Talab)", lat: 23.245, lng: 77.375, type: "water" },
@@ -93,8 +101,8 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
     []
   );
 
-  // Generate Leaflet HTML payload
-  const htmlContent = useMemo(() => {
+  // Generate Leaflet HTML payload with full Google Maps-like pinch-to-zoom
+  const getHtmlContent = (fullScreenMode: boolean) => {
     const serializedSelf = JSON.stringify(selfPoint || BHOPAL_CENTER);
     const serializedIncidents = JSON.stringify(incidents);
     const serializedResponders = JSON.stringify(responders);
@@ -106,7 +114,7 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <title>Bhopal Leaflet Grid</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
@@ -115,6 +123,7 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       width: 100%; height: 100%;
       background: #0f172a;
       overflow: hidden;
+      touch-action: pan-x pan-y pinch-zoom;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     .leaflet-container {
@@ -129,11 +138,11 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       top: 10px;
       right: 10px;
       z-index: 1000;
-      background: rgba(15, 23, 42, 0.88);
-      backdrop-filter: blur(6px);
-      border: 1px solid rgba(56, 189, 248, 0.35);
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(56, 189, 248, 0.4);
       border-radius: 16px;
-      padding: 4px 10px;
+      padding: 5px 12px;
       font-size: 11px;
       font-weight: 700;
       color: #38bdf8;
@@ -141,7 +150,7 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       align-items: center;
       gap: 6px;
       pointer-events: none;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
     }
     .bhopal-badge-dot {
       width: 7px;
@@ -149,6 +158,55 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       border-radius: 50%;
       background: #10b981;
       box-shadow: 0 0 8px #10b981;
+    }
+
+    /* Floating Zoom Controls */
+    .zoom-controls {
+      position: absolute;
+      bottom: 24px;
+      right: 16px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .zoom-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+      font-size: 22px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+      user-select: none;
+    }
+    .zoom-btn:active {
+      background: #2563eb;
+    }
+
+    /* Recenter Button */
+    .recenter-btn {
+      position: absolute;
+      bottom: 122px;
+      right: 16px;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.92);
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 10px;
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.45);
     }
 
     /* Self User Marker */
@@ -165,7 +223,7 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       width: 32px;
       height: 32px;
       border-radius: 50%;
-      background: rgba(37, 99, 235, 0.35);
+      background: rgba(37, 99, 235, 0.4);
       border: 1.5px solid #3b82f6;
       animation: radar-pulse 2s infinite ease-out;
     }
@@ -186,8 +244,8 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
     /* Incident Markers */
     .inc-pin {
       position: relative;
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -196,6 +254,7 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       box-shadow: 0 4px 12px rgba(0,0,0,0.45);
       cursor: pointer;
       color: #ffffff;
+      font-size: 15px;
       font-weight: bold;
     }
     .inc-pin.critical { background: #e11d48; }
@@ -209,13 +268,13 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       position: absolute;
       top: -6px; left: -6px; right: -6px; bottom: -6px;
       border-radius: 50%;
-      background: rgba(225, 29, 72, 0.4);
+      background: rgba(225, 29, 72, 0.45);
       animation: alert-ring 1.8s infinite;
       z-index: -1;
     }
     @keyframes alert-ring {
       0% { transform: scale(0.8); opacity: 1; }
-      100% { transform: scale(1.8); opacity: 0; }
+      100% { transform: scale(1.9); opacity: 0; }
     }
 
     /* Responder Marker */
@@ -236,11 +295,12 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
 
     /* Landmark Marker */
     .landmark-pin {
-      background: rgba(30, 41, 59, 0.85);
+      background: rgba(30, 41, 59, 0.9);
       border: 1px solid #64748b;
       border-radius: 12px;
-      padding: 2px 6px;
+      padding: 2px 7px;
       font-size: 10px;
+      font-weight: 600;
       color: #cbd5e1;
       white-space: nowrap;
       pointer-events: none;
@@ -298,35 +358,22 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       border: none;
       cursor: pointer;
     }
-
-    /* Recenter Button */
-    .recenter-btn {
-      position: absolute;
-      bottom: 12px;
-      right: 12px;
-      z-index: 1000;
-      background: #1e293b;
-      color: #f8fafc;
-      border: 1px solid #475569;
-      border-radius: 8px;
-      width: 34px;
-      height: 34px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-    }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <div class="bhopal-badge">
     <div class="bhopal-badge-dot"></div>
-    <span>Bhopal City · OpenStreetMap</span>
+    <span>Bhopal City · Live OSM</span>
   </div>
+
+  <div class="zoom-controls">
+    <button class="zoom-btn" onclick="map.zoomIn()" title="Zoom In">+</button>
+    <button class="zoom-btn" onclick="map.zoomOut()" title="Zoom Out">−</button>
+  </div>
+
   <button class="recenter-btn" onclick="recenterBhopal()" title="Recenter Bhopal">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="7"></circle>
       <line x1="12" y1="1" x2="12" y2="5"></line>
       <line x1="12" y1="19" x2="12" y2="23"></line>
@@ -351,12 +398,20 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       initialCenter = [(initialCenter[0] + targetData.lat) / 2, (initialCenter[1] + targetData.lng) / 2];
     }
 
+    // Initialize Leaflet with touch zoom & pinch-to-zoom enabled
     var map = L.map('map', {
       center: initialCenter,
       zoom: ${targetIncident ? 14 : 13},
-      minZoom: 11,
-      maxZoom: 18,
-      zoomControl: ${interactive ? "true" : "false"},
+      minZoom: 10,
+      maxZoom: 19,
+      zoomControl: false,
+      touchZoom: true,
+      scrollWheelZoom: true,
+      doubleClickZoom: true,
+      boxZoom: true,
+      dragging: true,
+      tap: false,
+      bounceAtZoomLimits: false,
       attributionControl: false
     });
 
@@ -381,7 +436,7 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       fillOpacity: 0.04
     }).addTo(map);
 
-    // Function to notify React Native
+    // Notify React Native
     function sendToNative(data) {
       if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
         window.ReactNativeWebView.postMessage(JSON.stringify(data));
@@ -428,8 +483,8 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       var incIcon = L.divIcon({
         className: 'inc-marker-wrapper',
         html: pinHtml,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
       });
 
       var marker = L.marker([inc.lat, inc.lng], { icon: incIcon }).addTo(map);
@@ -459,7 +514,7 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       rMarker.bindPopup('<div class="popup-title">' + (resp.displayName || resp.unitCode) + '</div><div class="popup-meta">Status: ' + (resp.isOnDuty ? 'On Duty · Telemetry Live' : 'Off Duty') + '</div>');
     });
 
-    // If no incidents, show key Bhopal city landmark badges
+    // If no incidents, show Bhopal landmarks
     if (incidentsData.length === 0) {
       landmarksData.forEach(function(lm) {
         var lmIcon = L.divIcon({
@@ -472,14 +527,13 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       });
     }
 
-    // Draw Live Route Polyline when navigating
+    // Draw Live Route Polyline
     if ((showNavRoute || targetData) && targetData && targetData.lat && targetData.lng) {
       var startLat = selfData.lat || BHOPAL[0];
       var startLng = selfData.lng || BHOPAL[1];
       var endLat = targetData.lat;
       var endLng = targetData.lng;
 
-      // Realistic path with midpoint waypoint in Bhopal
       var waypoints = [
         [startLat, startLng],
         [startLat + (endLat - startLat) * 0.45 + 0.0012, startLng + (endLng - startLng) * 0.45 - 0.001],
@@ -491,7 +545,6 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
         waypoints = routePoints;
       }
 
-      // Outer glow polyline
       L.polyline(waypoints, {
         color: '#2563eb',
         weight: 6,
@@ -500,7 +553,6 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
         lineJoin: 'round'
       }).addTo(map);
 
-      // Inner sharp nav route line
       L.polyline(waypoints, {
         color: '#60a5fa',
         weight: 3.5,
@@ -509,7 +561,6 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
         lineCap: 'round'
       }).addTo(map);
 
-      // Fit route bounds smoothly
       var group = new L.featureGroup([
         L.marker([startLat, startLng]),
         L.marker([endLat, endLng])
@@ -520,18 +571,17 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
     // Map Click Listener
     map.on('click', function(e) {
       sendToNative({
-        type: 'map_click',
+        type: 'map_tap',
         lat: e.latlng.lat,
         lng: e.latlng.lng
       });
     });
 
-    // Notify ready
     sendToNative({ type: 'ready' });
   </script>
 </body>
 </html>`;
-  }, [selfPoint, incidents, responders, targetIncident, showRoute, routeCoordinates, bhopalLandmarks, interactive]);
+  };
 
   const handleMessage = (event: WebViewMessageEvent) => {
     try {
@@ -546,7 +596,10 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
         if (found && onSelectResponder) {
           onSelectResponder(found);
         }
-      } else if (data.type === "map_click") {
+      } else if (data.type === "map_tap") {
+        if (allowFullscreen && !isFullscreen) {
+          setIsFullscreen(true);
+        }
         if (onMapClick) {
           onMapClick({ lat: data.lat, lng: data.lng });
         }
@@ -557,44 +610,136 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
   };
 
   return (
-    <View style={[styles.container, { height }]}>
-      <WebViewComponent
-        ref={webViewRef}
-        originWhitelist={["*"]}
-        source={{ html: htmlContent }}
-        style={styles.webview}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        scrollEnabled={false}
-        scalesPageToFit={false}
-        onMessage={handleMessage}
-        renderLoading={() => (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={COLORS.brandBlue} />
-            <Text style={styles.loadingText}>Loading Bhopal City Leaflet Grid...</Text>
-          </View>
-        )}
-        startInLoadingState={true}
-      />
+    <>
+      {/* 1. Inline Map Card with Click-to-Fullscreen */}
+      <View style={[styles.container, { height }]}>
+        <WebViewComponent
+          ref={webViewRef}
+          originWhitelist={["*"]}
+          source={{ html: getHtmlContent(false) }}
+          style={styles.webview}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          scrollEnabled={true}
+          scalesPageToFit={false}
+          onMessage={handleMessage}
+          renderLoading={() => (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={COLORS.brandBlue} />
+              <Text style={styles.loadingText}>Loading Bhopal City Leaflet Grid...</Text>
+            </View>
+          )}
+          startInLoadingState={true}
+        />
 
-      {/* Floating Tactical Stats Overlay */}
-      <View style={styles.headerOverlay} pointerEvents="box-none">
-        <View style={styles.zonePill}>
-          <View style={styles.zoneDot} />
-          <Text style={styles.zoneText}>Bhopal Zone (23.2599°N, 77.4126°E)</Text>
+        {/* Floating Overlay with Fullscreen Expand Pill */}
+        <View style={styles.headerOverlay} pointerEvents="box-none">
+          <View style={styles.zonePill}>
+            <View style={styles.zoneDot} />
+            <Text style={styles.zoneText}>Bhopal Zone (23.2599°N, 77.4126°E)</Text>
+          </View>
+
+          {allowFullscreen && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.fullscreenBtn}
+              onPress={() => setIsFullscreen(true)}
+            >
+              <Feather name="maximize-2" size={12} color="#FFFFFF" />
+              <Text style={styles.fullscreenBtnText}>Full Screen</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {showRoute && (
-          <View style={styles.routePill}>
-            <Feather name="navigation" size={11} color="#2563EB" />
-            <Text style={styles.routeText}>
-              {distanceKm ? `${distanceKm.toFixed(1)} km` : "Routing Active"}
-              {etaMinutes ? ` · ${etaMinutes}m` : ""}
-            </Text>
+          <View style={styles.routeOverlay} pointerEvents="box-none">
+            <View style={styles.routePill}>
+              <Feather name="navigation" size={11} color="#2563EB" />
+              <Text style={styles.routeText}>
+                {distanceKm ? `${distanceKm.toFixed(1)} km` : "Routing Active"}
+                {etaMinutes ? ` · ${etaMinutes}m` : ""}
+              </Text>
+            </View>
           </View>
         )}
       </View>
-    </View>
+
+      {/* 2. Fullscreen Interactive Map Modal with Google Maps-like Pinch-to-Zoom */}
+      {allowFullscreen && (
+        <Modal
+          visible={isFullscreen}
+          animationType="fade"
+          onRequestClose={() => setIsFullscreen(false)}
+          statusBarTranslucent={true}
+        >
+          <View style={styles.fullscreenModalContainer}>
+            <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+
+            {/* Fullscreen Header Bar */}
+            <SafeAreaView style={styles.fullscreenHeaderSafe}>
+              <View style={styles.fullscreenHeader}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.closeBtn}
+                  onPress={() => setIsFullscreen(false)}
+                >
+                  <Feather name="arrow-left" size={20} color="#FFFFFF" />
+                  <Text style={styles.closeBtnText}>Back</Text>
+                </TouchableOpacity>
+
+                <View style={styles.fullscreenTitleCol}>
+                  <Text style={styles.fullscreenTitle}>Bhopal City Telemetry</Text>
+                  <Text style={styles.fullscreenSubtitle}>Pinch to Zoom · Real OpenStreetMap</Text>
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.minimizeIconBtn}
+                  onPress={() => setIsFullscreen(false)}
+                >
+                  <Feather name="minimize-2" size={18} color="#38BDF8" />
+                </TouchableOpacity>
+              </View>
+            </SafeAreaView>
+
+            {/* Fullscreen Leaflet WebView */}
+            <View style={styles.fullscreenWebviewWrapper}>
+              <WebViewComponent
+                ref={fullscreenWebViewRef}
+                originWhitelist={["*"]}
+                source={{ html: getHtmlContent(true) }}
+                style={styles.webview}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                scrollEnabled={true}
+                scalesPageToFit={false}
+                onMessage={handleMessage}
+                renderLoading={() => (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={COLORS.brandBlue} />
+                    <Text style={styles.loadingText}>Opening Full Screen Bhopal Grid...</Text>
+                  </View>
+                )}
+                startInLoadingState={true}
+              />
+            </View>
+
+            {/* Route Status in Fullscreen */}
+            {showRoute && (
+              <View style={styles.fullscreenRouteBanner} pointerEvents="box-none">
+                <View style={styles.fullscreenRoutePill}>
+                  <Feather name="navigation" size={14} color="#2563EB" />
+                  <Text style={styles.fullscreenRouteText}>
+                    Navigating to Incident · {distanceKm ? `${distanceKm.toFixed(1)} km` : "Active"}
+                    {etaMinutes ? ` (${etaMinutes} min arrival)` : ""}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </Modal>
+      )}
+    </>
   );
 };
 
@@ -639,12 +784,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(15, 23, 42, 0.82)",
+    backgroundColor: "rgba(15, 23, 42, 0.88)",
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   zoneDot: {
     width: 6,
@@ -655,7 +800,33 @@ const styles = StyleSheet.create({
   zoneText: {
     color: "#E2E8F0",
     fontSize: 10,
-    fontWeight: "600",
+    fontWeight: "700",
+  },
+  fullscreenBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(37, 99, 235, 0.9)",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.25)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  fullscreenBtnText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  routeOverlay: {
+    position: "absolute",
+    bottom: 8,
+    left: 8,
   },
   routePill: {
     flexDirection: "row",
@@ -675,5 +846,88 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     fontSize: 11,
     fontWeight: "700",
+  },
+
+  // Fullscreen Modal Styles
+  fullscreenModalContainer: {
+    flex: 1,
+    backgroundColor: "#0F172A",
+  },
+  fullscreenHeaderSafe: {
+    backgroundColor: "#0F172A",
+    zIndex: 10,
+  },
+  fullscreenHeader: {
+    height: 56,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  closeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 8,
+  },
+  closeBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  fullscreenTitleCol: {
+    alignItems: "center",
+  },
+  fullscreenTitle: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  fullscreenSubtitle: {
+    color: "#38BDF8",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  minimizeIconBtn: {
+    padding: 8,
+    backgroundColor: "rgba(56, 189, 248, 0.12)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(56, 189, 248, 0.3)",
+  },
+  fullscreenWebviewWrapper: {
+    flex: 1,
+    backgroundColor: "#0F172A",
+  },
+  fullscreenRouteBanner: {
+    position: "absolute",
+    bottom: 24,
+    left: 16,
+    right: 80,
+    zIndex: 100,
+  },
+  fullscreenRoutePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  fullscreenRouteText: {
+    color: "#0F172A",
+    fontSize: 12,
+    fontWeight: "800",
   },
 });

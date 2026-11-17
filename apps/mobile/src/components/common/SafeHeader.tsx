@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { COLORS } from "../../theme";
 import { Role } from "../../types";
+import { mobileApi } from "../../services/api";
 
 interface SafeHeaderProps {
   role: Role;
@@ -16,6 +17,21 @@ export const SafeHeader: React.FC<SafeHeaderProps> = ({
   onRoleSwitchPress,
   rightComponent,
 }) => {
+  const [isBackendLive, setIsBackendLive] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    mobileApi.checkHealth().then((h) => setIsBackendLive(h.connected));
+    const unsubscribe = mobileApi.onConnectionChange((connected) => {
+      setIsBackendLive(connected);
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleRetryHealth = () => {
+    setIsBackendLive(null);
+    mobileApi.checkHealth().then((h) => setIsBackendLive(h.connected));
+  };
+
   const roleLabel = role === "citizen" ? "CITIZEN" : "FIRST RESPONDER";
   const isResponder = role === "responder";
 
@@ -30,10 +46,34 @@ export const SafeHeader: React.FC<SafeHeaderProps> = ({
         <View style={styles.brandTextCol}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Text style={styles.brandTitle}>ResQAI</Text>
-            <View style={styles.liveBackendBadge}>
-              <View style={styles.livePulseDot} />
-              <Text style={styles.liveBackendText}>BACKEND LIVE</Text>
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleRetryHealth}
+              style={[
+                styles.liveBackendBadge,
+                isBackendLive === false && styles.liveBackendBadgeOffline,
+              ]}
+            >
+              <View
+                style={[
+                  styles.livePulseDot,
+                  isBackendLive === false && styles.livePulseDotOffline,
+                  isBackendLive === null && styles.livePulseDotConnecting,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.liveBackendText,
+                  isBackendLive === false && styles.liveBackendTextOffline,
+                ]}
+              >
+                {isBackendLive === true
+                  ? "BACKEND LIVE"
+                  : isBackendLive === false
+                  ? "RECONNECT"
+                  : "CONNECTING…"}
+              </Text>
+            </TouchableOpacity>
           </View>
           {subtitle ? (
             <View style={styles.locationRow}>
@@ -113,6 +153,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 8,
   },
+  liveBackendBadgeOffline: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
   livePulseDot: {
     width: 5,
     height: 5,
@@ -120,11 +164,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#059669",
     marginRight: 4,
   },
+  livePulseDotOffline: {
+    backgroundColor: "#DC2626",
+  },
+  livePulseDotConnecting: {
+    backgroundColor: "#F59E0B",
+  },
   liveBackendText: {
     fontSize: 8,
     fontWeight: "800",
     color: "#065F46",
     letterSpacing: 0.3,
+  },
+  liveBackendTextOffline: {
+    color: "#991B1B",
   },
   locationRow: {
     flexDirection: "row",

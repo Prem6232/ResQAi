@@ -15,6 +15,16 @@ import {
 
 let currentAccessToken: string | null = null;
 let currentRole: Role = "citizen";
+let authPromise: Promise<string> | null = null;
+let connectionListeners: Array<(connected: boolean) => void> = [];
+let lastKnownConnectionState: boolean | null = null;
+
+function notifyConnection(connected: boolean) {
+  if (lastKnownConnectionState !== connected) {
+    lastKnownConnectionState = connected;
+    connectionListeners.forEach((l) => l(connected));
+  }
+}
 
 export const mobileApi = {
   getAccessToken(): string | null {
@@ -29,7 +39,43 @@ export const mobileApi = {
     return currentRole;
   },
 
-  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  onConnectionChange(listener: (connected: boolean) => void): () => void {
+    connectionListeners.push(listener);
+    if (lastKnownConnectionState !== null) {
+      listener(lastKnownConnectionState);
+    }
+    return () => {
+      connectionListeners = connectionListeners.filter((l) => l !== listener);
+    };
+  },
+
+  async ensureAuthenticated(): Promise<string> {
+    if (currentAccessToken) return currentAccessToken;
+    if (authPromise) return authPromise;
+
+    authPromise = (async () => {
+      try {
+        const res = await this.loginAs(currentRole);
+        return res.accessToken;
+      } finally {
+        authPromise = null;
+      }
+    })();
+    return authPromise;
+  },
+
+  async request<T>(endpoint: string, options: RequestInit = {}, retryCount = 1): Promise<T> {
+    const isPublic = endpoint.startsWith("/auth/login") || endpoint.startsWith("/auth/register") || endpoint === "/health";
+    
+    // Auto-authenticate if token is missing
+    if (!isPublic && !currentAccessToken) {
+      try {
+        await this.ensureAuthenticated();
+      } catch (authErr) {
+        console.warn("Auto authentication on demand warning:", authErr);
+      }
+    }
+
     const url = `${API_BASE_URL}${endpoint}`;
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -37,12 +83,12 @@ export const mobileApi = {
       ...(options.headers as Record<string, string>),
     };
 
-    if (currentAccessToken) {
+    if (currentAccessToken && !headers["Authorization"]) {
       headers["Authorization"] = `Bearer ${currentAccessToken}`;
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout for cold start and cellular
 
     try {
       const response = await fetch(url, {
@@ -51,12 +97,27 @@ export const mobileApi = {
         signal: controller.signal,
       });
 
+      // If token expired or invalid, auto-refresh and retry once
+      if (response.status === 401 && retryCount > 0 && !isPublic) {
+        currentAccessToken = null;
+        await this.loginAs(currentRole);
+        return this.request<T>(endpoint, options, retryCount - 1);
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`API Error ${response.status}: ${errorText}`);
       }
 
+      notifyConnection(true);
       return (await response.json()) as T;
+    } catch (err: any) {
+      // Retry once on network timeout/abort
+      if (retryCount > 0 && (err?.name === "AbortError" || err?.message?.includes("Network request failed"))) {
+        return this.request<T>(endpoint, options, retryCount - 1);
+      }
+      notifyConnection(false);
+      throw err;
     } finally {
       clearTimeout(timeout);
     }
@@ -66,13 +127,16 @@ export const mobileApi = {
   async checkHealth(): Promise<{ connected: boolean; status: string; database?: string; postgis?: string }> {
     try {
       const res = await this.request<{ status: string; database: string; postgis_version?: string }>("/health");
+      const isHealthy = res.status === "healthy" || res.status === "ok";
+      notifyConnection(isHealthy);
       return {
-        connected: res.status === "healthy",
+        connected: isHealthy,
         status: res.status,
         database: res.database,
         postgis: res.postgis_version,
       };
     } catch {
+      notifyConnection(false);
       return { connected: false, status: "offline" };
     }
   },
@@ -91,6 +155,7 @@ export const mobileApi = {
 
     const token = res.access_token || res.accessToken || "";
     currentAccessToken = token;
+    notifyConnection(true);
     return { accessToken: token, user: res.user };
   },
 
