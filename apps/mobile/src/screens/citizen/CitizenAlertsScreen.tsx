@@ -30,9 +30,9 @@ export const CitizenAlertsScreen: React.FC<CitizenAlertsScreenProps> = ({
       title: a.title,
       category: a.category,
       urgency: a.urgency,
-      lat: a.location?.lat ?? 28.5452,
-      lng: a.location?.lng ?? 77.2731,
-      locationLabel: a.locationLabel,
+      lat: a.location?.lat ?? 23.2599,
+      lng: a.location?.lng ?? 77.4126,
+      locationLabel: a.locationLabel || "Bhopal Metro Zone",
       tone: a.tone || (a.status === "active" ? "active" : "caution"),
       distanceLabel: a.distance,
     }));
@@ -63,7 +63,7 @@ export const CitizenAlertsScreen: React.FC<CitizenAlertsScreenProps> = ({
         </View>
 
         <Text style={styles.privacyNote}>
-          Coarsened operational notices. Sensitive personal locations are coarsened for campus privacy.
+          Coarsened operational notices. Sensitive personal locations are coarsened for Bhopal city privacy.
         </Text>
 
         {/* Dynamic Interactive Tactical Campus Map */}
@@ -73,7 +73,7 @@ export const CitizenAlertsScreen: React.FC<CitizenAlertsScreenProps> = ({
             incidents={mapIncidents}
             targetIncident={activeTargetIncident}
             onSelectIncident={(inc) => setSelectedAlertId(inc.id)}
-            selfPoint={{ lat: 28.5452, lng: 77.2731 }}
+            selfPoint={{ lat: 23.2599, lng: 77.4126 }}
           />
         </View>
 

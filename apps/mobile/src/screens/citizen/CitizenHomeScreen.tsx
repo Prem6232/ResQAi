@@ -32,11 +32,11 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
     setSosSending(true);
 
     try {
-      const sosResult = await mobileApi.triggerSOS({ lat: 28.5452, lng: 77.2731 });
+      const sosResult = await mobileApi.triggerSOS({ lat: 23.2599, lng: 77.4126 });
       onReportCreated(sosResult);
       Alert.alert(
         "🚨 SOS SIGNAL BROADCASTED",
-        "Your emergency beacon and live location have been instantly transmitted to Campus Security, Medical Teams, and your 3 Trusted Contacts.",
+        "Your emergency beacon and live location have been instantly transmitted to Bhopal Emergency Dispatch, Responders, and your 3 Trusted Contacts.",
         [
           { text: "View My Report Status", onPress: onNavigateToReports },
           { text: "Dismiss", style: "cancel" },
@@ -47,8 +47,8 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
       const sosReport = {
         category: "personal_sos" as IncidentCategory,
         title: "CRITICAL PERSONAL SOS",
-        text: "Automatic emergency SOS signal broadcast with real-time GPS telemetry.",
-        locationLabel: "Main Quadrangle · Coordinates Broadcasted",
+        text: "Automatic emergency SOS signal broadcast with real-time GPS telemetry in Bhopal.",
+        locationLabel: "Bhopal Central · Coordinates Broadcasted",
       };
       onReportCreated(sosReport);
       Alert.alert(
@@ -71,9 +71,9 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
         <View style={styles.gridStatusStrip}>
           <View style={styles.statusPill}>
             <View style={styles.pulseGreenDot} />
-            <Text style={styles.statusPillText}>Campus Safety Grid · Live</Text>
+            <Text style={styles.statusPillText}>Bhopal Safety Grid · Live</Text>
           </View>
-          <Text style={styles.geofenceText}>Northridge Geofenced</Text>
+          <Text style={styles.geofenceText}>Bhopal Geofenced</Text>
         </View>
 
         {/* Animated Concentric SOS Push Radar */}
@@ -81,17 +81,17 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
 
         {/* Live Campus Map Overview */}
         <View style={styles.mapSectionHeader}>
-          <Text style={styles.sectionHeading}>Campus Tactical Overview</Text>
+          <Text style={styles.sectionHeading}>Bhopal Tactical Overview</Text>
           <View style={styles.safeZoneBadge}>
             <Feather name="shield" size={12} color="#059669" />
-            <Text style={styles.safeZoneText}>All Muster Points Open</Text>
+            <Text style={styles.safeZoneText}>All Response Sectors Active</Text>
           </View>
         </View>
 
         <View style={styles.mapCard}>
           <TacticalCampusMap
-            height={200}
-            selfPoint={{ lat: 28.5455, lng: 77.2735 }}
+            height={220}
+            selfPoint={{ lat: 23.2599, lng: 77.4126 }}
             interactive={true}
           />
         </View>

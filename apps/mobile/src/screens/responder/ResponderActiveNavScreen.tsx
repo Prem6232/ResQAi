@@ -94,10 +94,10 @@ export const ResponderActiveNavScreen: React.FC<ResponderActiveNavScreenProps> =
     title: activeJob?.title || "Active Emergency Incident",
     category: activeJob?.category || "fire_smoke",
     urgency: activeJob?.urgency || "critical",
-    lat: activeJob?.location?.lat || 28.5460,
-    lng: activeJob?.location?.lng || 77.2738,
-    locationLabel: activeJob?.locationLabel || "Central Quadrangle Walkway",
-    distanceLabel: activeJob?.distance || "0.3 km",
+    lat: activeJob?.location?.lat || 23.2625,
+    lng: activeJob?.location?.lng || 77.4140,
+    locationLabel: activeJob?.locationLabel || "VIP Road · Bhopal Lakefront",
+    distanceLabel: activeJob?.distance || "0.4 km",
     tone: "active",
   };
 
@@ -105,8 +105,8 @@ export const ResponderActiveNavScreen: React.FC<ResponderActiveNavScreenProps> =
     id: "resp-f2",
     unitCode: "F-2",
     displayName: "Unit F-2",
-    lat: 28.5452,
-    lng: 77.2731,
+    lat: 23.2599,
+    lng: 77.4126,
     isOnDuty: true,
   };
 

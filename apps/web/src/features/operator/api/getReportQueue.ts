@@ -45,8 +45,8 @@ export async function getReportQueue(): Promise<Report[]> {
     location:
       r.location && typeof r.location === "object"
         ? r.location
-        : { lat: 28.5452, lng: 77.2731, source: "unknown" },
-    locationLabel: r.locationLabel || r.location_label || "Campus Area",
+        : { lat: 23.2599, lng: 77.4126, source: "unknown" },
+    locationLabel: r.locationLabel || r.location_label || "Bhopal City",
     media: r.media || [],
     processingState: r.processingState || r.processing_state || "received",
     deliveryState: r.deliveryState || r.delivery_state || "received_by_server",

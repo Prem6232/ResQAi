@@ -143,7 +143,7 @@ export function normalizeUrgency(raw: unknown): Urgency {
 }
 
 function mapReport(r: RawRecord): Report {
-  const loc = (r.location && typeof r.location === "object" ? r.location : { lat: 28.5452, lng: 77.2731 }) as GeoPoint;
+  const loc = (r.location && typeof r.location === "object" ? r.location : { lat: 23.2599, lng: 77.4126 }) as GeoPoint;
   return {
     id: String(r.id),
     reporterId: String(r.reporterId || r.reporter_id || "usr_citizen"),
@@ -152,7 +152,7 @@ function mapReport(r: RawRecord): Report {
     category: normalizeCategory(r.category),
     text: String(r.text || r.raw_text || ""),
     location: loc,
-    locationLabel: String(r.locationLabel || r.location_label || "Campus Area"),
+    locationLabel: String(r.locationLabel || r.location_label || "Bhopal City"),
     media: (Array.isArray(r.media) ? r.media : []) as MediaAsset[],
     processingState: (r.processingState || r.processing_state || "received") as Report["processingState"],
     deliveryState: (r.deliveryState || r.delivery_state || "received_by_server") as Report["deliveryState"],
@@ -163,7 +163,7 @@ function mapReport(r: RawRecord): Report {
 }
 
 function mapIncident(inc: RawRecord): Incident {
-  const loc = (inc.location && typeof inc.location === "object" ? inc.location : { lat: 28.5452, lng: 77.2731 }) as GeoPoint;
+  const loc = (inc.location && typeof inc.location === "object" ? inc.location : { lat: 23.2599, lng: 77.4126 }) as GeoPoint;
   const rawId = String(inc.id);
   const publicCode = String(inc.publicCode || inc.public_code || `INC-${rawId.slice(0, 4)}`);
   const rawIds = inc.reportIds ?? inc.report_ids;
@@ -208,8 +208,8 @@ function mapAssignment(a: RawRecord): Assignment {
           category: normalizeCategory(rawInc.category),
           urgency: normalizeUrgency(rawInc.urgency),
           status: (rawInc.status as IncidentStatus) || "assigned",
-          location: (rawInc.location && typeof rawInc.location === "object" ? rawInc.location : { lat: 28.5452, lng: 77.2731 }) as GeoPoint,
-          locationLabel: String(rawInc.locationLabel || rawInc.location_label || "Campus Area"),
+          location: (rawInc.location && typeof rawInc.location === "object" ? rawInc.location : { lat: 23.2599, lng: 77.4126 }) as GeoPoint,
+          locationLabel: String(rawInc.locationLabel || rawInc.location_label || "Bhopal City"),
         }
       : undefined,
     synthetic: Boolean(a.synthetic ?? false),

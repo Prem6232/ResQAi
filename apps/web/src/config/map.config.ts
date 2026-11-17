@@ -5,9 +5,9 @@ export const mapConfig = {
   attribution:
     import.meta.env.VITE_MAP_ATTRIBUTION ?? "© OpenStreetMap contributors",
   campusCenter: {
-    lat: Number(import.meta.env.VITE_CAMPUS_LAT ?? 28.5452),
-    lng: Number(import.meta.env.VITE_CAMPUS_LNG ?? 77.2731),
+    lat: Number(import.meta.env.VITE_CAMPUS_LAT ?? 23.2599),
+    lng: Number(import.meta.env.VITE_CAMPUS_LNG ?? 77.4126),
   },
-  defaultZoom: 16,
+  defaultZoom: 13,
   srid: 4326 as const,
 };

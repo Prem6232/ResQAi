@@ -50,7 +50,7 @@ export default function App() {
   const [responderProfile, setResponderProfile] = useState<ResponderProfile>({
     unitCode: "F-2",
     unitName: "Fire Unit F-2",
-    station: "Northridge Central Station",
+    station: "Bhopal Central Emergency Station",
     crewCount: 4,
     isOnDuty: true,
     availability: "available",
@@ -70,7 +70,7 @@ export default function App() {
       if (activeRole === "citizen") {
         const [fetchedReports, fetchedAlerts, fetchedContacts] = await Promise.all([
           mobileApi.getCitizenReports(),
-          mobileApi.getNearbyAlerts({ lat: 28.5452, lng: 77.2731 }),
+          mobileApi.getNearbyAlerts({ lat: 23.2599, lng: 77.4126 }),
           mobileApi.getContacts(),
         ]);
         if (fetchedReports) setReports(fetchedReports);

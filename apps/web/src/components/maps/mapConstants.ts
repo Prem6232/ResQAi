@@ -1,10 +1,10 @@
 import { mapConfig } from "@/config/map.config";
 
 export const syntheticCampusPolygon: [number, number][] = [
-  [mapConfig.campusCenter.lat + 0.003, mapConfig.campusCenter.lng - 0.003],
-  [mapConfig.campusCenter.lat + 0.003, mapConfig.campusCenter.lng + 0.003],
-  [mapConfig.campusCenter.lat - 0.003, mapConfig.campusCenter.lng + 0.003],
-  [mapConfig.campusCenter.lat - 0.003, mapConfig.campusCenter.lng - 0.003],
+  [mapConfig.campusCenter.lat + 0.05, mapConfig.campusCenter.lng - 0.06],
+  [mapConfig.campusCenter.lat + 0.05, mapConfig.campusCenter.lng + 0.06],
+  [mapConfig.campusCenter.lat - 0.05, mapConfig.campusCenter.lng + 0.06],
+  [mapConfig.campusCenter.lat - 0.05, mapConfig.campusCenter.lng - 0.06],
 ];
 
 export function polygonLatLngToLngLat(points: [number, number][]): number[][] {

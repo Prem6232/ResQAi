@@ -103,8 +103,8 @@ export const mobileApi = {
     try {
       const rawList = await this.request<any[]>("/citizen/reports");
       return (rawList || []).map((item) => {
-        let lat = 28.5452;
-        let lng = 77.2731;
+        let lat = 23.2599;
+        let lng = 77.4126;
         if (item.location) {
           lat = typeof item.location.lat === "number" ? item.location.lat : lat;
           lng = typeof item.location.lng === "number" ? item.location.lng : lng;
@@ -130,7 +130,7 @@ export const mobileApi = {
           statusLabel: item.delivery_state || item.processing_state || "In review",
           currentStep,
           stepDetails: item.text || "Report logged in PostGIS grid.",
-          locationLabel: item.location_label || item.locationLabel || "Campus Quadrangle",
+          locationLabel: item.location_label || item.locationLabel || "Bhopal City Center",
           location: { lat, lng },
         };
       });
@@ -148,8 +148,8 @@ export const mobileApi = {
     lat?: number;
     lng?: number;
   }): Promise<CitizenReport> {
-    const lat = input.lat ?? 28.5452;
-    const lng = input.lng ?? 77.2731;
+    const lat = input.lat ?? 23.2599;
+    const lng = input.lng ?? 77.4126;
 
     const payload = {
       category: input.category,
@@ -160,7 +160,7 @@ export const mobileApi = {
         accuracy_meters: 5.0,
         source: "gps",
       },
-      location_label: input.locationLabel || "Campus Quadrangle",
+      location_label: input.locationLabel || "Bhopal City Center",
       channel: input.category === "personal_sos" ? "sos" : "form",
       urgency: input.category === "personal_sos" ? "critical" : "high",
       idempotency_key: `rep_${Date.now()}_${Math.random().toString(36).substring(7)}`,
@@ -186,8 +186,8 @@ export const mobileApi = {
   },
 
   async triggerSOS(coords?: { lat: number; lng: number }): Promise<CitizenReport> {
-    const lat = coords?.lat ?? 28.5452;
-    const lng = coords?.lng ?? 77.2731;
+    const lat = coords?.lat ?? 23.2599;
+    const lng = coords?.lng ?? 77.4126;
 
     const payload = {
       location: {
@@ -196,7 +196,7 @@ export const mobileApi = {
         accuracy_meters: 3.0,
         source: "gps",
       },
-      location_label: "Live Emergency SOS Telemetry",
+      location_label: "Live Emergency SOS Telemetry (Bhopal)",
       note: "Urgent SOS button activated from mobile app.",
       idempotency_key: `sos_${Date.now()}`,
     };
@@ -215,15 +215,15 @@ export const mobileApi = {
       statusLabel: "Dispatched",
       currentStep: 3,
       stepDetails: "Critical alert broadcasted to Security & Medical teams.",
-      locationLabel: "Main Quadrangle · Coordinates Broadcasted",
+      locationLabel: "Bhopal Central · Coordinates Broadcasted",
       location: { lat, lng },
     };
   },
 
   // 4. Nearby Alerts
   async getNearbyAlerts(coords?: { lat: number; lng: number }): Promise<NearbyAlert[]> {
-    const lat = coords?.lat ?? 28.5452;
-    const lng = coords?.lng ?? 77.2731;
+    const lat = coords?.lat ?? 23.2599;
+    const lng = coords?.lng ?? 77.4126;
 
     try {
       const list = await this.request<any[]>(`/citizen/alerts/nearby?lat=${lat}&lng=${lng}`);
@@ -443,8 +443,8 @@ export const mobileApi = {
     try {
       const list = await this.request<any[]>("/operator/incidents");
       return (list || []).map((item) => {
-        let lat = 28.5452;
-        let lng = 77.2731;
+        let lat = 23.2599;
+        let lng = 77.4126;
         if (item.location && typeof item.location.lat === "number") {
           lat = item.location.lat;
           lng = item.location.lng;
@@ -456,7 +456,7 @@ export const mobileApi = {
           category: (item.category as IncidentCategory) || "hazard",
           urgency: item.urgency || "high",
           location: { lat, lng },
-          locationLabel: item.locationLabel || item.location_label || "Campus Perimeter",
+          locationLabel: item.locationLabel || item.location_label || "Bhopal Perimeter",
           status: item.status || "reported",
           tone: item.status === "resolved" ? "resolved" : item.urgency === "critical" ? "active" : "caution",
         };
