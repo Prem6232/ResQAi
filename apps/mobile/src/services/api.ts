@@ -11,10 +11,12 @@ import {
   MapIncidentItem,
   MapResponderItem,
   GeoPoint,
+  UserProfile,
 } from "../types";
 
 let currentAccessToken: string | null = null;
 let currentRole: Role = "citizen";
+let currentUser: UserProfile | null = null;
 let authPromise: Promise<string> | null = null;
 let connectionListeners: Array<(connected: boolean) => void> = [];
 let lastKnownConnectionState: boolean | null = null;
@@ -142,21 +144,92 @@ export const mobileApi = {
   },
 
   // 2. Authentication
-  async loginAs(role: Role): Promise<{ accessToken: string; user: any }> {
-    currentRole = role;
-    const creds = DEMO_CREDENTIALS[role] || DEMO_CREDENTIALS.citizen;
+  getCurrentUser(): UserProfile | null {
+    return currentUser;
+  },
+
+  async login(email: string, password: string): Promise<{ accessToken: string; user: UserProfile }> {
     const res = await this.request<{ access_token: string; accessToken?: string; user: any }>(
       "/auth/login",
       {
         method: "POST",
-        body: JSON.stringify({ email: creds.email, password: creds.password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       }
     );
 
     const token = res.access_token || res.accessToken || "";
     currentAccessToken = token;
+    const rawUser = res.user || {};
+    const parsedRole: Role = rawUser.role === "responder" ? "responder" : "citizen";
+    currentRole = parsedRole;
+
+    currentUser = {
+      id: rawUser.id || "",
+      email: rawUser.email || email,
+      fullName: rawUser.full_name || rawUser.fullName || rawUser.name || "User",
+      name: rawUser.name || rawUser.full_name || "User",
+      role: parsedRole,
+      phone: rawUser.phone,
+      campusName: rawUser.campus_name || rawUser.campusName || "Bhopal Emergency Zone",
+    };
+
     notifyConnection(true);
-    return { accessToken: token, user: res.user };
+    return { accessToken: token, user: currentUser };
+  },
+
+  async register(payload: {
+    email: string;
+    password: string;
+    fullName: string;
+    role: Role;
+    phone?: string;
+    unitCode?: string;
+  }): Promise<{ accessToken: string; user: UserProfile }> {
+    const res = await this.request<{ access_token: string; accessToken?: string; user: any }>(
+      "/auth/register",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email: payload.email.trim(),
+          password: payload.password,
+          full_name: payload.fullName.trim(),
+          name: payload.fullName.trim(),
+          role: payload.role,
+          phone: payload.phone?.trim() || undefined,
+          responder_type: payload.role === "responder" ? "campus_security" : undefined,
+          capabilities: payload.role === "responder" ? ["first_aid", "security_patrol", "rescue"] : undefined,
+        }),
+      }
+    );
+
+    const token = res.access_token || res.accessToken || "";
+    currentAccessToken = token;
+    currentRole = payload.role;
+
+    const rawUser = res.user || {};
+    currentUser = {
+      id: rawUser.id || "",
+      email: rawUser.email || payload.email,
+      fullName: payload.fullName,
+      name: payload.fullName,
+      role: payload.role,
+      phone: payload.phone,
+      campusName: "Bhopal Emergency Zone",
+    };
+
+    notifyConnection(true);
+    return { accessToken: token, user: currentUser };
+  },
+
+  async loginAs(role: Role): Promise<{ accessToken: string; user: any }> {
+    currentRole = role;
+    const creds = DEMO_CREDENTIALS[role] || DEMO_CREDENTIALS.citizen;
+    return this.login(creds.email, creds.password);
+  },
+
+  logout(): void {
+    currentAccessToken = null;
+    currentUser = null;
   },
 
   async getMe(): Promise<any> {

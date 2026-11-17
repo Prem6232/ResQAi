@@ -26,6 +26,16 @@ export interface GeoPoint {
   lng: number;
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  fullName: string;
+  name: string;
+  role: Role;
+  phone?: string;
+  campusName?: string;
+}
+
 export interface TrustedContact {
   id: string;
   name: string;

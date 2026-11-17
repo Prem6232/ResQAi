@@ -12,6 +12,7 @@ import {
   ResponderJob,
   ResponderProfile,
   TrustedContact,
+  UserProfile,
 } from "./src/types";
 
 import { mobileApi } from "./src/services/api";
@@ -21,6 +22,8 @@ import { SafeHeader } from "./src/components/common/SafeHeader";
 import { BottomNav, CitizenTab, ResponderTab } from "./src/components/common/BottomNav";
 import { RoleSwitcherModal } from "./src/components/common/RoleSwitcher";
 import { ReportWizardModal } from "./src/components/modals/ReportWizardModal";
+import { PermissionsModal } from "./src/components/modals/PermissionsModal";
+import { AuthScreen } from "./src/screens/auth/AuthScreen";
 
 // Screens for Citizen and Responder
 import { CitizenHomeScreen } from "./src/screens/citizen/CitizenHomeScreen";
@@ -34,6 +37,10 @@ import { ResponderHistoryScreen } from "./src/screens/responder/ResponderHistory
 import { ResponderStatusScreen } from "./src/screens/responder/ResponderStatusScreen";
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [permissionsModalVisible, setPermissionsModalVisible] = useState<boolean>(false);
+
   const [role, setRole] = useState<Role>("citizen");
   const [citizenTab, setCitizenTab] = useState<CitizenTab>("home");
   const [responderTab, setResponderTab] = useState<ResponderTab>("feed");
@@ -65,8 +72,6 @@ export default function App() {
   // Fetch role-specific data from backend
   const refreshRoleData = async (activeRole: Role) => {
     try {
-      await mobileApi.loginAs(activeRole);
-
       if (activeRole === "citizen") {
         const [fetchedReports, fetchedAlerts, fetchedContacts] = await Promise.all([
           mobileApi.getCitizenReports(),
@@ -96,7 +101,23 @@ export default function App() {
     }
   };
 
+  const handleAuthSuccess = (user: UserProfile, newRole: Role) => {
+    setCurrentUser(user);
+    setRole(newRole);
+    setIsAuthenticated(true);
+    setPermissionsModalVisible(true);
+    refreshRoleData(newRole);
+  };
+
+  const handleLogout = () => {
+    mobileApi.logout();
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+  };
+
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     let unsubscribe: (() => void) | null = null;
 
     refreshRoleData(role);
@@ -120,7 +141,7 @@ export default function App() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [role]);
+  }, [role, isAuthenticated]);
 
   // Citizen Report Creation handler
   const handleCreateReport = async (newRep: {
@@ -323,6 +344,17 @@ export default function App() {
       ? "On Duty · Telemetry Active"
       : "Off Duty";
 
+  if (!isAuthenticated) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.safeContainer} edges={["top", "bottom"]}>
+          <StatusBar style="dark" />
+          <AuthScreen onAuthSuccess={handleAuthSuccess} />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeContainer} edges={["top", "bottom"]}>
@@ -355,16 +387,24 @@ export default function App() {
           }}
         />
 
-        {/* Role Switcher Modal (Citizen <-> First Responder) */}
+        {/* Role Switcher & Account Modal (Citizen <-> First Responder) */}
         <RoleSwitcherModal
           visible={roleModalVisible}
           currentRole={role}
+          currentUser={currentUser}
+          onLogout={handleLogout}
           onSelectRole={(newRole) => {
             setRole(newRole);
             if (newRole === "citizen") setCitizenTab("home");
             if (newRole === "responder") setResponderTab("feed");
           }}
           onClose={() => setRoleModalVisible(false)}
+        />
+
+        {/* Device Permissions Onboarding Modal */}
+        <PermissionsModal
+          visible={permissionsModalVisible}
+          onComplete={() => setPermissionsModalVisible(false)}
         />
       </SafeAreaView>
     </SafeAreaProvider>

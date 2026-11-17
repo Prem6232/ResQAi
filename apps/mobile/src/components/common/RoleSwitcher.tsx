@@ -8,13 +8,15 @@ import {
 } from "react-native";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, SHADOWS } from "../../theme";
-import { Role } from "../../types";
+import { Role, UserProfile } from "../../types";
 
 interface RoleSwitcherModalProps {
   visible: boolean;
   currentRole: Role;
   onSelectRole: (role: Role) => void;
   onClose: () => void;
+  onLogout?: () => void;
+  currentUser?: UserProfile | null;
 }
 
 export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
@@ -22,6 +24,8 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
   currentRole,
   onSelectRole,
   onClose,
+  onLogout,
+  currentUser,
 }) => {
   const roles: Array<{
     id: Role;
@@ -99,6 +103,30 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
               );
             })}
           </View>
+
+          {/* User Account Info & Logout */}
+          {currentUser && (
+            <View style={styles.userSection}>
+              <View style={styles.userInfoCol}>
+                <Text style={styles.userNameText}>{currentUser.fullName || currentUser.name}</Text>
+                <Text style={styles.userEmailText}>{currentUser.email}</Text>
+              </View>
+            </View>
+          )}
+
+          {onLogout && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.logoutBtn}
+              onPress={() => {
+                onClose();
+                onLogout();
+              }}
+            >
+              <Feather name="log-out" size={16} color="#E11D48" />
+              <Text style={styles.logoutBtnText}>Sign Out / Switch Account</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </Modal>
@@ -175,5 +203,40 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 2,
     lineHeight: 15,
+  },
+  userSection: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  userInfoCol: {
+    marginBottom: 4,
+  },
+  userNameText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.textPrimary,
+  },
+  userEmailText: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 10,
+    paddingVertical: 10,
+    backgroundColor: "#FFF1F2",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#FECDD3",
+  },
+  logoutBtnText: {
+    color: "#E11D48",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });
