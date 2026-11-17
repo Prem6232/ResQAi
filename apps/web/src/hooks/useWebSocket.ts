@@ -78,7 +78,7 @@ export function useWebSocket(enabled: boolean) {
   const seen = useRef(new Set<string>());
 
   useEffect(() => {
-    if (!enabled || apiConfig.useMock) {
+    if (!enabled) {
       setConnected(false);
       return;
     }

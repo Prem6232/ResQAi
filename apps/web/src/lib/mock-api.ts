@@ -7,8 +7,7 @@ import type { NearbyAlert, ResponderAvailability, ResponderCapability, Responder
 import type { EvidenceAssessment } from "@/types/ai-evidence";
 import type { RoutePath } from "@/types/geospatial";
 import { http } from "@/lib/axios";
-import { hasBackendRoute } from "@/lib/backendCapabilities";
-import { buildStraightLineRoute, parseOsrmGeoJsonRoute } from "@/components/maps/liveResponderMapUtils";
+import { buildStraightLineRoute } from "@/components/maps/liveResponderMapUtils";
 
 export interface AnalyticsSummary {
   totalIncidents: number;
@@ -681,18 +680,18 @@ export const mockApi = {
     }
   },
 
-  async getOperatingArea(role?: Role): Promise<OperatingArea | null> {
+  async getOperatingArea(_role?: Role): Promise<OperatingArea | null> {
     try {
-      const hasPublicArea = await hasBackendRoute("/operating-area");
-      if (!hasPublicArea && role && role !== "admin" && role !== "operator") {
-        return null;
+      let res;
+      try {
+        res = await http.get("/operating-area");
+      } catch {
+        res = await http.get("/admin/operating-area");
       }
-      const endpoint = hasPublicArea ? "/operating-area" : "/admin/operating-area";
-      const res = await http.get(endpoint);
       const d = res.data as RawRecord;
       return {
         id: String(d.id),
-        name: String(d.name || "Northridge Campus"),
+        name: String(d.name || "Bhopal Metro Zone"),
         polygon: Array.isArray(d.polygon) ? (d.polygon as number[][]) : [],
         srid: Number(d.srid ?? 4326),
         isActive: Boolean(d.isActive ?? d.is_active ?? true),
@@ -710,43 +709,28 @@ export const mockApi = {
     profile: "foot" | "driving" | "bike" = "foot"
   ): Promise<RoutePath> {
     try {
-      if (await hasBackendRoute("/routing/route")) {
-        const res = await http.get("/routing/route", {
-          params: {
-            from_lat: from.lat,
-            from_lng: from.lng,
-            to_lat: to.lat,
-            to_lng: to.lng,
-            profile,
-          },
-        });
-        const d = res.data as RawRecord;
-        if (Array.isArray(d.coordinates) && d.coordinates.length >= 2) {
-          return {
-            coordinates: d.coordinates as [number, number][],
-            distanceKm: Number(d.distanceKm ?? 0),
-            durationMinutes: Math.max(1, Number(d.durationMinutes ?? 1)),
-            source: (d.source as RoutePath["source"]) || "osrm_baseline",
-            liveTraffic: false,
-            guaranteedSafe: false,
-          };
-        }
-      }
-
-      const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), 3000);
-      try {
-        const osrmUrl = `https://router.project-osrm.org/route/v1/${profile}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
-        const resp = await fetch(osrmUrl, { signal: controller.signal });
-        if (resp.ok) {
-          const parsed = parseOsrmGeoJsonRoute(await resp.json());
-          if (parsed) return parsed;
-        }
-      } finally {
-        window.clearTimeout(timer);
+      const res = await http.get("/routing/route", {
+        params: {
+          from_lat: from.lat,
+          from_lng: from.lng,
+          to_lat: to.lat,
+          to_lng: to.lng,
+          profile,
+        },
+      });
+      const d = res.data as RawRecord;
+      if (Array.isArray(d.coordinates) && d.coordinates.length >= 2) {
+        return {
+          coordinates: d.coordinates as [number, number][],
+          distanceKm: Number(d.distanceKm ?? 0),
+          durationMinutes: Math.max(1, Number(d.durationMinutes ?? 1)),
+          source: (d.source as RoutePath["source"]) || "osrm_baseline",
+          liveTraffic: false,
+          guaranteedSafe: false,
+        };
       }
     } catch {
-      // Fall back to campus straight-line calculation
+      // Fallback straight-line calculation if routing service is offline
     }
     return buildStraightLineRoute(from, to);
   },
@@ -766,38 +750,21 @@ export const mockApi = {
     lastPingAt?: string;
   } | null> {
     try {
-      if (await hasBackendRoute("/responder/profile")) {
-        const res = await http.get("/responder/profile");
-        const d = res.data as RawRecord;
-        return {
-          id: String(d.id),
-          userId: String(d.userId || d.user_id || d.id),
-          unitCode: String(d.unitCode || d.unit_code || "UNIT"),
-          displayName: String(d.displayName || d.display_name || "Responder Unit"),
-          responderType: String(d.responderType || d.responder_type || "campus_security"),
-          capabilities: (Array.isArray(d.capabilities) ? d.capabilities : ["first_aid", "security_patrol"]) as ResponderCapability[],
-          isOnDuty: Boolean(d.isOnDuty ?? d.is_on_duty ?? true),
-          availabilityStatus: (d.availabilityStatus || d.availability_status || "available") as ResponderAvailability,
-          shareLocation: Boolean(d.shareLocation ?? d.share_location ?? true),
-          approved: Boolean(d.approved ?? d.is_approved ?? true),
-          lastLocation: (d.lastLocation || d.last_location) as GeoPoint | undefined,
-          lastPingAt: d.lastPingAt ? String(d.lastPingAt) : undefined,
-        };
-      }
-      const me = await this.getMe();
-      const asgs = await this.assignments();
-      const busy = asgs.some((a) => ["accepted", "en_route", "arrived"].includes(a.status));
+      const res = await http.get("/responder/profile");
+      const d = res.data as RawRecord;
       return {
-        id: me.id,
-        userId: me.id,
-        unitCode: me.name.slice(0, 6).toUpperCase(),
-        displayName: me.name,
-        responderType: "campus_security",
-        capabilities: ["first_aid", "security_patrol", "rescue"],
-        isOnDuty: true,
-        availabilityStatus: busy ? "busy" : "available",
-        shareLocation: true,
-        approved: true,
+        id: String(d.id),
+        userId: String(d.userId || d.user_id || d.id),
+        unitCode: String(d.unitCode || d.unit_code || "UNIT"),
+        displayName: String(d.displayName || d.display_name || "Responder Unit"),
+        responderType: String(d.responderType || d.responder_type || "campus_security"),
+        capabilities: (Array.isArray(d.capabilities) ? d.capabilities : ["first_aid", "security_patrol"]) as ResponderCapability[],
+        isOnDuty: Boolean(d.isOnDuty ?? d.is_on_duty ?? true),
+        availabilityStatus: (d.availabilityStatus || d.availability_status || "available") as ResponderAvailability,
+        shareLocation: Boolean(d.shareLocation ?? d.share_location ?? true),
+        approved: Boolean(d.approved ?? d.is_approved ?? true),
+        lastLocation: (d.lastLocation || d.last_location) as GeoPoint | undefined,
+        lastPingAt: d.lastPingAt ? String(d.lastPingAt) : undefined,
       };
     } catch {
       return null;
@@ -811,27 +778,16 @@ export const mockApi = {
     recordedAt: string;
     message: string;
   }> {
-    if (await hasBackendRoute("/citizen/privacy/deletion-request")) {
-      const res = await http.post("/citizen/privacy/deletion-request", {
-        reason: reason?.trim() || "Citizen requested personal data deletion",
-      });
-      return res.data as {
-        ok: boolean;
-        requestId: string;
-        status: string;
-        recordedAt: string;
-        message: string;
-      };
-    }
-    const receipt = {
-      ok: true,
-      requestId: `del-${Date.now()}`,
-      status: "queued",
-      recordedAt: new Date().toISOString(),
-      message: "Privacy deletion request logged for campus administrator review.",
+    const res = await http.post("/citizen/privacy/deletion-request", {
+      reason: reason?.trim() || "Citizen requested personal data deletion",
+    });
+    return res.data as {
+      ok: boolean;
+      requestId: string;
+      status: string;
+      recordedAt: string;
+      message: string;
     };
-    localStorage.setItem("sg.privacy.deletionRequest", JSON.stringify(receipt));
-    return receipt;
   },
 
   async updateOperatingArea(payload: {
@@ -843,7 +799,7 @@ export const mockApi = {
     const d = res.data as RawRecord;
     return {
       id: String(d.id),
-      name: String(d.name || "Northridge Campus"),
+      name: String(d.name || "Bhopal Metro Zone"),
       polygon: Array.isArray(d.polygon) ? (d.polygon as number[][]) : [],
       srid: Number(d.srid ?? 4326),
       isActive: Boolean(d.isActive ?? d.is_active ?? true),
@@ -852,6 +808,8 @@ export const mockApi = {
     };
   },
 };
+
+export const liveApi = mockApi;
 
 export function isMockEnabled() {
   return false;

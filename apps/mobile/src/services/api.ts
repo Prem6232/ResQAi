@@ -307,14 +307,14 @@ export const mobileApi = {
       let lastLoc: GeoPoint | undefined;
       if (p.lastLocation) {
         lastLoc = {
-          lat: Number(p.lastLocation.lat || 28.5455),
-          lng: Number(p.lastLocation.lng || 77.2735),
+          lat: Number(p.lastLocation.lat || 23.2599),
+          lng: Number(p.lastLocation.lng || 77.4126),
         };
       }
       return {
         unitCode: p.unitCode || "F-2",
         unitName: p.displayName || `Unit ${p.unitCode}`,
-        station: "Northridge Central Station",
+        station: "Bhopal Central Emergency Station",
         crewCount: 4,
         isOnDuty: Boolean(p.isOnDuty),
         availability: p.availabilityStatus || "available",
@@ -471,8 +471,8 @@ export const mobileApi = {
     try {
       const list = await this.request<any[]>("/operator/responders");
       return (list || []).map((r) => {
-        let lat = 28.5455;
-        let lng = 77.2735;
+        let lat = 23.2599;
+        let lng = 77.4126;
         if (r.location && typeof r.location.lat === "number") {
           lat = r.location.lat;
           lng = r.location.lng;

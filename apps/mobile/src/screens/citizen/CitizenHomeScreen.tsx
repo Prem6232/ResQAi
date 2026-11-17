@@ -43,18 +43,14 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
         ]
       );
     } catch (e) {
-      console.warn("Failed to trigger SOS on backend, using fallback:", e);
-      const sosReport = {
-        category: "personal_sos" as IncidentCategory,
-        title: "CRITICAL PERSONAL SOS",
-        text: "Automatic emergency SOS signal broadcast with real-time GPS telemetry in Bhopal.",
-        locationLabel: "Bhopal Central · Coordinates Broadcasted",
-      };
-      onReportCreated(sosReport);
+      console.warn("Failed to trigger SOS on backend:", e);
       Alert.alert(
-        "🚨 SOS SIGNAL DISPATCHED (OFFLINE QUEUE)",
-        "Emergency beacon queued locally and transmitting to security desk.",
-        [{ text: "OK", onPress: onNavigateToReports }]
+        "🚨 CONNECTION NOTICE",
+        "Could not transmit emergency SOS beacon to the live backend. Please ensure your device is connected to the internet and tap Retry, or dial emergency services (112).",
+        [
+          { text: "Retry", onPress: handleSOSTriggered },
+          { text: "Cancel", style: "cancel" },
+        ]
       );
     } finally {
       setSosSending(false);
