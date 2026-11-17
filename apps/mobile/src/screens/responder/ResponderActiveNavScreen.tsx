@@ -11,19 +11,21 @@ import {
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, SHADOWS } from "../../theme";
 import { TacticalCampusMap, MapIncidentMarker, MapResponderMarker } from "../../components/map/TacticalCampusMap";
-import { ResponderJob } from "../../types";
+import { ResponderJob, GeoPoint } from "../../types";
 import { mobileApi } from "../../services/api";
 
 interface ResponderActiveNavScreenProps {
   activeJob: ResponderJob | null;
   onMarkArrived: () => void;
   onMarkCompleted?: () => void;
+  currentLocation?: GeoPoint;
 }
 
 export const ResponderActiveNavScreen: React.FC<ResponderActiveNavScreenProps> = ({
   activeJob,
   onMarkArrived,
   onMarkCompleted,
+  currentLocation,
 }) => {
   const [currentStatus, setCurrentStatus] = useState<"en_route" | "arrived" | "completed">(
     activeJob?.status === "arrived" ? "arrived" : "en_route"
@@ -105,8 +107,8 @@ export const ResponderActiveNavScreen: React.FC<ResponderActiveNavScreenProps> =
     id: "resp-f2",
     unitCode: "F-2",
     displayName: "Unit F-2",
-    lat: 23.2599,
-    lng: 77.4126,
+    lat: currentLocation?.lat ?? 23.2599,
+    lng: currentLocation?.lng ?? 77.4126,
     isOnDuty: true,
   };
 

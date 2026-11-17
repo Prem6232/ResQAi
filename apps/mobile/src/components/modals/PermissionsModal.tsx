@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS } from "../../theme";
+import { mobileLocation } from "../../services/location";
 
 interface PermissionsModalProps {
   visible: boolean;
@@ -97,8 +98,18 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
   const handleGrantPermissions = async () => {
     setLoading(true);
     try {
+      // 1. Request real hardware GPS location permission
+      const locGranted = await mobileLocation.requestPermission();
+      if (locGranted) {
+        // Immediately ping phone GPS to get real hardware coordinates
+        await mobileLocation.getCurrentLocation();
+      }
+
+      // 2. Request camera, storage, and notification permissions
       const results = await requestDevicePermissions();
-      setStatus(results);
+      setStatus({ ...results, location: locGranted });
+    } catch (e) {
+      console.warn("Permissions grant error:", e);
     } finally {
       setLoading(false);
       onComplete();

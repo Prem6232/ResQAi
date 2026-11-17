@@ -13,10 +13,12 @@ import {
   ResponderProfile,
   TrustedContact,
   UserProfile,
+  GeoPoint,
 } from "./src/types";
 
 import { mobileApi } from "./src/services/api";
 import { mobileRealtime } from "./src/services/realtime";
+import { mobileLocation, BHOPAL_CITY_FALLBACK } from "./src/services/location";
 
 import { SafeHeader } from "./src/components/common/SafeHeader";
 import { BottomNav, CitizenTab, ResponderTab } from "./src/components/common/BottomNav";
@@ -48,6 +50,10 @@ export default function App() {
   const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [reportWizardVisible, setReportWizardVisible] = useState(false);
 
+  // Real Hardware GPS Location State — unlocked and updated in real-time
+  const [deviceLocation, setDeviceLocation] = useState<GeoPoint>(BHOPAL_CITY_FALLBACK);
+  const [isRealGPS, setIsRealGPS] = useState<boolean>(false);
+
   // App Data Store — synchronized with live FastAPI backend
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [alerts, setAlerts] = useState<NearbyAlert[]>([]);
@@ -69,13 +75,13 @@ export default function App() {
     acceptanceRatePct: 98,
   });
 
-  // Fetch role-specific data from backend
-  const refreshRoleData = async (activeRole: Role) => {
+  // Fetch role-specific data from backend using live GPS coordinates
+  const refreshRoleData = async (activeRole: Role, loc: GeoPoint = deviceLocation) => {
     try {
       if (activeRole === "citizen") {
         const [fetchedReports, fetchedAlerts, fetchedContacts] = await Promise.all([
           mobileApi.getCitizenReports(),
-          mobileApi.getNearbyAlerts({ lat: 23.2599, lng: 77.4126 }),
+          mobileApi.getNearbyAlerts(loc),
           mobileApi.getContacts(),
         ]);
         if (fetchedReports) setReports(fetchedReports);
@@ -106,7 +112,7 @@ export default function App() {
     setRole(newRole);
     setIsAuthenticated(true);
     setPermissionsModalVisible(true);
-    refreshRoleData(newRole);
+    refreshRoleData(newRole, deviceLocation);
   };
 
   const handleLogout = () => {
@@ -115,19 +121,45 @@ export default function App() {
     setIsAuthenticated(false);
   };
 
+  // Real device GPS tracking subscriber — tracks actual hardware coordinates
+  useEffect(() => {
+    let unsubscribeLocation: (() => void) | null = null;
+
+    const startLocationTracking = async () => {
+      // 1. Initial GPS lock
+      const initial = await mobileLocation.getCurrentLocation();
+      if (initial) {
+        setDeviceLocation(initial);
+        setIsRealGPS(true);
+      }
+
+      // 2. Watch position continuously as user moves
+      unsubscribeLocation = await mobileLocation.startLiveTracking((coords) => {
+        setDeviceLocation(coords);
+        setIsRealGPS(true);
+      });
+    };
+
+    startLocationTracking();
+
+    return () => {
+      if (unsubscribeLocation) unsubscribeLocation();
+    };
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
 
     let unsubscribe: (() => void) | null = null;
 
-    refreshRoleData(role);
+    refreshRoleData(role, deviceLocation);
     mobileRealtime.connect();
 
     unsubscribe = mobileRealtime.subscribe((event) => {
       console.log("Realtime event received on mobile:", event);
       if (role === "citizen") {
         mobileApi.getCitizenReports().then((r) => r.length && setReports(r));
-        mobileApi.getNearbyAlerts().then((a) => a.length && setAlerts(a));
+        mobileApi.getNearbyAlerts(deviceLocation).then((a) => a.length && setAlerts(a));
       } else {
         mobileApi.getResponderAssignments().then((a) => {
           if (a.length) {
@@ -141,7 +173,7 @@ export default function App() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [role, isAuthenticated]);
+  }, [role, isAuthenticated, deviceLocation.lat, deviceLocation.lng]);
 
   // Citizen Report Creation handler
   const handleCreateReport = async (newRep: {
@@ -157,6 +189,8 @@ export default function App() {
         title: newRep.title,
         text: newRep.text,
         locationLabel: newRep.locationLabel,
+        lat: deviceLocation.lat,
+        lng: deviceLocation.lng,
       });
       setReports((prev) => [savedReport, ...prev]);
     } catch (e) {
@@ -172,6 +206,7 @@ export default function App() {
         stepDetails: "Received by control room. Triage & proximity matching in progress.",
         locationLabel: newRep.locationLabel,
         voiceTranscript: newRep.voiceTranscript,
+        location: { lat: deviceLocation.lat, lng: deviceLocation.lng },
       };
       setReports((prev) => [reportItem, ...prev]);
     }
@@ -256,6 +291,7 @@ export default function App() {
         case "home":
           return (
             <CitizenHomeScreen
+              currentLocation={deviceLocation}
               onReportCreated={handleCreateReport}
               onNavigateToReports={() => setCitizenTab("reports")}
             />
@@ -263,6 +299,7 @@ export default function App() {
         case "alerts":
           return (
             <CitizenAlertsScreen
+              currentLocation={deviceLocation}
               alerts={alerts}
               onOpenReportWizard={() => setReportWizardVisible(true)}
             />
@@ -289,6 +326,7 @@ export default function App() {
         case "feed":
           return (
             <ResponderFeedScreen
+              currentLocation={deviceLocation}
               isOnDuty={responderProfile.isOnDuty}
               onToggleDuty={handleToggleDuty}
               featuredJob={featuredJob}
@@ -300,6 +338,7 @@ export default function App() {
         case "nav":
           return (
             <ResponderActiveNavScreen
+              currentLocation={deviceLocation}
               activeJob={featuredJob}
               onMarkArrived={handleMarkArrived}
               onMarkCompleted={handleMarkCompleted}
@@ -318,6 +357,7 @@ export default function App() {
         case "status":
           return (
             <ResponderStatusScreen
+              currentLocation={deviceLocation}
               profile={responderProfile}
               onUpdateProfile={(updated) =>
                 setResponderProfile({ ...responderProfile, ...updated })
@@ -339,9 +379,13 @@ export default function App() {
 
   const headerSubtitle =
     role === "citizen"
-      ? "Live location on"
+      ? isRealGPS
+        ? `📍 GPS ${deviceLocation.lat.toFixed(4)}, ${deviceLocation.lng.toFixed(4)}`
+        : "Acquiring GPS Signal..."
       : responderProfile.isOnDuty
-      ? "On Duty · Telemetry Active"
+      ? isRealGPS
+        ? `On Duty · GPS ${deviceLocation.lat.toFixed(4)}, ${deviceLocation.lng.toFixed(4)}`
+        : "On Duty · Telemetry Active"
       : "Off Duty";
 
   if (!isAuthenticated) {

@@ -443,9 +443,10 @@ export const LeafletMapView: React.FC<LeafletMapViewProps> = ({
       }
     }
 
-    // Recenter Handler
+    // Recenter Handler (centers on device live GPS coordinates)
     window.recenterBhopal = function() {
-      map.flyTo(BHOPAL, 13, { duration: 0.8 });
+      var targetCoords = [selfData.lat || BHOPAL[0], selfData.lng || BHOPAL[1]];
+      map.flyTo(targetCoords, 14, { duration: 0.8 });
     };
 
     // User / Self Location Marker

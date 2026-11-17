@@ -5,18 +5,20 @@ import { SOSRadarButton } from "../../components/radar/SOSRadarButton";
 import { CategoryCard } from "../../components/cards/CategoryCard";
 import { TacticalCampusMap } from "../../components/map/TacticalCampusMap";
 import { ReportWizardModal } from "../../components/modals/ReportWizardModal";
-import { IncidentCategory } from "../../types";
+import { IncidentCategory, GeoPoint } from "../../types";
 import { mobileApi } from "../../services/api";
 import { Feather } from "@expo/vector-icons";
 
 interface CitizenHomeScreenProps {
   onReportCreated: (report: any) => void;
   onNavigateToReports: () => void;
+  currentLocation?: GeoPoint;
 }
 
 export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
   onReportCreated,
   onNavigateToReports,
+  currentLocation,
 }) => {
   const [wizardVisible, setWizardVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<IncidentCategory>("fire_smoke");
@@ -32,7 +34,8 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
     setSosSending(true);
 
     try {
-      const sosResult = await mobileApi.triggerSOS({ lat: 23.2599, lng: 77.4126 });
+      const liveCoords = currentLocation || { lat: 23.2599, lng: 77.4126 };
+      const sosResult = await mobileApi.triggerSOS(liveCoords);
       onReportCreated(sosResult);
       Alert.alert(
         "🚨 SOS SIGNAL BROADCASTED",
@@ -87,7 +90,7 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
         <View style={styles.mapCard}>
           <TacticalCampusMap
             height={220}
-            selfPoint={{ lat: 23.2599, lng: 77.4126 }}
+            selfPoint={currentLocation || { lat: 23.2599, lng: 77.4126 }}
             interactive={true}
           />
         </View>

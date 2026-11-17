@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, SHADOWS } from "../../theme";
-import { ResponderJob } from "../../types";
+import { ResponderJob, GeoPoint } from "../../types";
 import { TacticalCampusMap, MapIncidentMarker, MapResponderMarker } from "../../components/map/TacticalCampusMap";
 
 interface ResponderFeedScreenProps {
@@ -19,6 +19,7 @@ interface ResponderFeedScreenProps {
   resolvedJobs: ResponderJob[];
   onAcceptJob: (job: ResponderJob) => void;
   onDeclineJob: (job: ResponderJob) => void;
+  currentLocation?: GeoPoint;
 }
 
 export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
@@ -28,6 +29,7 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
   resolvedJobs,
   onAcceptJob,
   onDeclineJob,
+  currentLocation,
 }) => {
   const [secondsRemaining, setSecondsRemaining] = useState(88);
 
@@ -74,8 +76,8 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
       id: "resp-f2",
       unitCode: "F-2",
       displayName: "Unit F-2",
-      lat: 23.2599,
-      lng: 77.4126,
+      lat: currentLocation?.lat ?? 23.2599,
+      lng: currentLocation?.lng ?? 77.4126,
       isOnDuty,
     },
   ];
@@ -130,7 +132,7 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
         <View style={styles.mapContainer}>
           <TacticalCampusMap
             height={220}
-            selfPoint={{ lat: 28.5455, lng: 77.2735 }}
+            selfPoint={currentLocation || { lat: 23.2599, lng: 77.4126 }}
             incidents={mapIncidents}
             responders={mapResponders}
             showRoute={Boolean(featuredJob)}

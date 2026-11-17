@@ -9,16 +9,18 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { COLORS, SHADOWS } from "../../theme";
 import { TacticalCampusMap, MapIncidentMarker } from "../../components/map/TacticalCampusMap";
-import { NearbyAlert } from "../../types";
+import { NearbyAlert, GeoPoint } from "../../types";
 
 interface CitizenAlertsScreenProps {
   alerts: NearbyAlert[];
   onOpenReportWizard: () => void;
+  currentLocation?: GeoPoint;
 }
 
 export const CitizenAlertsScreen: React.FC<CitizenAlertsScreenProps> = ({
   alerts,
   onOpenReportWizard,
+  currentLocation,
 }) => {
   const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "caution">("all");
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
@@ -73,7 +75,7 @@ export const CitizenAlertsScreen: React.FC<CitizenAlertsScreenProps> = ({
             incidents={mapIncidents}
             targetIncident={activeTargetIncident}
             onSelectIncident={(inc) => setSelectedAlertId(inc.id)}
-            selfPoint={{ lat: 23.2599, lng: 77.4126 }}
+            selfPoint={currentLocation || { lat: 23.2599, lng: 77.4126 }}
           />
         </View>
 

@@ -10,17 +10,19 @@ import {
 } from "react-native";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, SHADOWS } from "../../theme";
-import { ResponderProfile } from "../../types";
+import { ResponderProfile, GeoPoint } from "../../types";
 import { mobileApi } from "../../services/api";
 
 interface ResponderStatusScreenProps {
   profile: ResponderProfile;
   onUpdateProfile: (updated: Partial<ResponderProfile>) => void;
+  currentLocation?: GeoPoint;
 }
 
 export const ResponderStatusScreen: React.FC<ResponderStatusScreenProps> = ({
   profile,
   onUpdateProfile,
+  currentLocation,
 }) => {
   const [availability, setAvailability] = useState(profile.availability);
   const [shareLocation, setShareLocation] = useState(profile.shareLiveLocation);
@@ -42,10 +44,11 @@ export const ResponderStatusScreen: React.FC<ResponderStatusScreenProps> = ({
   const handleTestPing = async () => {
     try {
       setIsPinging(true);
-      await mobileApi.sendLocationPing(28.5458, 77.2735);
+      const coords = currentLocation || { lat: 23.2599, lng: 77.4126 };
+      await mobileApi.sendLocationPing(coords.lat, coords.lng);
       Alert.alert(
         "📍 Telemetry Synchronized",
-        "GPS coordinate ping (28.5458, 77.2735) committed to PostGIS. Control Room live tactical map updated."
+        `Real GPS coordinate ping (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}) committed to PostGIS. Control Room live tactical map updated.`
       );
     } catch {
       Alert.alert("Telemetry Error", "Could not reach dispatch telemetry receiver.");
