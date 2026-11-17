@@ -22,7 +22,7 @@ import { BottomNav, CitizenTab, ResponderTab } from "./src/components/common/Bot
 import { RoleSwitcherModal } from "./src/components/common/RoleSwitcher";
 import { ReportWizardModal } from "./src/components/modals/ReportWizardModal";
 
-// Screens
+// Screens for Citizen and Responder
 import { CitizenHomeScreen } from "./src/screens/citizen/CitizenHomeScreen";
 import { CitizenAlertsScreen } from "./src/screens/citizen/CitizenAlertsScreen";
 import { CitizenMyReportsScreen } from "./src/screens/citizen/CitizenMyReportsScreen";
@@ -33,8 +33,6 @@ import { ResponderActiveNavScreen } from "./src/screens/responder/ResponderActiv
 import { ResponderHistoryScreen } from "./src/screens/responder/ResponderHistoryScreen";
 import { ResponderStatusScreen } from "./src/screens/responder/ResponderStatusScreen";
 
-import { ControlRoomScreen } from "./src/screens/operator/ControlRoomScreen";
-
 export default function App() {
   const [role, setRole] = useState<Role>("citizen");
   const [citizenTab, setCitizenTab] = useState<CitizenTab>("home");
@@ -43,7 +41,7 @@ export default function App() {
   const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [reportWizardVisible, setReportWizardVisible] = useState(false);
 
-  // App Data Store — populated live from FastAPI backend
+  // App Data Store — synchronized with live FastAPI backend
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [alerts, setAlerts] = useState<NearbyAlert[]>([]);
   const [reports, setReports] = useState<CitizenReport[]>([]);
@@ -64,60 +62,60 @@ export default function App() {
     acceptanceRatePct: 98,
   });
 
-  // Initialize and synchronize with FastAPI backend
+  // Fetch role-specific data from backend
+  const refreshRoleData = async (activeRole: Role) => {
+    try {
+      await mobileApi.loginAs(activeRole);
+
+      if (activeRole === "citizen") {
+        const [fetchedReports, fetchedAlerts, fetchedContacts] = await Promise.all([
+          mobileApi.getCitizenReports(),
+          mobileApi.getNearbyAlerts({ lat: 28.5452, lng: 77.2731 }),
+          mobileApi.getContacts(),
+        ]);
+        if (fetchedReports) setReports(fetchedReports);
+        if (fetchedAlerts) setAlerts(fetchedAlerts);
+        if (fetchedContacts) setContacts(fetchedContacts);
+      } else {
+        const [assignments, history, prof] = await Promise.all([
+          mobileApi.getResponderAssignments(),
+          mobileApi.getResponderHistory(),
+          mobileApi.getResponderProfile(),
+        ]);
+
+        if (prof) setResponderProfile(prof);
+        if (assignments.length) {
+          setFeaturedJob(assignments[0]);
+          setResolvedJobs(assignments.slice(1).concat(history));
+        } else if (history.length) {
+          setResolvedJobs(history);
+        }
+      }
+    } catch (e) {
+      console.warn("Backend data refresh warning:", e);
+    }
+  };
+
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
 
-    async function initBackend() {
-      try {
-        await mobileApi.loginAs(role);
-        mobileRealtime.connect();
+    refreshRoleData(role);
+    mobileRealtime.connect();
 
-        if (role === "citizen") {
-          const [fetchedReports, fetchedAlerts, fetchedContacts] = await Promise.all([
-            mobileApi.getCitizenReports(),
-            mobileApi.getNearbyAlerts({ lat: 28.5452, lng: 77.2731 }),
-            mobileApi.getContacts(),
-          ]);
-          if (fetchedReports.length) setReports(fetchedReports);
-          if (fetchedAlerts.length) setAlerts(fetchedAlerts);
-          if (fetchedContacts.length) setContacts(fetchedContacts);
-        } else if (role === "responder") {
-          const [assignments, history, prof] = await Promise.all([
-            mobileApi.getResponderAssignments(),
-            mobileApi.getResponderHistory(),
-            mobileApi.getResponderProfile(),
-          ]);
-
-          if (prof) setResponderProfile(prof);
-          if (assignments.length) {
-            setFeaturedJob(assignments[0]);
-            setResolvedJobs(assignments.slice(1).concat(history));
-          } else if (history.length) {
-            setResolvedJobs(history);
-          }
-        }
-
-        unsubscribe = mobileRealtime.subscribe((event) => {
-          console.log("Realtime event received on mobile:", event);
-          if (role === "citizen") {
-            mobileApi.getCitizenReports().then((r) => r.length && setReports(r));
-            mobileApi.getNearbyAlerts().then((a) => a.length && setAlerts(a));
-          } else if (role === "responder") {
-            mobileApi.getResponderAssignments().then((a) => {
-              if (a.length) {
-                setFeaturedJob(a[0]);
-                setResolvedJobs(a.slice(1));
-              }
-            });
+    unsubscribe = mobileRealtime.subscribe((event) => {
+      console.log("Realtime event received on mobile:", event);
+      if (role === "citizen") {
+        mobileApi.getCitizenReports().then((r) => r.length && setReports(r));
+        mobileApi.getNearbyAlerts().then((a) => a.length && setAlerts(a));
+      } else {
+        mobileApi.getResponderAssignments().then((a) => {
+          if (a.length) {
+            setFeaturedJob(a[0]);
+            setResolvedJobs(a.slice(1));
           }
         });
-      } catch (err) {
-        console.warn("Backend synchronization warning:", err);
       }
-    }
-
-    initBackend();
+    });
 
     return () => {
       if (unsubscribe) unsubscribe();
@@ -179,7 +177,7 @@ export default function App() {
     try {
       await mobileApi.updateDuty(val, val ? "available" : "off_duty");
     } catch (e) {
-      console.warn("Duty toggle warning", e);
+      console.warn("Duty toggle sync warning", e);
     }
   };
 
@@ -231,11 +229,6 @@ export default function App() {
     }
   };
 
-  // Operator Verify & Dispatch
-  const handleVerifyAndDispatch = () => {
-    console.log("Verified & Dispatched from Control Room");
-  };
-
   const renderActiveScreen = () => {
     if (role === "citizen") {
       switch (citizenTab) {
@@ -254,7 +247,13 @@ export default function App() {
             />
           );
         case "reports":
-          return <CitizenMyReportsScreen reports={reports} />;
+          return (
+            <CitizenMyReportsScreen
+              reports={reports}
+              onRefresh={() => mobileApi.getCitizenReports().then(setReports)}
+              onOpenReportWizard={() => setReportWizardVisible(true)}
+            />
+          );
         case "contacts":
           return (
             <CitizenContactsScreen
@@ -264,7 +263,7 @@ export default function App() {
             />
           );
       }
-    } else if (role === "responder") {
+    } else {
       switch (responderTab) {
         case "feed":
           return (
@@ -292,6 +291,7 @@ export default function App() {
               avgArrivalMinutes={responderProfile.avgArrivalMinutes}
               acceptanceRatePct={responderProfile.acceptanceRatePct}
               historyJobs={resolvedJobs}
+              onRefresh={() => mobileApi.getResponderHistory().then(setResolvedJobs)}
             />
           );
         case "status":
@@ -304,10 +304,6 @@ export default function App() {
             />
           );
       }
-    } else {
-      return (
-        <ControlRoomScreen onVerifyAndDispatch={handleVerifyAndDispatch} />
-      );
     }
   };
 
@@ -323,18 +319,16 @@ export default function App() {
   const headerSubtitle =
     role === "citizen"
       ? "Live location on"
-      : role === "responder"
-      ? responderProfile.isOnDuty
-        ? "On Duty · Telemetry Active"
-        : "Off Duty"
-      : "Campus Dispatch Active";
+      : responderProfile.isOnDuty
+      ? "On Duty · Telemetry Active"
+      : "Off Duty";
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeContainer} edges={["top", "bottom"]}>
         <StatusBar style="dark" />
 
-        {/* Unified App Header */}
+        {/* Unified App Header with Role Switcher (Citizen <-> First Responder) */}
         <SafeHeader
           role={role}
           subtitle={headerSubtitle}
@@ -344,16 +338,14 @@ export default function App() {
         {/* Main Screen Body */}
         <View style={styles.bodyContainer}>{renderActiveScreen()}</View>
 
-        {/* Bottom Tab Navigation Bar (For Citizen & Responder) */}
-        {role !== "operator" ? (
-          <BottomNav
-            role={role}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-          />
-        ) : null}
+        {/* Bottom Tab Navigation Bar */}
+        <BottomNav
+          role={role}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+        />
 
-        {/* Global Report Wizard Modal */}
+        {/* Global Report Creation Wizard Modal */}
         <ReportWizardModal
           visible={reportWizardVisible}
           onClose={() => setReportWizardVisible(false)}
@@ -363,7 +355,7 @@ export default function App() {
           }}
         />
 
-        {/* Role Switcher Modal (Switch between Citizen / Responder / Control Room) */}
+        {/* Role Switcher Modal (Citizen <-> First Responder) */}
         <RoleSwitcherModal
           visible={roleModalVisible}
           currentRole={role}

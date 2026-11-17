@@ -34,7 +34,7 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
     {
       id: "citizen",
       title: "Citizen App",
-      description: "Hold 3s SOS, 6 incident categories, nearby radar alerts, my reports & trusted contacts.",
+      description: "Emergency SOS beacon, 6 incident categories, nearby alerts & trusted contacts.",
       icon: "account-alert",
       color: COLORS.sosPrimary,
       bg: "#FFE4E6",
@@ -42,18 +42,10 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
     {
       id: "responder",
       title: "First Responder App",
-      description: "On-Duty toggle, awaiting response job offer, turn-by-turn routing & unit status.",
+      description: "On-Duty toggle, 90s dispatch offers, active turn-by-turn navigation & status.",
       icon: "truck-fast",
       color: COLORS.dutyPrimary,
       bg: "#DCFCE7",
-    },
-    {
-      id: "operator",
-      title: "Control Room Dashboard",
-      description: "Live incident stream, AI triage panel with voice transcript & responder dispatch.",
-      icon: "view-dashboard",
-      color: COLORS.info,
-      bg: "#DBEAFE",
     },
   ];
 
@@ -65,7 +57,7 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
             <View>
               <Text style={styles.title}>Switch App Role</Text>
               <Text style={styles.subtitle}>
-                Demonstrate the full multi-actor workflow
+                Toggle between Citizen and First Responder mode
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -100,9 +92,9 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
                     <Text style={styles.roleTitle}>{r.title}</Text>
                     <Text style={styles.roleDesc}>{r.description}</Text>
                   </View>
-                  {isSelected ? (
-                    <Feather name="check-circle" size={20} color="#059669" />
-                  ) : null}
+                  {isSelected && (
+                    <Feather name="check" size={18} color={COLORS.brandBlue} />
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -118,18 +110,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.6)",
     justifyContent: "center",
-    paddingHorizontal: 20,
+    alignItems: "center",
+    padding: 20,
   },
   content: {
+    width: "100%",
     backgroundColor: COLORS.surface,
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     ...SHADOWS.cardHover,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 16,
   },
   title: {
@@ -143,12 +139,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.surfaceSubtle,
-    alignItems: "center",
-    justifyContent: "center",
+    padding: 4,
   },
   roleList: {
     gap: 12,
@@ -156,23 +147,23 @@ const styles = StyleSheet.create({
   roleCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.surfaceSubtle,
     padding: 14,
     borderRadius: 16,
+    backgroundColor: COLORS.background,
     borderWidth: 1.5,
-    borderColor: "transparent",
+    borderColor: COLORS.border,
   },
   roleCardSelected: {
-    borderColor: COLORS.textPrimary,
-    backgroundColor: "#F8FAFC",
+    borderColor: COLORS.brandBlue,
+    backgroundColor: "#F0F9FF",
   },
   iconBox: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: 14,
   },
   roleTitle: {
     fontSize: 15,

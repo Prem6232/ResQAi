@@ -16,13 +16,7 @@ export const SafeHeader: React.FC<SafeHeaderProps> = ({
   onRoleSwitchPress,
   rightComponent,
 }) => {
-  const roleLabel =
-    role === "citizen"
-      ? "CITIZEN"
-      : role === "responder"
-      ? "FIRST RESPONDER"
-      : "CONTROL ROOM";
-
+  const roleLabel = role === "citizen" ? "CITIZEN" : "FIRST RESPONDER";
   const isResponder = role === "responder";
 
   return (
@@ -63,14 +57,12 @@ export const SafeHeader: React.FC<SafeHeaderProps> = ({
           style={[
             styles.roleBadge,
             isResponder && styles.responderBadge,
-            role === "operator" && styles.operatorBadge,
           ]}
         >
           <Text
             style={[
               styles.roleBadgeText,
               isResponder && styles.responderBadgeText,
-              role === "operator" && styles.operatorBadgeText,
             ]}
           >
             {roleLabel}
@@ -99,17 +91,40 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logoImage: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
   },
   brandTextCol: {
     justifyContent: "center",
   },
   brandTitle: {
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 18,
+    fontWeight: "900",
     color: COLORS.textPrimary,
     letterSpacing: -0.5,
+  },
+  liveBackendBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  livePulseDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "#059669",
+    marginRight: 4,
+  },
+  liveBackendText: {
+    fontSize: 8,
+    fontWeight: "800",
+    color: "#065F46",
+    letterSpacing: 0.3,
   },
   locationRow: {
     flexDirection: "row",
@@ -120,7 +135,8 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    marginRight: 6,
+    backgroundColor: COLORS.dutyPrimary,
+    marginRight: 5,
   },
   locationSubtitle: {
     fontSize: 12,
@@ -133,54 +149,24 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   roleBadge: {
-    backgroundColor: COLORS.surfaceSubtle,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: "#E2E8F0",
   },
   responderBadge: {
-    backgroundColor: COLORS.dutySubtle,
-    borderColor: COLORS.dutyPrimary,
-  },
-  operatorBadge: {
-    backgroundColor: "#EFF6FF",
-    borderColor: COLORS.info,
+    backgroundColor: "#ECFDF5",
+    borderColor: "#059669",
   },
   roleBadgeText: {
     fontSize: 11,
     fontWeight: "700",
     color: COLORS.textSecondary,
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
   responderBadgeText: {
-    color: COLORS.dutyDark,
-  },
-  operatorBadgeText: {
-    color: COLORS.info,
-  },
-  liveBackendBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ECFDF5",
-    borderWidth: 1,
-    borderColor: "#10B981",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 4,
-  },
-  livePulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#10B981",
-  },
-  liveBackendText: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#047857",
-    letterSpacing: 0.5,
+    color: "#059669",
   },
 });

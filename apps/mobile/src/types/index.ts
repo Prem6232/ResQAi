@@ -1,4 +1,4 @@
-export type Role = "citizen" | "responder" | "operator";
+export type Role = "citizen" | "responder";
 
 export type IncidentCategory =
   | "fire_smoke"

@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   Animated,
   PanResponder,
-  GestureResponderEvent,
-  PanResponderGestureState,
   Dimensions,
 } from "react-native";
 import Svg, {
@@ -27,25 +25,10 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, SHADOWS } from "../../theme";
 import { GeoPoint, IncidentCategory, IncidentUrgency } from "../../types";
 
-// Campus center coordinates (Northridge Campus)
-export const DEFAULT_CAMPUS_CENTER: GeoPoint = {
+export const CAMPUS_CENTER: GeoPoint = {
   lat: 28.5452,
   lng: 77.2731,
 };
-
-// Key campus architectural buildings
-export const CAMPUS_BUILDINGS = [
-  { id: "quad", name: "Central Quad", code: "QUAD", lat: 28.5452, lng: 77.2731, w: 90, h: 70, fill: "#E2F1E8", stroke: "#A7D7B9" },
-  { id: "lib", name: "Central Library", code: "LIB", lat: 28.5440, lng: 77.2745, w: 75, h: 55, fill: "#E8EEF5", stroke: "#CBD5E1" },
-  { id: "sci", name: "Science & Tech Hub", code: "SCI", lat: 28.5465, lng: 77.2715, w: 85, h: 60, fill: "#E8EEF5", stroke: "#CBD5E1" },
-  { id: "eng", name: "Engineering Wing", code: "ENG", lat: 28.5472, lng: 77.2732, w: 80, h: 50, fill: "#E8EEF5", stroke: "#CBD5E1" },
-  { id: "med", name: "Health & Medical Center", code: "MED", lat: 28.5435, lng: 77.2720, w: 70, h: 50, fill: "#FEE2E2", stroke: "#FCA5A5" },
-  { id: "adm", name: "Admin Command Block", code: "ADM", lat: 28.5458, lng: 77.2742, w: 65, h: 50, fill: "#E8EEF5", stroke: "#CBD5E1" },
-  { id: "res", name: "Student Hostels", code: "RES", lat: 28.5470, lng: 77.2755, w: 95, h: 65, fill: "#F1F5F9", stroke: "#CBD5E1" },
-  { id: "spt", name: "Sports Arena & Track", code: "SPT", lat: 28.5420, lng: 77.2750, w: 100, h: 65, fill: "#FEF3C7", stroke: "#FDE68A" },
-  { id: "gate1", name: "Main North Gate", code: "GATE 1", lat: 28.5485, lng: 77.2730, w: 50, h: 25, fill: "#F8FAFC", stroke: "#94A3B8" },
-  { id: "gate3", name: "South Gate 3", code: "GATE 3", lat: 28.5415, lng: 77.2732, w: 50, h: 25, fill: "#F8FAFC", stroke: "#94A3B8" },
-];
 
 export interface MapIncidentMarker {
   id: string;
@@ -85,8 +68,8 @@ export interface TacticalCampusMapProps {
 }
 
 export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
-  height = 300,
-  selfPoint = { lat: 28.5455, lng: 77.2735 },
+  height = 240,
+  selfPoint = { lat: 28.5452, lng: 77.2731 },
   incidents = [],
   responders = [],
   targetIncident,
@@ -103,19 +86,19 @@ export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
   // Zoom & Pan state
   const [zoom, setZoom] = useState(16); // 14 to 18
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [selectedItem, setSelectedItem] = useState<{
+  const [selectedMarker, setSelectedMarker] = useState<{
     type: "incident" | "responder";
     data: any;
   } | null>(null);
 
-  // Layer filters
-  const [showIncidentsLayer, setShowIncidentsLayer] = useState(true);
-  const [showRespondersLayer, setShowRespondersLayer] = useState(true);
-  const [showGeofenceLayer, setShowGeofenceLayer] = useState(true);
+  // Layer toggles
+  const [showIncidents, setShowIncidents] = useState(true);
+  const [showResponders, setShowResponders] = useState(true);
+  const [showBoundary, setShowBoundary] = useState(true);
 
-  // Animated pulse for active incidents
+  // Animated pulse for incidents and user beacon
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const pulseOpacity = useRef(new Animated.Value(0.7)).current;
+  const pulseOpacity = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -123,24 +106,24 @@ export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 2.2,
-            duration: 1600,
+            duration: 1500,
             useNativeDriver: false,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1.0,
-            duration: 1600,
+            duration: 1500,
             useNativeDriver: false,
           }),
         ]),
         Animated.sequence([
           Animated.timing(pulseOpacity, {
-            toValue: 0.15,
-            duration: 1600,
+            toValue: 0.1,
+            duration: 1500,
             useNativeDriver: false,
           }),
           Animated.timing(pulseOpacity, {
-            toValue: 0.7,
-            duration: 1600,
+            toValue: 0.8,
+            duration: 1500,
             useNativeDriver: false,
           }),
         ]),
@@ -151,30 +134,26 @@ export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
   }, [pulseAnim, pulseOpacity]);
 
   // Coordinate projection math
-  // Maps GPS (lat, lng) to canvas pixels (x, y) relative to campus center
-  const center = DEFAULT_CAMPUS_CENTER;
+  const center = CAMPUS_CENTER;
   const scale = useMemo(() => {
-    // Zoom factor: at zoom 16, 0.001 deg ≈ 55px
-    return Math.pow(2, zoom - 16) * 55000;
+    return Math.pow(2, zoom - 16) * 52000;
   }, [zoom]);
 
-  const projectToCanvas = (lat: number, lng: number) => {
-    const deltaLng = (lng - center.lng) * Math.cos((center.lat * Math.PI) / 180);
-    const deltaLat = lat - center.lat;
-
-    const x = containerWidth / 2 + deltaLng * scale + panOffset.x;
-    const y = height / 2 - deltaLat * scale + panOffset.y;
-
+  const toCanvas = (lat: number, lng: number) => {
+    const dLng = (lng - center.lng) * Math.cos((center.lat * Math.PI) / 180);
+    const dLat = lat - center.lat;
+    const x = containerWidth / 2 + dLng * scale + panOffset.x;
+    const y = height / 2 - dLat * scale + panOffset.y;
     return { x, y };
   };
 
-  // Touch Pan gesture responder
+  // Touch Pan Gesture Handling
   const panStartRef = useRef({ x: 0, y: 0 });
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => interactive,
       onMoveShouldSetPanResponder: (_, gesture) =>
-        interactive && (Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4),
+        interactive && (Math.abs(gesture.dx) > 3 || Math.abs(gesture.dy) > 3),
       onPanResponderGrant: () => {
         panStartRef.current = { ...panOffset };
       },
@@ -187,17 +166,14 @@ export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
     })
   ).current;
 
-  // Zoom controls
+  // Zoom and Recenter Controls
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.5, 18));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.5, 14));
   const handleRecenterSelf = () => {
     if (selfPoint) {
-      const deltaLng = (selfPoint.lng - center.lng) * Math.cos((center.lat * Math.PI) / 180);
-      const deltaLat = selfPoint.lat - center.lat;
-      setPanOffset({
-        x: -deltaLng * scale,
-        y: deltaLat * scale,
-      });
+      const dLng = (selfPoint.lng - center.lng) * Math.cos((center.lat * Math.PI) / 180);
+      const dLat = selfPoint.lat - center.lat;
+      setPanOffset({ x: -dLng * scale, y: dLat * scale });
     } else {
       setPanOffset({ x: 0, y: 0 });
     }
@@ -205,213 +181,307 @@ export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
 
   const handleRecenterTarget = () => {
     if (targetIncident) {
-      const deltaLng = (targetIncident.lng - center.lng) * Math.cos((center.lat * Math.PI) / 180);
-      const deltaLat = targetIncident.lat - center.lat;
-      setPanOffset({
-        x: -deltaLng * scale,
-        y: deltaLat * scale,
-      });
+      const dLng = (targetIncident.lng - center.lng) * Math.cos((center.lat * Math.PI) / 180);
+      const dLat = targetIncident.lat - center.lat;
+      setPanOffset({ x: -dLng * scale, y: dLat * scale });
     }
   };
 
-  // Campus geofence boundary points
-  const geofencePolygonPoints = useMemo(() => {
-    const corners = [
-      { lat: center.lat + 0.0038, lng: center.lng - 0.0042 },
-      { lat: center.lat + 0.0040, lng: center.lng + 0.0045 },
-      { lat: center.lat - 0.0039, lng: center.lng + 0.0043 },
-      { lat: center.lat - 0.0037, lng: center.lng - 0.0040 },
+  // Fixed visual landmarks projected to canvas
+  const pGate1 = toCanvas(center.lat + 0.0035, center.lng);
+  const pGate3 = toCanvas(center.lat - 0.0035, center.lng);
+  const pWestEnd = toCanvas(center.lat, center.lng - 0.004);
+  const pEastEnd = toCanvas(center.lat, center.lng + 0.004);
+  const pQuadCenter = toCanvas(center.lat, center.lng);
+
+  // Specific buildings with realistic footprints
+  const buildings = useMemo(() => {
+    const list = [
+      {
+        id: "lib",
+        name: "Central Library",
+        code: "LIBRARY",
+        lat: center.lat - 0.0012,
+        lng: center.lng + 0.0014,
+        w: 68,
+        h: 46,
+        color: "#F1F5F9",
+        border: "#CBD5E1",
+      },
+      {
+        id: "sci",
+        name: "Science & Tech Hub",
+        code: "SCIENCE HUB",
+        lat: center.lat + 0.0013,
+        lng: center.lng - 0.0016,
+        w: 78,
+        h: 52,
+        color: "#F1F5F9",
+        border: "#CBD5E1",
+      },
+      {
+        id: "eng",
+        name: "Engineering Hall",
+        code: "ENGINEERING",
+        lat: center.lat + 0.002,
+        lng: center.lng + 0.0001,
+        w: 74,
+        h: 44,
+        color: "#F1F5F9",
+        border: "#CBD5E1",
+      },
+      {
+        id: "med",
+        name: "Campus Medical Clinic",
+        code: "HEALTH CLINIC",
+        lat: center.lat - 0.0017,
+        lng: center.lng - 0.0011,
+        w: 60,
+        h: 42,
+        color: "#FFF1F2",
+        border: "#FDA4AF",
+        isMedical: true,
+      },
+      {
+        id: "adm",
+        name: "Admin Command Block",
+        code: "ADMIN TOWER",
+        lat: center.lat + 0.0006,
+        lng: center.lng + 0.0011,
+        w: 58,
+        h: 42,
+        color: "#F8FAFC",
+        border: "#94A3B8",
+      },
+      {
+        id: "res",
+        name: "Student Hostels",
+        code: "HOSTEL COMPLEX",
+        lat: center.lat + 0.0018,
+        lng: center.lng + 0.0024,
+        w: 84,
+        h: 56,
+        color: "#F1F5F9",
+        border: "#CBD5E1",
+      },
     ];
-    return corners
-      .map((c) => {
-        const pt = projectToCanvas(c.lat, c.lng);
-        return `${pt.x},${pt.y}`;
-      })
-      .join(" ");
+
+    return list.map((b) => {
+      const pt = toCanvas(b.lat, b.lng);
+      const scaledW = (b.w * scale) / 52000;
+      const scaledH = (b.h * scale) / 52000;
+      return { ...b, pt, w: scaledW, h: scaledH };
+    });
   }, [center, scale, panOffset, containerWidth, height]);
 
-  // Arterial Walkways & Roadways (campus channels)
-  const walkways = useMemo(() => {
-    const pNorth = projectToCanvas(center.lat + 0.0035, center.lng);
-    const pSouth = projectToCanvas(center.lat - 0.0035, center.lng);
-    const pWest = projectToCanvas(center.lat, center.lng - 0.0035);
-    const pEast = projectToCanvas(center.lat, center.lng + 0.0035);
-    const pCenter = projectToCanvas(center.lat, center.lng);
-
-    return {
-      verticalRoad: `M ${pNorth.x} ${pNorth.y} L ${pSouth.x} ${pSouth.y}`,
-      horizontalRoad: `M ${pWest.x} ${pWest.y} L ${pEast.x} ${pEast.y}`,
-      innerRing: `M ${pCenter.x - 65} ${pCenter.y - 50} L ${pCenter.x + 65} ${pCenter.y - 50} L ${pCenter.x + 65} ${pCenter.y + 50} L ${pCenter.x - 65} ${pCenter.y + 50} Z`,
-    };
+  // Campus Perimeter Geofence
+  const boundaryPoints = useMemo(() => {
+    const coords = [
+      { lat: center.lat + 0.0036, lng: center.lng - 0.0038 },
+      { lat: center.lat + 0.0038, lng: center.lng + 0.0039 },
+      { lat: center.lat - 0.0036, lng: center.lng + 0.0038 },
+      { lat: center.lat - 0.0035, lng: center.lng - 0.0036 },
+    ];
+    return coords.map((c) => {
+      const pt = toCanvas(c.lat, c.lng);
+      return `${pt.x},${pt.y}`;
+    }).join(" ");
   }, [center, scale, panOffset, containerWidth, height]);
 
-  // Navigation Route Path calculation
-  const routePathD = useMemo(() => {
-    if (!showRoute) return "";
+  // Dynamic Navigation Route Polyline
+  const routePolyline = useMemo(() => {
+    if (!showRoute && !targetIncident) return null;
 
-    const startPt = projectToCanvas(selfPoint.lat, selfPoint.lng);
-    const targetPt = targetIncident
-      ? projectToCanvas(targetIncident.lat, targetIncident.lng)
-      : projectToCanvas(center.lat + 0.001, center.lng + 0.0012);
+    const start = toCanvas(selfPoint.lat, selfPoint.lng);
+    const end = targetIncident
+      ? toCanvas(targetIncident.lat, targetIncident.lng)
+      : toCanvas(center.lat + 0.0015, center.lng - 0.001);
 
-    if (routeCoordinates && routeCoordinates.length >= 2) {
-      return routeCoordinates
-        .map((coord, i) => {
-          const pt = projectToCanvas(coord[0], coord[1]);
-          return `${i === 0 ? "M" : "L"} ${pt.x} ${pt.y}`;
-        })
-        .join(" ");
+    // If start and end are practically identical, provide a visible approach path
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 15) {
+      // Draw a neat route from main entrance to the incident
+      const approachFrom = toCanvas(center.lat - 0.0025, center.lng);
+      const midPoint = toCanvas(center.lat, center.lng);
+      return {
+        path: `M ${approachFrom.x} ${approachFrom.y} L ${midPoint.x} ${midPoint.y} L ${end.x} ${end.y}`,
+        mid: { x: (midPoint.x + end.x) / 2, y: (midPoint.y + end.y) / 2 },
+      };
     }
 
-    // Default realistic orthogonal campus walkway path
-    const midX = targetPt.x;
-    const midY = startPt.y;
-    return `M ${startPt.x} ${startPt.y} L ${midX} ${midY} L ${targetPt.x} ${targetPt.y}`;
-  }, [showRoute, selfPoint, targetIncident, routeCoordinates, center, scale, panOffset, containerWidth, height]);
+    // Realistic orthogonal campus walkway route
+    const cornerX = end.x;
+    const cornerY = start.y;
+    return {
+      path: `M ${start.x} ${start.y} L ${cornerX} ${cornerY} L ${end.x} ${end.y}`,
+      mid: { x: cornerX, y: (cornerY + end.y) / 2 },
+    };
+  }, [showRoute, targetIncident, selfPoint, center, scale, panOffset, containerWidth, height]);
 
-  // Self Location
-  const selfCoords = projectToCanvas(selfPoint.lat, selfPoint.lng);
+  const selfCoords = toCanvas(selfPoint.lat, selfPoint.lng);
 
   return (
     <View style={[styles.container, { height }]}>
-      {/* SVG Vector Map Canvas */}
+      {/* Interactive Map Canvas */}
       <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
         <Svg width="100%" height="100%">
           <Defs>
-            <LinearGradient id="mapBgGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#EEF4F7" />
-              <Stop offset="100%" stopColor="#E5EDF1" />
+            <LinearGradient id="bgCanvasGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor="#F1F5F9" />
+              <Stop offset="100%" stopColor="#E2E8F0" />
             </LinearGradient>
 
-            <RadialGradient id="pulseGlowRed" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor="#E11D48" stopOpacity="0.45" />
-              <Stop offset="70%" stopColor="#E11D48" stopOpacity="0.15" />
-              <Stop offset="100%" stopColor="#E11D48" stopOpacity="0" />
+            <RadialGradient id="selfGlow" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor="#0284C7" stopOpacity="0.35" />
+              <Stop offset="100%" stopColor="#0284C7" stopOpacity="0" />
             </RadialGradient>
 
-            <RadialGradient id="selfGlowBlue" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor="#0284C7" stopOpacity="0.3" />
-              <Stop offset="100%" stopColor="#0284C7" stopOpacity="0" />
+            <RadialGradient id="emergencyGlow" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor="#E11D48" stopOpacity="0.4" />
+              <Stop offset="100%" stopColor="#E11D48" stopOpacity="0" />
             </RadialGradient>
           </Defs>
 
-          {/* Map Base Canvas */}
-          <Rect x="0" y="0" width={containerWidth} height={height} fill="url(#mapBgGrad)" rx={20} />
+          {/* Base Cartographic Background */}
+          <Rect x="0" y="0" width={containerWidth} height={height} fill="url(#bgCanvasGrad)" rx={18} />
 
-          {/* Campus Geofence Boundary Polygon */}
-          {showGeofenceLayer && (
+          {/* Landscaped Green Areas (Central Quad & Gardens) */}
+          <Circle cx={pQuadCenter.x} cy={pQuadCenter.y} r={scale * 0.0014} fill="#DCFCE7" stroke="#BBF7D0" strokeWidth="1" />
+          <Circle cx={pQuadCenter.x - scale * 0.0022} cy={pQuadCenter.y - scale * 0.0016} r={scale * 0.001} fill="#E2F1E8" opacity={0.8} />
+
+          {/* Campus Reflection Pond (Water Body) */}
+          <Circle cx={pQuadCenter.x + scale * 0.0022} cy={pQuadCenter.y + scale * 0.0018} r={scale * 0.0009} fill="#BAE6FD" stroke="#7DD3FC" strokeWidth="1.5" />
+
+          {/* Campus Boundary Geofence */}
+          {showBoundary && (
+            <Polygon
+              points={boundaryPoints}
+              fill="rgba(37, 99, 235, 0.04)"
+              stroke="#2563EB"
+              strokeWidth="2"
+              strokeDasharray="6 4"
+              strokeOpacity={0.6}
+            />
+          )}
+
+          {/* Campus Road Network - Casing (Outlines) */}
+          <Line x1={pGate1.x} y1={pGate1.y} x2={pGate3.x} y2={pGate3.y} stroke="#CBD5E1" strokeWidth="18" strokeLinecap="round" />
+          <Line x1={pWestEnd.x} y1={pWestEnd.y} x2={pEastEnd.x} y2={pEastEnd.y} stroke="#CBD5E1" strokeWidth="18" strokeLinecap="round" />
+          <Circle cx={pQuadCenter.x} cy={pQuadCenter.y} r={scale * 0.0018} fill="none" stroke="#CBD5E1" strokeWidth="14" />
+
+          {/* Campus Road Network - Pavement Surfaces */}
+          <Line x1={pGate1.x} y1={pGate1.y} x2={pGate3.x} y2={pGate3.y} stroke="#FFFFFF" strokeWidth="14" strokeLinecap="round" />
+          <Line x1={pWestEnd.x} y1={pWestEnd.y} x2={pEastEnd.x} y2={pEastEnd.y} stroke="#FFFFFF" strokeWidth="14" strokeLinecap="round" />
+          <Circle cx={pQuadCenter.x} cy={pQuadCenter.y} r={scale * 0.0018} fill="none" stroke="#FFFFFF" strokeWidth="10" />
+
+          {/* Dashed Centerlines on Main Boulevards */}
+          <Line x1={pGate1.x} y1={pGate1.y} x2={pGate3.x} y2={pGate3.y} stroke="#F1F5F9" strokeWidth="1.5" strokeDasharray="5 5" />
+          <Line x1={pWestEnd.x} y1={pWestEnd.y} x2={pEastEnd.x} y2={pEastEnd.y} stroke="#F1F5F9" strokeWidth="1.5" strokeDasharray="5 5" />
+
+          {/* Street Name Labels */}
+          {zoom >= 15.5 && (
             <G>
-              <Polygon
-                points={geofencePolygonPoints}
-                fill="rgba(37, 99, 235, 0.05)"
-                stroke="#2563EB"
-                strokeWidth="2"
-                strokeDasharray="6 4"
-                strokeOpacity={0.6}
-              />
+              <SvgText x={pGate1.x + 8} y={pGate1.y + 40} fill="#64748B" fontSize="8" fontWeight="600">
+                Campus Ave
+              </SvgText>
+              <SvgText x={pEastEnd.x - 70} y={pEastEnd.y - 8} fill="#64748B" fontSize="8" fontWeight="600">
+                Northridge Blvd
+              </SvgText>
             </G>
           )}
 
-          {/* Pedestrian Walkways & Main Arterials */}
-          <Path
-            d={walkways.verticalRoad}
-            stroke="#FFFFFF"
-            strokeWidth="14"
-            strokeLinecap="round"
-          />
-          <Path
-            d={walkways.horizontalRoad}
-            stroke="#FFFFFF"
-            strokeWidth="14"
-            strokeLinecap="round"
-          />
-          <Path
-            d={walkways.innerRing}
-            fill="none"
-            stroke="#FFFFFF"
-            strokeWidth="10"
-            strokeLinejoin="round"
-          />
-
-          {/* Campus Buildings */}
-          {CAMPUS_BUILDINGS.map((b) => {
-            const pt = projectToCanvas(b.lat, b.lng);
-            const w = (b.w * scale) / 55000;
-            const h = (b.h * scale) / 55000;
-
-            return (
-              <G key={b.id}>
-                {/* Building Drop Shadow */}
-                <Rect
-                  x={pt.x - w / 2 + 2}
-                  y={pt.y - h / 2 + 2}
-                  width={w}
-                  height={h}
-                  fill="rgba(15, 23, 42, 0.06)"
-                  rx={6}
-                />
-                {/* Building Footprint */}
-                <Rect
-                  x={pt.x - w / 2}
-                  y={pt.y - h / 2}
-                  width={w}
-                  height={h}
-                  fill={b.fill}
-                  stroke={b.stroke}
-                  strokeWidth="1.5"
-                  rx={6}
-                />
-                {/* Building Label */}
-                {zoom >= 15.5 && (
-                  <SvgText
-                    x={pt.x}
-                    y={pt.y + 4}
-                    fontSize={zoom >= 16.5 ? 9 : 8}
-                    fontWeight="bold"
-                    fill="#334155"
-                    textAnchor="middle"
-                  >
-                    {b.code}
-                  </SvgText>
-                )}
-              </G>
-            );
-          })}
+          {/* Architectural Campus Buildings */}
+          {buildings.map((b) => (
+            <G key={b.id}>
+              {/* Drop Shadow */}
+              <Rect
+                x={b.pt.x - b.w / 2 + 2}
+                y={b.pt.y - b.h / 2 + 3}
+                width={b.w}
+                height={b.h}
+                fill="rgba(15, 23, 42, 0.07)"
+                rx={6}
+              />
+              {/* Main Building Body */}
+              <Rect
+                x={b.pt.x - b.w / 2}
+                y={b.pt.y - b.h / 2}
+                width={b.w}
+                height={b.h}
+                fill={b.color}
+                stroke={b.border}
+                strokeWidth="1.5"
+                rx={6}
+              />
+              {/* Roof Inset Highlight */}
+              <Rect
+                x={b.pt.x - b.w / 2 + 3}
+                y={b.pt.y - b.h / 2 + 3}
+                width={b.w - 6}
+                height={b.h - 6}
+                fill="#FFFFFF"
+                opacity={0.65}
+                rx={4}
+              />
+              {/* Building Label */}
+              <SvgText
+                x={b.pt.x}
+                y={b.pt.y + 4}
+                fill="#334155"
+                fontSize={zoom >= 16.5 ? 8 : 7}
+                fontWeight="700"
+                textAnchor="middle"
+              >
+                {b.code}
+              </SvgText>
+            </G>
+          ))}
 
           {/* Navigation Polyline Route */}
-          {showRoute && routePathD && (
+          {routePolyline && (
             <G>
-              {/* Outer Blue Route Glow */}
+              {/* Blue Outer Glow */}
               <Path
-                d={routePathD}
+                d={routePolyline.path}
                 fill="none"
                 stroke="#2563EB"
-                strokeWidth="7"
+                strokeWidth="8"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeOpacity={0.3}
+                strokeOpacity={0.25}
               />
-              {/* Core Active Route Line */}
+              {/* Core Route Line */}
               <Path
-                d={routePathD}
+                d={routePolyline.path}
                 fill="none"
-                stroke="#0284C7"
+                stroke="#2563EB"
                 strokeWidth="4"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
+              {/* Inner White Guideline */}
+              <Path
+                d={routePolyline.path}
+                fill="none"
+                stroke="#FFFFFF"
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+              />
             </G>
           )}
 
-          {/* Incidents Markers */}
-          {showIncidentsLayer &&
+          {/* Incident Hotspots */}
+          {showIncidents &&
             incidents.map((inc) => {
-              const pt = projectToCanvas(inc.lat, inc.lng);
-              const isSelected = selectedItem?.data?.id === inc.id;
-              const isCritical = inc.urgency === "critical" || inc.category === "personal_sos";
+              const pt = toCanvas(inc.lat, inc.lng);
+              const isSelected = selectedMarker?.data?.id === inc.id;
+              const isCrit = inc.urgency === "critical" || inc.category === "personal_sos";
 
-              const color =
-                inc.category === "fire_smoke" || isCritical
+              const pinColor =
+                inc.category === "fire_smoke" || isCrit
                   ? COLORS.sosPrimary
                   : inc.category === "road_accident"
                   ? COLORS.warning
@@ -423,87 +493,65 @@ export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
                 <G
                   key={inc.id}
                   onPress={() => {
-                    setSelectedItem({ type: "incident", data: inc });
+                    setSelectedMarker({ type: "incident", data: inc });
                     if (onSelectIncident) onSelectIncident(inc);
                   }}
                 >
-                  {/* Concentric Pulsing Radar Waves */}
-                  <Circle
-                    cx={pt.x}
-                    cy={pt.y}
-                    r={isCritical ? 36 : 24}
-                    fill={color}
-                    opacity={0.16}
-                  />
-                  <Circle
-                    cx={pt.x}
-                    cy={pt.y}
-                    r={isCritical ? 20 : 14}
-                    fill={color}
-                    opacity={0.35}
-                  />
+                  {/* Radar Ripple Waves */}
+                  <Circle cx={pt.x} cy={pt.y} r={isCrit ? 36 : 24} fill={pinColor} opacity={0.15} />
+                  <Circle cx={pt.x} cy={pt.y} r={isCrit ? 20 : 14} fill={pinColor} opacity={0.3} />
 
-                  {/* Core Pin */}
+                  {/* Pin Base Shadow */}
+                  <Circle cx={pt.x} cy={pt.y + 2} r={9} fill="rgba(0,0,0,0.2)" />
+
+                  {/* Core Teardrop Pin */}
                   <Circle
                     cx={pt.x}
                     cy={pt.y}
                     r={isSelected ? 10 : 8}
-                    fill={color}
+                    fill={pinColor}
                     stroke="#FFFFFF"
                     strokeWidth="2.5"
                   />
 
-                  {/* Incident Indicator Badge */}
-                  {zoom >= 15.5 && (
-                    <G>
-                      <Rect
-                        x={pt.x - 28}
-                        y={pt.y - 22}
-                        width={56}
-                        height={14}
-                        fill="#0F172A"
-                        rx={7}
-                      />
-                      <SvgText
-                        x={pt.x}
-                        y={pt.y - 12}
-                        fontSize={8}
-                        fontWeight="bold"
-                        fill="#FFFFFF"
-                        textAnchor="middle"
-                      >
-                        {inc.category.replace("_", " ").toUpperCase().slice(0, 9)}
-                      </SvgText>
-                    </G>
-                  )}
+                  {/* Mini Incident Tag */}
+                  <Rect
+                    x={pt.x - 22}
+                    y={pt.y - 20}
+                    width={44}
+                    height={13}
+                    fill="#0F172A"
+                    rx={6.5}
+                  />
+                  <SvgText
+                    x={pt.x}
+                    y={pt.y - 11}
+                    fill="#FFFFFF"
+                    fontSize="7"
+                    fontWeight="800"
+                    textAnchor="middle"
+                  >
+                    {inc.category.replace("_", " ").slice(0, 8).toUpperCase()}
+                  </SvgText>
                 </G>
               );
             })}
 
-          {/* Responders Markers */}
-          {showRespondersLayer &&
+          {/* Responders Units */}
+          {showResponders &&
             responders.map((r) => {
-              const pt = projectToCanvas(r.lat, r.lng);
-              const isSelected = selectedItem?.data?.id === r.id;
+              const pt = toCanvas(r.lat, r.lng);
+              const isSelected = selectedMarker?.data?.id === r.id;
 
               return (
                 <G
                   key={r.id}
                   onPress={() => {
-                    setSelectedItem({ type: "responder", data: r });
+                    setSelectedMarker({ type: "responder", data: r });
                     if (onSelectResponder) onSelectResponder(r);
                   }}
                 >
-                  {/* Unit Status Halo */}
-                  <Circle
-                    cx={pt.x}
-                    cy={pt.y}
-                    r={16}
-                    fill={r.isOnDuty ? "#10B981" : "#94A3B8"}
-                    opacity={0.2}
-                  />
-
-                  {/* Unit Badge Container */}
+                  <Circle cx={pt.x} cy={pt.y} r={16} fill="#10B981" opacity={0.25} />
                   <Rect
                     x={pt.x - 16}
                     y={pt.y - 10}
@@ -517,7 +565,7 @@ export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
                   <SvgText
                     x={pt.x}
                     y={pt.y + 4}
-                    fontSize={9}
+                    fontSize="9"
                     fontWeight="bold"
                     fill="#FFFFFF"
                     textAnchor="middle"
@@ -528,10 +576,10 @@ export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
               );
             })}
 
-          {/* User's Self Location Dot */}
+          {/* User's GPS Location */}
           <G>
-            <Circle cx={selfCoords.x} cy={selfCoords.y} r={22} fill="url(#selfGlowBlue)" />
-            <Circle cx={selfCoords.x} cy={selfCoords.y} r={8} fill="#0284C7" stroke="#FFFFFF" strokeWidth="2.5" />
+            <Circle cx={selfCoords.x} cy={selfCoords.y} r={22} fill="url(#selfGlow)" />
+            <Circle cx={selfCoords.x} cy={selfCoords.y} r={7} fill="#0284C7" stroke="#FFFFFF" strokeWidth="2.5" />
           </G>
         </Svg>
       </View>
@@ -545,19 +593,19 @@ export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
 
         <View style={styles.layerPillsRow}>
           <TouchableOpacity
-            style={[styles.layerPill, showIncidentsLayer && styles.layerPillActive]}
-            onPress={() => setShowIncidentsLayer(!showIncidentsLayer)}
+            style={[styles.layerPill, showIncidents && styles.layerPillActive]}
+            onPress={() => setShowIncidents(!showIncidents)}
           >
-            <Text style={[styles.layerPillText, showIncidentsLayer && styles.layerPillTextActive]}>
+            <Text style={[styles.layerPillText, showIncidents && styles.layerPillTextActive]}>
               🔥 Incidents
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.layerPill, showRespondersLayer && styles.layerPillActive]}
-            onPress={() => setShowRespondersLayer(!showRespondersLayer)}
+            style={[styles.layerPill, showResponders && styles.layerPillActive]}
+            onPress={() => setShowResponders(!showResponders)}
           >
-            <Text style={[styles.layerPillText, showRespondersLayer && styles.layerPillTextActive]}>
+            <Text style={[styles.layerPillText, showResponders && styles.layerPillTextActive]}>
               🚒 Units
             </Text>
           </TouchableOpacity>
@@ -587,8 +635,8 @@ export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
         <Text style={styles.scaleText}>Northridge Campus · OSRM Walkway Grid</Text>
       </View>
 
-      {/* Selected Marker Detail Sheet (Appears when any marker is tapped) */}
-      {selectedItem && (
+      {/* Selected Marker Detail Card */}
+      {selectedMarker && (
         <View style={styles.detailHudCard}>
           <View style={styles.hudHeader}>
             <View style={styles.hudTitleRow}>
@@ -597,44 +645,44 @@ export const TacticalCampusMap: React.FC<TacticalCampusMapProps> = ({
                   styles.hudCategoryDot,
                   {
                     backgroundColor:
-                      selectedItem.type === "incident" ? COLORS.sosPrimary : COLORS.dutyPrimary,
+                      selectedMarker.type === "incident" ? COLORS.sosPrimary : COLORS.dutyPrimary,
                   },
                 ]}
               />
               <Text style={styles.hudTitle} numberOfLines={1}>
-                {selectedItem.data.title || selectedItem.data.displayName || "Selected Item"}
+                {selectedMarker.data.title || selectedMarker.data.displayName || "Selected Location"}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => setSelectedItem(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={() => setSelectedMarker(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Feather name="x" size={18} color="#64748B" />
             </TouchableOpacity>
           </View>
 
           <Text style={styles.hudSub}>
-            {selectedItem.data.locationLabel || `${selectedItem.data.lat.toFixed(4)}, ${selectedItem.data.lng.toFixed(4)}`}
+            {selectedMarker.data.locationLabel || `${selectedMarker.data.lat.toFixed(4)}, ${selectedMarker.data.lng.toFixed(4)}`}
           </Text>
 
-          {selectedItem.type === "incident" && (
+          {selectedMarker.type === "incident" && (
             <View style={styles.hudMetaRow}>
               <View style={styles.hudBadge}>
                 <Text style={styles.hudBadgeText}>
-                  {(selectedItem.data.urgency || "HIGH").toUpperCase()}
+                  {(selectedMarker.data.urgency || "HIGH").toUpperCase()}
                 </Text>
               </View>
-              {selectedItem.data.distanceLabel && (
-                <Text style={styles.hudDistText}>{selectedItem.data.distanceLabel}</Text>
+              {selectedMarker.data.distanceLabel && (
+                <Text style={styles.hudDistText}>{selectedMarker.data.distanceLabel}</Text>
               )}
             </View>
           )}
 
-          {selectedItem.type === "responder" && (
+          {selectedMarker.type === "responder" && (
             <View style={styles.hudMetaRow}>
               <View style={[styles.hudBadge, { backgroundColor: "#D1FAE5" }]}>
                 <Text style={[styles.hudBadgeText, { color: "#065F46" }]}>
-                  {selectedItem.data.isOnDuty ? "ON DUTY" : "OFF DUTY"}
+                  {selectedMarker.data.isOnDuty ? "ON DUTY" : "OFF DUTY"}
                 </Text>
               </View>
-              <Text style={styles.hudDistText}>Unit Code: {selectedItem.data.unitCode}</Text>
+              <Text style={styles.hudDistText}>Unit Code: {selectedMarker.data.unitCode}</Text>
             </View>
           )}
         </View>
@@ -666,7 +714,7 @@ const styles = StyleSheet.create({
   liveGridTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(15, 23, 42, 0.8)",
+    backgroundColor: "rgba(15, 23, 42, 0.82)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -688,7 +736,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   layerPill: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
