@@ -24,7 +24,13 @@
     },
     "plugins": [
       "expo-status-bar",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow ResQAi to use your location for emergency dispatch and nearby alerts."
+        }
+      ]
     ]
   }
 }

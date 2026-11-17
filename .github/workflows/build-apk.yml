@@ -15,7 +15,7 @@ permissions:
 jobs:
   build-android:
     name: Build Android APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
 
     steps:
@@ -24,7 +24,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -32,7 +32,7 @@ jobs:
           cache-dependency-path: apps/mobile/package-lock.json
 
       - name: Setup Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -56,8 +56,16 @@ jobs:
       - name: Prepare APK Artifacts
         run: |
           mkdir -p release-artifacts
-          cp apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk release-artifacts/ResQAi-mobile.apk
-          cp apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk release-artifacts/app-debug.apk
+          APK_PATH=$(find apps/mobile/android/app/build/outputs/apk -name "*.apk" | head -n 1)
+          if [ -n "$APK_PATH" ]; then
+            echo "Found APK at $APK_PATH"
+            cp "$APK_PATH" release-artifacts/ResQAi-mobile.apk
+            cp "$APK_PATH" release-artifacts/app-debug.apk
+            ls -lh release-artifacts
+          else
+            echo "Error: No APK file found in build outputs!"
+            exit 1
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
