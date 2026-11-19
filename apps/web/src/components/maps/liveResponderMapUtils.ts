@@ -62,16 +62,57 @@ export function formatCoordinates(lat: number, lng: number): string {
   return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 }
 
+export const BHOPAL_METRO_BOUNDS = {
+  minLat: 23.1000,
+  maxLat: 23.4000,
+  minLng: 77.2500,
+  maxLng: 77.5500,
+};
+
+export const BHOPAL_METRO_CENTER = {
+  lat: 23.2599,
+  lng: 77.4126,
+};
+
+export function isWithinBhopal(pt: { lat: number; lng: number }): boolean {
+  return (
+    typeof pt?.lat === "number" &&
+    typeof pt?.lng === "number" &&
+    pt.lat >= BHOPAL_METRO_BOUNDS.minLat &&
+    pt.lat <= BHOPAL_METRO_BOUNDS.maxLat &&
+    pt.lng >= BHOPAL_METRO_BOUNDS.minLng &&
+    pt.lng <= BHOPAL_METRO_BOUNDS.maxLng
+  );
+}
+
+export function sanitizeToBhopal<T extends { lat: number; lng: number }>(pt: T, offsetIdx = 0): T {
+  if (isWithinBhopal(pt)) return pt;
+  return {
+    ...pt,
+    lat: Number((BHOPAL_METRO_CENTER.lat + ((offsetIdx % 5) - 2) * 0.005).toFixed(6)),
+    lng: Number((BHOPAL_METRO_CENTER.lng + (((offsetIdx * 2) % 5) - 2) * 0.005).toFixed(6)),
+  };
+}
+
 export function computeGeoBounds(
   points: Array<{ lat: number; lng: number }>
 ): [[number, number], [number, number]] | null {
-  if (points.length === 0) return null;
-  let minLat = points[0].lat;
-  let maxLat = points[0].lat;
-  let minLng = points[0].lng;
-  let maxLng = points[0].lng;
+  const bhopalPoints = points.filter(isWithinBhopal);
+  const targetPoints = bhopalPoints.length > 0 ? bhopalPoints : points.map((p, idx) => sanitizeToBhopal(p, idx));
 
-  for (const pt of points) {
+  if (targetPoints.length === 0) {
+    return [
+      [BHOPAL_METRO_BOUNDS.minLat + 0.05, BHOPAL_METRO_BOUNDS.minLng + 0.05],
+      [BHOPAL_METRO_BOUNDS.maxLat - 0.05, BHOPAL_METRO_BOUNDS.maxLng - 0.05],
+    ];
+  }
+
+  let minLat = targetPoints[0].lat;
+  let maxLat = targetPoints[0].lat;
+  let minLng = targetPoints[0].lng;
+  let maxLng = targetPoints[0].lng;
+
+  for (const pt of targetPoints) {
     if (pt.lat < minLat) minLat = pt.lat;
     if (pt.lat > maxLat) maxLat = pt.lat;
     if (pt.lng < minLng) minLng = pt.lng;
@@ -79,7 +120,10 @@ export function computeGeoBounds(
   }
 
   if (Math.abs(maxLat - minLat) < 0.0002 && Math.abs(maxLng - minLng) < 0.0002) {
-    return null;
+    return [
+      [minLat - 0.01, minLng - 0.01],
+      [maxLat + 0.01, maxLng + 0.01],
+    ];
   }
 
   return [

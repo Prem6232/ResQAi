@@ -1,13 +1,13 @@
 import { Switch } from "@/components/ui/switch";
 import { useEffect, useState } from "react";
 import { http } from "@/lib/axios";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 
 export function DemoDrillModeToggle() {
   const [on, setOn] = useState(true);
 
   useEffect(() => {
-    mockApi.analyticsSummary().then((sum) => {
+    api.analyticsSummary().then((sum) => {
       if (sum) setOn(sum.syntheticDrillMode);
     });
   }, []);

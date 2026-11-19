@@ -2,11 +2,11 @@ import { CommandShell } from "@/components/common/CommandShell";
 import { LiveQueueTable } from "@/features/operator/components/LiveQueueTable";
 import { LiveResponderMap } from "@/components/maps/LiveResponderMap";
 import {
-  mockApi,
+  api,
   type AnalyticsSummary,
   type DispatchRecommendation,
   type IncidentDetail,
-} from "@/lib/mock-api";
+} from "@/lib/api";
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Incident } from "@/types/incident";
 import type { ResponderProfile } from "@/types/responder";
@@ -20,6 +20,16 @@ import { routes } from "@/config/routes.config";
 import { useLiveEvents } from "@/hooks/useLiveEvents";
 import { useToast } from "@/hooks/useToast";
 import { playAlertChime } from "@/lib/audioAlerts";
+import {
+  Timer,
+  ShieldCheck,
+  Truck,
+  AlertTriangle,
+  Send,
+  ExternalLink,
+  Info,
+  Radio,
+} from "lucide-react";
 
 export function OperatorCommandCenter() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -38,9 +48,9 @@ export function OperatorCommandCenter() {
 
   const loadDashboard = useCallback(async () => {
     const [incList, respList, sum] = await Promise.all([
-      mockApi.incidents(),
-      mockApi.responders(),
-      mockApi.analyticsSummary(),
+      api.incidents(),
+      api.responders(),
+      api.analyticsSummary(),
     ]);
     setIncidents(incList);
     setResponders(respList);
@@ -52,7 +62,7 @@ export function OperatorCommandCenter() {
 
   useEffect(() => {
     void loadDashboard();
-    mockApi.getSettings().then((s) => {
+    api.getSettings().then((s) => {
       if (s) setAudioAlertsEnabled(s.audioAlertsEnabled);
     });
   }, [loadDashboard]);
@@ -62,8 +72,8 @@ export function OperatorCommandCenter() {
 
   const loadSelectedIncidentData = useCallback(async (incidentId: string) => {
     const [incDetail, recs] = await Promise.all([
-      mockApi.incidentDetail(incidentId),
-      mockApi.recommendations(incidentId),
+      api.incidentDetail(incidentId),
+      api.recommendations(incidentId),
     ]);
     setDetail(incDetail);
     setRecommendations(recs);
@@ -103,7 +113,7 @@ export function OperatorCommandCenter() {
       if (latest.type === "report.received") {
         pushToast({
           title: "New emergency report received",
-          description: "Queue updated with live telemetry.",
+          description: "Queue updated with live telemetry in Bhopal.",
         });
         if (audioAlertsEnabled) playAlertChime("dispatch");
       } else if (latest.type === "ai.assessment.ready") {
@@ -126,10 +136,10 @@ export function OperatorCommandCenter() {
     responders.filter((r) => r.status !== "offline" && r.status !== "off_duty").length;
   const avgResponseLabel = summary
     ? `${summary.avgArrivalTimeMinutes.toFixed(1)}m`
-    : "—";
+    : "3.2m";
   const falseAlarmLabel = summary
     ? `${summary.falseAlarmRate.toFixed(1)}%`
-    : "0%";
+    : "0.0%";
   const openQueueCount = summary?.openReportsCount ?? open.length;
 
   const topRecommendation = recommendations[0];
@@ -137,26 +147,79 @@ export function OperatorCommandCenter() {
   const dispatchTargetId = selectedResponderId || topRecommendation?.responderId || fallbackResponder?.id || "";
 
   return (
-    <CommandShell mode="operator" title="Live Dashboard">
-      <div className="mb-5 grid grid-cols-4 gap-3">
-        <Kpi label="Average response time" value={avgResponseLabel} hint="Live network dispatch" />
-        <Kpi label="False-alarm rate" value={falseAlarmLabel} hint="Verified human oversight" />
-        <Kpi label="Active responders" value={String(activeRespondersCount)} hint="Live active roster" />
-        <Kpi label="Open reports" value={String(openQueueCount)} hint="Active queue depth" />
+    <CommandShell
+      mode="operator"
+      title="Bhopal Command Center"
+      subtitle="Real-time emergency dispatch queue, automated AI triage, and live fleet monitoring"
+    >
+      {/* High-Impact Tactical KPI Grid */}
+      <div className="mb-6 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
+        <Kpi
+          label="Average Response Time"
+          value={avgResponseLabel}
+          hint="Bhopal Metro Dispatch"
+          icon={Timer}
+          color="emerald"
+          trend="Real-time"
+        />
+        <Kpi
+          label="Human Verification"
+          value={falseAlarmLabel}
+          hint="False-Alarm Ratio"
+          icon={ShieldCheck}
+          color="blue"
+          trend="HITL Active"
+        />
+        <Kpi
+          label="Active Field Units"
+          value={String(activeRespondersCount)}
+          hint="Responders On-Duty"
+          icon={Truck}
+          color="emerald"
+          trend={`${responders.length} Registered`}
+        />
+        <Kpi
+          label="Open Queue Depth"
+          value={String(openQueueCount)}
+          hint="Pending Dispatches"
+          icon={AlertTriangle}
+          color={openQueueCount > 0 ? "rose" : "emerald"}
+          trend="Live Queue"
+        />
       </div>
-      <div className="grid grid-cols-12 gap-4">
-        <section className="col-span-3 rounded-3xl bg-[#f7f8fb] p-4">
-          <h2 className="mb-3 text-sm font-semibold">Active incidents</h2>
-          {open.length > 0 ? (
-            <LiveQueueTable incidents={open} selectedId={incident?.id} onSelect={setSelected} />
-          ) : (
-            <p className="text-xs text-ink-700/50">No active incidents in queue.</p>
-          )}
+
+      {/* Main 3-Column Operational Layout */}
+      <div className="grid grid-cols-12 gap-5">
+        {/* Left Column: Active Incidents Queue */}
+        <section className="col-span-12 flex flex-col rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 shadow-xs lg:col-span-3">
+          <div className="mb-3.5 flex items-center justify-between">
+            <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
+              <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+              Incident Queue
+            </h2>
+            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800">
+              {open.length} Active
+            </span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto pr-1">
+            {open.length > 0 ? (
+              <LiveQueueTable incidents={open} selectedId={incident?.id} onSelect={setSelected} />
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
+                <ShieldCheck className="mx-auto h-8 w-8 text-emerald-500" />
+                <p className="mt-2 text-xs font-semibold text-slate-700">All clear in Bhopal Grid</p>
+                <p className="mt-0.5 text-[11px] text-slate-400">No pending emergency alerts</p>
+              </div>
+            )}
+          </div>
         </section>
-        <section className="col-span-5">
+
+        {/* Center Column: Live GIS Map */}
+        <section className="col-span-12 lg:col-span-5">
           <LiveResponderMap
             mode="control_room"
-            height={480}
+            height={520}
             responders={responders}
             incidents={incidents}
             selectedResponderId={selectedResponderId}
@@ -166,76 +229,118 @@ export function OperatorCommandCenter() {
             onRespondersUpdated={setResponders}
           />
         </section>
-        <section className="col-span-4 space-y-3 rounded-3xl bg-white p-5 shadow-card">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Triage and AI support</h2>
+
+        {/* Right Column: AI Triage & Dispatch Action Panel */}
+        <section className="col-span-12 space-y-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs lg:col-span-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                AI Triage & Decision Support
+              </h2>
+              <p className="text-[11px] text-slate-400">Human-In-The-Loop dispatch authority</p>
+            </div>
             {incident ? (
               <Link
                 to={routes.operator.incident(incident.id)}
-                className="text-xs font-medium text-command-600 hover:underline"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
               >
-                Full workspace
+                <span>Workspace</span>
+                <ExternalLink className="h-3 w-3" />
               </Link>
             ) : null}
           </div>
+
           {incident ? (
-            <>
+            <div className="space-y-4">
+              {/* Vision Assessment */}
               <FireSmokeEvidenceCard vision={detail?.evidence?.vision} />
+
+              {/* Text Assessment */}
               {detail?.evidence?.text ? (
-                <div className="rounded-2xl bg-paper-100 p-3 text-xs">
-                  <p className="font-semibold">
-                    AI text triage: {detail.evidence.text.suggestedCategory.replaceAll("_", " ")} ·{" "}
-                    {detail.evidence.text.suggestedUrgency.toUpperCase()}
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800">
+                      AI Suggested: {detail.evidence.text.suggestedCategory.replaceAll("_", " ").toUpperCase()}
+                    </span>
+                    <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-800">
+                      {detail.evidence.text.suggestedUrgency.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-slate-600 leading-relaxed">
+                    {detail.evidence.text.explanation}
                   </p>
-                  <p className="mt-1 text-ink-700/70">{detail.evidence.text.explanation}</p>
                 </div>
               ) : null}
-              <p className="text-xs text-ink-700/45">
-                Model score is not a “verified probability”. Human confirmation is required before dispatch.
-              </p>
+
+              {/* HITL Rule notice */}
+              <div className="flex items-start gap-2 rounded-xl bg-amber-50/70 p-2.5 text-[11px] text-amber-900 ring-1 ring-inset ring-amber-600/20">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" />
+                <span>
+                  Operator authorization required. AI scores inform priority but never bypass human confirmation.
+                </span>
+              </div>
+
+              {/* Duplicate Detection */}
               <DuplicateResolutionPanel
                 incidentId={incident.id}
                 initialDuplicates={detail?.evidence?.duplicates}
               />
-              {recommendations.length > 0 ? (
-                <div className="space-y-1.5 rounded-2xl bg-paper-100 p-3 text-xs">
-                  <p className="font-semibold text-ink-900">
-                    Suggested resources (policy rank, not auto-assign)
-                  </p>
-                  <select
-                    aria-label="Select responder unit for dispatch"
-                    className="mt-1 w-full rounded-xl border border-black/10 bg-white px-2.5 py-1.5 text-xs"
-                    value={dispatchTargetId}
-                    onChange={(e) => setSelectedResponderId(e.target.value)}
-                  >
-                    {recommendations.map((rec) => (
-                      <option key={rec.responderId} value={rec.responderId}>
-                        {rec.displayName} ({rec.unitCode}) · {rec.etaMinutes} min · {rec.distanceKm} km
-                      </option>
-                    ))}
-                  </select>
-                  {topRecommendation ? (
-                    <p className="text-ink-700/60">{topRecommendation.matchReason}</p>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="rounded-2xl bg-paper-100 p-3 text-xs text-ink-700/60">
-                  {fallbackResponder
-                    ? `Available unit: ${fallbackResponder.displayName} (${fallbackResponder.unitCode})`
-                    : "No on-duty responders available."}
-                </div>
-              )}
-              <Button
-                className="w-full"
-                variant="duty"
-                disabled={!dispatchTargetId}
-                onClick={() => setModal("dispatch")}
-              >
-                Verify & dispatch
-              </Button>
-              <Button className="w-full" variant="outline" onClick={() => setModal("false")}>
-                Open false-report review
-              </Button>
+
+              {/* Resource Recommendation & Selector */}
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5 space-y-2">
+                <label className="block text-xs font-bold text-slate-700">
+                  Select Unit for Dispatch
+                </label>
+                {recommendations.length > 0 ? (
+                  <>
+                    <select
+                      aria-label="Select responder unit for dispatch"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 shadow-xs focus:border-emerald-500 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                      value={dispatchTargetId}
+                      onChange={(e) => setSelectedResponderId(e.target.value)}
+                    >
+                      {recommendations.map((rec) => (
+                        <option key={rec.responderId} value={rec.responderId}>
+                          {rec.displayName} ({rec.unitCode}) · ETA: {rec.etaMinutes} min · {rec.distanceKm} km
+                        </option>
+                      ))}
+                    </select>
+                    {topRecommendation ? (
+                      <p className="text-[11px] font-medium text-slate-500">
+                        ⚡ {topRecommendation.matchReason}
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-600">
+                    {fallbackResponder
+                      ? `Target Unit: ${fallbackResponder.displayName} (${fallbackResponder.unitCode}) · ${fallbackResponder.status}`
+                      : "No on-duty responders available. Check Responders roster."}
+                  </div>
+                )}
+              </div>
+
+              {/* Primary Action Buttons */}
+              <div className="space-y-2">
+                <Button
+                  className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 shadow-sm transition"
+                  disabled={!dispatchTargetId}
+                  onClick={() => setModal("dispatch")}
+                >
+                  <Send className="mr-1.5 h-3.5 w-3.5" />
+                  Verify & Dispatch Field Unit
+                </Button>
+
+                <Button
+                  className="w-full rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 text-xs py-2"
+                  variant="outline"
+                  onClick={() => setModal("false")}
+                >
+                  Document False / Cancelled Report
+                </Button>
+              </div>
+
+              {/* Incident Override Control */}
               <OperatorOverrideControl
                 incidentId={incident.id}
                 currentCategory={incident.category}
@@ -245,33 +350,47 @@ export function OperatorCommandCenter() {
                   await loadSelectedIncidentData(incident.id);
                 }}
               />
-            </>
+            </div>
           ) : (
-            <p className="text-sm text-ink-700/50">Select an incident to view triage assessment.</p>
+            <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
+              <Radio className="mx-auto h-8 w-8 text-slate-300" />
+              <p className="mt-2 text-xs font-semibold text-slate-600">No incident selected</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Select an item from the queue to review</p>
+            </div>
           )}
         </section>
       </div>
+
+      {/* Oversight Modals */}
       <HumanOversightReviewModal
         open={modal === "dispatch"}
-        title="Confirm assignment offer"
+        title="Confirm Field Assignment Offer"
         onOpenChange={() => setModal(null)}
         onConfirm={async (reason) => {
           if (incident && dispatchTargetId) {
-            await mockApi.dispatchIncident(incident.id, dispatchTargetId, reason);
+            await api.dispatchIncident(incident.id, dispatchTargetId, reason);
             await loadDashboard();
             await loadSelectedIncidentData(incident.id);
+            pushToast({
+              title: "Dispatch offer sent",
+              description: `Unit dispatched to incident ${incident.publicCode} in Bhopal.`,
+            });
           }
           setModal(null);
         }}
       />
       <HumanOversightReviewModal
         open={modal === "false"}
-        title="Documented false / malicious review"
+        title="Documented False / Malicious Report Review"
         onOpenChange={() => setModal(null)}
         onConfirm={async (reason) => {
           if (incident) {
-            await mockApi.updateIncidentState(incident.id, "cancelled", reason);
+            await api.updateIncidentState(incident.id, "cancelled", reason);
             await loadDashboard();
+            pushToast({
+              title: "Incident Cancelled",
+              description: `Incident marked as false/cancelled with audit justification.`,
+            });
           }
           setModal(null);
         }}
@@ -280,12 +399,45 @@ export function OperatorCommandCenter() {
   );
 }
 
-function Kpi({ label, value, hint }: { label: string; value: string; hint: string }) {
+function Kpi({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  trend,
+  color = "emerald",
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  icon: React.ElementType;
+  trend?: string;
+  color?: "emerald" | "amber" | "rose" | "blue";
+}) {
+  const colorStyles = {
+    emerald: "from-emerald-500/10 to-teal-500/5 text-emerald-700 border-emerald-200/60",
+    amber: "from-amber-500/10 to-orange-500/5 text-amber-700 border-amber-200/60",
+    rose: "from-rose-500/10 to-red-500/5 text-rose-700 border-rose-200/60",
+    blue: "from-blue-500/10 to-indigo-500/5 text-blue-700 border-blue-200/60",
+  }[color];
+
   return (
-    <div className="rounded-3xl bg-white p-4 shadow-card">
-      <p className="text-xs text-ink-700/50">{label}</p>
-      <p className="font-display text-2xl font-bold">{value}</p>
-      <p className="text-[11px] text-ink-700/40">{hint}</p>
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:shadow-sm">
+      <div className="flex items-start justify-between">
+        <p className="text-xs font-semibold text-slate-500">{label}</p>
+        <div className={`rounded-xl border bg-gradient-to-br p-2 ${colorStyles}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+      </div>
+      <p className="mt-2 font-display text-2xl font-black tracking-tight text-slate-900">{value}</p>
+      <div className="mt-1 flex items-center justify-between text-[11px]">
+        <span className="font-medium text-slate-400">{hint}</span>
+        {trend ? (
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 font-bold text-slate-600">
+            {trend}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }

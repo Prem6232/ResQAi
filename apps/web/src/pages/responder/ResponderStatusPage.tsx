@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { sendLocationPing } from "@/features/responder/api/sendLocationPing";
 import type { SessionUser } from "@/types/auth";
 import type { ResponderCapability } from "@/types/responder";
@@ -39,11 +39,11 @@ export function ResponderStatusPage() {
   const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
-    mockApi
+    api
       .getMe()
       .then(setProfile)
       .catch(() => undefined);
-    mockApi.responderProfile().then((respProf) => {
+    api.responderProfile().then((respProf) => {
       if (!respProf) return;
       setUnitCode(respProf.unitCode);
       setCapabilities(respProf.capabilities);
@@ -51,7 +51,7 @@ export function ResponderStatusPage() {
       setShare(respProf.shareLocation);
       setIsBusy(respProf.availabilityStatus === "busy");
     });
-    mockApi.assignments().then((asgs) => {
+    api.assignments().then((asgs) => {
       if (asgs.some((a) => a.status === "accepted" || a.status === "en_route" || a.status === "arrived")) {
         setIsBusy(true);
       }
@@ -63,7 +63,7 @@ export function ResponderStatusPage() {
     setOnDuty(next);
     setStatusError(null);
     try {
-      await mockApi.updateDuty(next);
+      await api.updateDuty(next);
     } catch {
       setOnDuty(prev);
       setStatusError("Unable to update duty status.");

@@ -1,7 +1,7 @@
-import { mockApi, type OperatingArea } from "@/lib/mock-api";
+import { api, type OperatingArea } from "@/lib/api";
 
 export function getCampusBoundaries(): Promise<OperatingArea | null> {
-  return mockApi.getOperatingArea();
+  return api.getOperatingArea();
 }
 
 export function updateCampusBoundaries(payload: {
@@ -9,5 +9,5 @@ export function updateCampusBoundaries(payload: {
   polygon?: number[][];
   geojson?: { type: "Polygon"; coordinates: number[][][] };
 }): Promise<OperatingArea> {
-  return mockApi.updateOperatingArea(payload);
+  return api.updateOperatingArea(payload);
 }

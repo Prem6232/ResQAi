@@ -1,7 +1,7 @@
 import { MobileHeader } from "@/components/common/Header";
 import { CampusBaseMap } from "@/components/maps/CampusBaseMap";
 import { CircleMarker, Popup } from "react-leaflet";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { useState, useEffect } from "react";
 import type { NearbyAlert } from "@/types/responder";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
@@ -18,7 +18,7 @@ export function CitizenAlertsPage() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    mockApi
+    api
       .alerts(geo.point.lat, geo.point.lng)
       .then((list) => {
         if (active) setAlerts(list);

@@ -2,7 +2,7 @@ import { MobileHeader } from "@/components/common/Header";
 import { ResponderStatusToggle } from "@/components/coordination/ResponderStatusToggle";
 import { ResponderOfferCard } from "@/components/coordination/ResponderOfferCard";
 import { LiveResponderMap } from "@/components/maps/LiveResponderMap";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 import type { Assignment } from "@/types/assignment";
 import { formatRelative } from "@/lib/utils";
@@ -25,8 +25,8 @@ export function ResponderDashboard() {
 
   const refresh = useCallback(async () => {
     const [activeList, historyList] = await Promise.all([
-      mockApi.assignments(),
-      mockApi.responderHistory(),
+      api.assignments(),
+      api.responderHistory(),
     ]);
     setAssignments(activeList);
     setHistory(historyList);
@@ -34,7 +34,7 @@ export function ResponderDashboard() {
 
   useEffect(() => {
     void refresh();
-    mockApi.responderProfile().then((prof) => {
+    api.responderProfile().then((prof) => {
       if (prof) {
         setOnDuty(prof.isOnDuty);
         setUnitCode(prof.unitCode);
@@ -62,7 +62,7 @@ export function ResponderDashboard() {
     if (!offer) return;
     setError(null);
     try {
-      await mockApi.respondToOffer(offer.id, status);
+      await api.respondToOffer(offer.id, status);
       await refresh();
     } catch {
       setError("Failed to submit offer response.");
@@ -74,7 +74,7 @@ export function ResponderDashboard() {
     setOnDuty(val);
     setError(null);
     try {
-      await mockApi.updateDuty(val);
+      await api.updateDuty(val);
     } catch {
       setOnDuty(previous);
       setError("Could not update duty status.");

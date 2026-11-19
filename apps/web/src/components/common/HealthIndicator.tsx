@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 
 export function HealthIndicator() {
   const q = useQuery({
     queryKey: ["health"],
-    queryFn: () => mockApi.health(),
+    queryFn: () => api.health(),
     refetchInterval: 30_000,
   });
   const ok = q.data?.status === "ok" || q.data?.status === "healthy";

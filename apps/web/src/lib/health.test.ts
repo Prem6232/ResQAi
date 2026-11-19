@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isMockEnabled, normalizeCategory, normalizeUrgency } from "./mock-api";
+import { normalizeCategory, normalizeUrgency } from "./api";
+import { apiConfig } from "@/config/api.config";
 
-describe("api configuration & normalizers", () => {
+describe("live api configuration & normalizers", () => {
   it("has mock mode disabled for live production backend", () => {
-    expect(isMockEnabled()).toBe(false);
+    expect(apiConfig.useMock).toBe(false);
   });
 
   it("normalizes backend incident categories safely", () => {

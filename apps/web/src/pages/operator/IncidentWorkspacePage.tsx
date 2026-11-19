@@ -1,6 +1,6 @@
 import { CommandShell } from "@/components/common/CommandShell";
 import { IncidentDetailSheet } from "@/features/operator/components/IncidentDetailSheet";
-import { mockApi, type IncidentDetail } from "@/lib/mock-api";
+import { api, type IncidentDetail } from "@/lib/api";
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 
@@ -15,15 +15,15 @@ export function IncidentWorkspacePage() {
     (async () => {
       try {
         if (id) {
-          const d = await mockApi.incidentDetail(id);
+          const d = await api.incidentDetail(id);
           if (active && d) {
             setDetail(d);
             return;
           }
         }
-        const list = await mockApi.incidents();
+        const list = await api.incidents();
         if (active && list.length > 0) {
-          const fallbackDetail = await mockApi.incidentDetail(list[0].id);
+          const fallbackDetail = await api.incidentDetail(list[0].id);
           if (active) setDetail(fallbackDetail);
         }
       } finally {

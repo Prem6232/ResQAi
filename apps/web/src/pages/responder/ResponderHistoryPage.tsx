@@ -1,4 +1,4 @@
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { useState, useEffect } from "react";
 import type { Assignment } from "@/types/assignment";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
@@ -9,7 +9,7 @@ export function ResponderHistoryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    mockApi
+    api
       .responderHistory()
       .then(setHistory)
       .finally(() => setLoading(false));

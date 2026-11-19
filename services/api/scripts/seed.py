@@ -92,26 +92,25 @@ async def seed_database():
         )
         session.add_all([c1, c2, c3])
 
-        # 4. Campus Geofence Boundary
-        # Northridge Campus polygon around center 28.5452, 77.2731
+        # 4. Bhopal Metropolitan Safety Grid Boundary
         campus_geojson = {
             "type": "Polygon",
             "coordinates": [[
-                [77.2690, 28.5410],
-                [77.2770, 28.5410],
-                [77.2770, 28.5490],
-                [77.2690, 28.5490],
-                [77.2690, 28.5410]
+                [77.3000, 23.1600],
+                [77.5300, 23.1600],
+                [77.5300, 23.3500],
+                [77.3000, 23.3500],
+                [77.3000, 23.1600]
             ]]
         }
         campus_area = OperatingArea(
-            name="Northridge Campus (synthetic)",
+            name="Bhopal Metropolitan Safety Grid",
             boundary=geojson_to_wkt_polygon(campus_geojson),
             is_active=True
         )
         session.add(campus_area)
 
-        # 5. Responder Profiles
+        # 5. Responder Profiles (Bhopal Deployment)
         resp_f2 = ResponderProfile(
             user_id=responder_user.id,
             unit_code="F-2",
@@ -121,7 +120,7 @@ async def seed_database():
             is_on_duty=True,
             availability_status="available",
             is_approved=True,
-            last_known_location=point_to_wkt(28.5455, 77.2735),
+            last_known_location=point_to_wkt(23.2599, 77.4126),
             last_ping_at=datetime.utcnow()
         )
         session.add(resp_f2)
@@ -145,7 +144,7 @@ async def seed_database():
             is_on_duty=True,
             availability_status="busy",
             is_approved=True,
-            last_known_location=point_to_wkt(28.5430, 77.2710),
+            last_known_location=point_to_wkt(23.2082, 77.4610),
             last_ping_at=datetime.utcnow()
         )
         session.add(resp_a12)
@@ -168,12 +167,12 @@ async def seed_database():
             is_on_duty=True,
             availability_status="available",
             is_approved=True,
-            last_known_location=point_to_wkt(28.5470, 77.2750),
+            last_known_location=point_to_wkt(23.2332, 77.4343),
             last_ping_at=datetime.utcnow()
         )
         session.add(resp_p07)
 
-        # Unapproved volunteer to test vetting gate
+        # Approved volunteer
         user_v01 = User(
             email="volunteer@campus.demo",
             hashed_password=demo_password_hash,
@@ -189,14 +188,16 @@ async def seed_database():
             display_name="Volunteer Team",
             responder_type="volunteer",
             capabilities=["first_aid"],
-            is_on_duty=False,
-            availability_status="off_duty",
-            is_approved=False
+            is_on_duty=True,
+            availability_status="available",
+            is_approved=True,
+            last_known_location=point_to_wkt(23.2167, 77.4083),
+            last_ping_at=datetime.utcnow()
         )
         session.add(resp_v01)
 
-        # 6. Sample Initial Incidents & Reports
-        # Incident 402: Fire & Smoke
+        # 6. Sample Initial Incidents & Reports (Bhopal City Landmarks)
+        # Incident 402: Fire & Smoke (Bhopal VIP Road / Lakefront)
         inc_402 = Incident(
             public_code="402",
             title="Incident 402 · Fire & Smoke",
@@ -204,9 +205,9 @@ async def seed_database():
             urgency="critical",
             status="assigned",
             evidence_label="unverified",
-            location=point_to_wkt(28.5464, 77.2741),
-            location_label="Market road (synthetic)",
-            operator_notes="Reported active flame in ground floor cafe kitchen.",
+            location=point_to_wkt(23.2625, 77.4140),
+            location_label="VIP Road · Bhopal Lakefront",
+            operator_notes="Reported active flame in ground floor commercial kitchen.",
             created_at=datetime.utcnow() - timedelta(minutes=15)
         )
         session.add(inc_402)
@@ -218,8 +219,8 @@ async def seed_database():
             category="fire_smoke",
             urgency="critical",
             raw_text="Visible dense smoke and flames coming from shop window",
-            location=point_to_wkt(28.5464, 77.2741),
-            location_label="Market road cafe",
+            location=point_to_wkt(23.2625, 77.4140),
+            location_label="VIP Road cafe",
             status="linked",
             processing_state="ai_complete",
             created_at=datetime.utcnow() - timedelta(minutes=15)
@@ -229,7 +230,7 @@ async def seed_database():
 
         session.add(IncidentReport(incident_id=inc_402.id, report_id=rep_1.id, link_reason="Initial report"))
 
-        # Incident SOS-19: Personal SOS
+        # Incident SOS-19: Personal SOS (Upper Lake Bhopal)
         inc_sos = Incident(
             public_code="SOS-19",
             title="Personal SOS",
@@ -238,14 +239,14 @@ async def seed_database():
             status="under_review",
             evidence_label="insufficient_evidence",
             hide_precise_location=True,
-            location=point_to_wkt(28.5444, 77.2735),
-            location_label="Station road — coarsened for public map",
-            operator_notes="Emergency beacon broadcasted by student.",
+            location=point_to_wkt(23.2450, 77.3750),
+            location_label="Upper Lake Promenade (Bada Talab)",
+            operator_notes="Emergency beacon broadcasted by citizen.",
             created_at=datetime.utcnow() - timedelta(minutes=8)
         )
         session.add(inc_sos)
 
-        # Incident 118: Road Accident
+        # Incident 118: Road Accident (MP Nagar Zone-1 Bhopal)
         inc_acc = Incident(
             public_code="118",
             title="Road accident",
@@ -253,8 +254,8 @@ async def seed_database():
             urgency="high",
             status="confirmed",
             evidence_label="possible_duplicate",
-            location=point_to_wkt(28.5456, 77.2717),
-            location_label="Bypass junction (synthetic)",
+            location=point_to_wkt(23.2350, 77.4300),
+            location_label="MP Nagar Zone-1 Junction",
             operator_notes="Two-wheeler collision at pedestrian crossing.",
             created_at=datetime.utcnow() - timedelta(minutes=25)
         )

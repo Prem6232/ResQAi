@@ -2,7 +2,7 @@ import { ActiveTaskCard } from "@/features/responder/components/ActiveTaskCard";
 import { RouteGuidanceSheet } from "@/features/responder/components/RouteGuidanceSheet";
 import { StatusTransitionControls } from "@/features/responder/components/StatusTransitionControls";
 import { OperationalNotesForm } from "@/features/responder/components/OperationalNotesForm";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { routes } from "@/config/routes.config";
@@ -19,7 +19,7 @@ export function ResponderTaskView() {
   const geo = useGeolocation();
 
   const loadAssignments = useCallback(async () => {
-    const asgs = await mockApi.assignments();
+    const asgs = await api.assignments();
     const active =
       asgs.find((a) => a.status === "accepted" || a.status === "en_route" || a.status === "arrived") ||
       asgs.find((a) => a.status === "offered") ||
@@ -39,7 +39,7 @@ export function ResponderTaskView() {
     setUpdating(true);
     setError(null);
     try {
-      await mockApi.updateAssignmentStatus(assignment.id, next);
+      await api.updateAssignmentStatus(assignment.id, next);
       await loadAssignments();
     } catch {
       setError("Could not update assignment status.");

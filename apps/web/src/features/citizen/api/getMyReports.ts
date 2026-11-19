@@ -1,5 +1,5 @@
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 
 export function getMyReports() {
-  return mockApi.myReports();
+  return api.myReports();
 }

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, useEffect, type ReactNode } from "react";
 import type { AuthTokens, LoginPayload, RegisterPayload, SessionUser } from "@/types/auth";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { AuthContext } from "@/context/authContextStore";
 
 function readStored(): { user: SessionUser; tokens: AuthTokens } | null {
@@ -37,13 +37,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (p: LoginPayload) => {
-    const res = await mockApi.login(p);
+    const res = await api.login(p);
     persist(res.user, res.tokens);
     return res.user;
   }, []);
 
   const register = useCallback(async (p: RegisterPayload) => {
-    const res = await mockApi.register(p);
+    const res = await api.register(p);
     persist(res.user, res.tokens);
     return res.user;
   }, []);

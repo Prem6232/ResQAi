@@ -1,4 +1,4 @@
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import type { IncidentCategory } from "@/types/incident";
 import type { GeoPoint } from "@/types/common";
 
@@ -11,5 +11,5 @@ export function submitReport(input: {
   idempotencyKey: string;
   delivered: boolean;
 }) {
-  return mockApi.submitReport(input);
+  return api.submitReport(input);
 }

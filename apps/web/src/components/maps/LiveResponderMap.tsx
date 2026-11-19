@@ -3,7 +3,7 @@ import { Circle, CircleMarker, MapContainer, Popup, TileLayer, Tooltip, useMap }
 import "leaflet/dist/leaflet.css";
 import { Compass, Crosshair, Radio, RefreshCw } from "lucide-react";
 import { mapConfig } from "@/config/map.config";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { useLiveEvents } from "@/hooks/useLiveEvents";
 import { sendLocationPing } from "@/features/responder/api/sendLocationPing";
 import type { GeoPoint } from "@/types/common";
@@ -77,10 +77,13 @@ function MapViewportSync({
     if (fitTrigger === 0 && initialFitDone.current) return;
     const bounds = computeGeoBounds(boundsPoints);
     if (bounds) {
-      map.fitBounds(bounds, { padding: [36, 36], maxZoom: 17 });
+      map.fitBounds(bounds, { padding: [36, 36], maxZoom: 16 });
       initialFitDone.current = true;
     } else if (boundsPoints.length === 1 && fitTrigger > 0) {
-      map.flyTo([boundsPoints[0].lat, boundsPoints[0].lng], 16, { duration: 0.5 });
+      map.flyTo([boundsPoints[0].lat, boundsPoints[0].lng], 15, { duration: 0.5 });
+    } else if (fitTrigger > 0 || !initialFitDone.current) {
+      map.flyTo([23.2599, 77.4126], 13, { duration: 0.5 });
+      initialFitDone.current = true;
     }
   }, [boundsPoints, fitTrigger, map]);
 
@@ -148,7 +151,7 @@ export function LiveResponderMap({
     if (mode !== "control_room") return;
     setSyncing(true);
     try {
-      const fresh = await mockApi.responders();
+      const fresh = await api.responders();
       setInternalResponders(fresh);
       onRespondersUpdated?.(fresh);
       setLastUpdatedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
@@ -300,7 +303,7 @@ export function LiveResponderMap({
       return;
     }
     let active = true;
-    mockApi
+    api
       .fetchRoute({ lat: snappedLat, lng: snappedLng }, { lat: targetLat, lng: targetLng }, "foot")
       .then((route) => {
         if (active) setOsrmRoute(route);
@@ -322,20 +325,20 @@ export function LiveResponderMap({
       ? [targetIncident.location.lat, targetIncident.location.lng]
       : mode === "responder"
         ? [liveSelfPoint.lat, liveSelfPoint.lng]
-        : [mapConfig.campusCenter.lat, mapConfig.campusCenter.lng];
+        : [23.2599, 77.4126];
 
   return (
-    <div className="space-y-2.5 rounded-3xl bg-white p-3 shadow-card">
+    <div className="space-y-2.5 rounded-3xl border border-slate-200/80 bg-white p-3.5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2 px-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-duty-50 px-2.5 py-1 text-[11px] font-semibold text-duty-600">
-            <Radio className={`h-3 w-3 ${connected ? "animate-pulse" : ""}`} />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-inset ring-emerald-600/20">
+            <Radio className={`h-3 w-3 text-emerald-600 ${connected ? "animate-pulse" : ""}`} />
             {mode === "control_room"
-              ? `Live fleet · ${trackableResponders.length}/${internalResponders.length} tracked`
-              : "Live GPS telemetry"}
+              ? `Live Fleet · ${trackableResponders.length}/${internalResponders.length} units online`
+              : "Live GPS Telemetry"}
           </span>
           {lastUpdatedAt ? (
-            <span className="text-[11px] text-ink-700/50">Updated {lastUpdatedAt}</span>
+            <span className="text-[11px] font-medium text-slate-500">Updated {lastUpdatedAt}</span>
           ) : null}
         </div>
 
@@ -347,10 +350,10 @@ export function LiveResponderMap({
                   key={key}
                   type="button"
                   onClick={() => setStatusFilter(key)}
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium capitalize transition ${
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize transition ${
                     statusFilter === key
-                      ? "bg-ink-900 text-white"
-                      : "bg-paper-100 text-ink-700 hover:bg-paper-200"
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
                   {key}
@@ -360,20 +363,20 @@ export function LiveResponderMap({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-7 rounded-full px-2.5 text-[11px]"
+                className="h-7 rounded-full bg-emerald-50 px-2.5 text-[11px] font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800"
                 onClick={() => {
                   setFocusId(undefined);
                   setFitTrigger((n) => n + 1);
                 }}
               >
-                <Compass className="mr-1 h-3 w-3" />
-                Fit view
+                <Compass className="mr-1 h-3 w-3 text-emerald-600" />
+                Bhopal Metro
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-7 rounded-full px-2.5 text-[11px]"
+                className="h-7 rounded-full px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
                 disabled={syncing}
                 onClick={() => void fetchControlRoomRoster()}
               >

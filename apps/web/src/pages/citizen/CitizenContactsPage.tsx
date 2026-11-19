@@ -1,5 +1,5 @@
 import { MobileHeader } from "@/components/common/Header";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ export function CitizenContactsPage() {
   const [newRel, setNewRel] = useState("");
 
   useEffect(() => {
-    mockApi.contacts().then(setContacts);
+    api.contacts().then(setContacts);
   }, []);
 
   return (
@@ -56,8 +56,8 @@ export function CitizenContactsPage() {
                   type="button"
                   aria-label="Remove contact"
                   onClick={async () => {
-                    await mockApi.deleteContact(c.id);
-                    const updated = await mockApi.contacts();
+                    await api.deleteContact(c.id);
+                    const updated = await api.contacts();
                     setContacts(updated);
                   }}
                   className="ml-2 text-xs text-red-500 hover:text-red-700 font-medium"
@@ -102,12 +102,12 @@ export function CitizenContactsPage() {
               variant="command"
               disabled={!newName.trim() || !newPhone.trim()}
               onClick={async () => {
-                await mockApi.addContact({ name: newName, phone: newPhone, relationshipLabel: newRel });
+                await api.addContact({ name: newName, phone: newPhone, relationshipLabel: newRel });
                 setNewName("");
                 setNewPhone("");
                 setNewRel("");
                 setShowAdd(false);
-                const updated = await mockApi.contacts();
+                const updated = await api.contacts();
                 setContacts(updated);
               }}
             >

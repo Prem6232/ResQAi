@@ -1,5 +1,5 @@
 import { Polygon } from "react-leaflet";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { polygonLngLatToLatLng, syntheticCampusPolygon } from "./mapConstants";
@@ -11,7 +11,7 @@ export function PerimeterPolygon({ positions }: { positions?: [number, number][]
   useEffect(() => {
     if (positions || !user) return;
     let active = true;
-    mockApi.getOperatingArea(user.activeRole).then((area) => {
+    api.getOperatingArea(user.activeRole).then((area) => {
       if (!active || !area?.polygon?.length) return;
       const latLngs = polygonLngLatToLatLng(area.polygon);
       if (latLngs.length >= 3) {

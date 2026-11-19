@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ResponderOfferCard } from "@/components/coordination/ResponderOfferCard";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { useLiveEvents } from "@/hooks/useLiveEvents";
 import { playAlertChime } from "@/lib/audioAlerts";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -22,7 +22,7 @@ export function OfferNotificationModal({ onResponded }: { onResponded?: () => vo
   const lastEventIdRef = useRef<string | null>(null);
 
   const checkOffers = useCallback(async (triggerChime: boolean) => {
-    const assignments = await mockApi.assignments();
+    const assignments = await api.assignments();
     const off = assignments.find((a) => a.status === "offered");
     if (off?.incident) {
       setAssignment(off);
@@ -55,7 +55,7 @@ export function OfferNotificationModal({ onResponded }: { onResponded?: () => vo
 
   const handleRespond = async (status: "accepted" | "declined") => {
     if (assignment) {
-      await mockApi.respondToOffer(assignment.id, status);
+      await api.respondToOffer(assignment.id, status);
       setOpen(false);
       onResponded?.();
     }

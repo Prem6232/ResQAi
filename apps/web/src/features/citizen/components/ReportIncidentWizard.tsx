@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { routes } from "@/config/routes.config";
 import { mapConfig } from "@/config/map.config";
 import { useMediaUploader } from "../hooks/useMediaUploader";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import type { GeoPoint } from "@/types/common";
 
 export function ReportIncidentWizard({ initialCategory }: { initialCategory?: IncidentCategory }) {
@@ -61,7 +61,7 @@ export function ReportIncidentWizard({ initialCategory }: { initialCategory?: In
               setSubmitting(true);
               try {
                 const uploadedIds = (
-                  await Promise.all(files.map((f) => mockApi.requestMediaUpload(f)))
+                  await Promise.all(files.map((f) => api.requestMediaUpload(f)))
                 ).filter((id): id is string => Boolean(id));
 
                 const result = await submit.mutateAsync({

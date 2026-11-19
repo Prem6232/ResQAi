@@ -1,10 +1,10 @@
 import { CommandShell } from "@/components/common/CommandShell";
 import {
-  mockApi,
+  api,
   type AnalyticsSummary,
   type CategoryBreakdownItem,
   type ResponseTimeStats,
-} from "@/lib/mock-api";
+} from "@/lib/api";
 import { useEffect, useState } from "react";
 
 export function OperationalAnalyticsPage() {
@@ -16,9 +16,9 @@ export function OperationalAnalyticsPage() {
   useEffect(() => {
     let active = true;
     Promise.all([
-      mockApi.analyticsSummary(),
-      mockApi.analyticsByCategory(),
-      mockApi.analyticsResponseTimes(),
+      api.analyticsSummary(),
+      api.analyticsByCategory(),
+      api.analyticsResponseTimes(),
     ])
       .then(([sum, cat, rt]) => {
         if (!active) return;

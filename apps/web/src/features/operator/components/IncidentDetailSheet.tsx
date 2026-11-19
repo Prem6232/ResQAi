@@ -1,4 +1,4 @@
-import type { IncidentDetail } from "@/lib/mock-api";
+import type { IncidentDetail } from "@/lib/api";
 import type { Incident } from "@/types/incident";
 import { AIEvidenceBadge } from "@/components/evidence/AIEvidenceBadge";
 import { FireSmokeEvidenceCard } from "@/components/evidence/FireSmokeEvidenceCard";

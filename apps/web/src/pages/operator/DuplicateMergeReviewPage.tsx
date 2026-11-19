@@ -3,7 +3,7 @@ import { DuplicateResolutionPanel } from "@/features/operator/components/Duplica
 import { ReportMergeModal } from "@/components/coordination/ReportMergeModal";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
-import { mockApi, type DuplicatePairing } from "@/lib/mock-api";
+import { api, type DuplicatePairing } from "@/lib/api";
 import type { Incident } from "@/types/incident";
 
 export function DuplicateMergeReviewPage() {
@@ -15,8 +15,8 @@ export function DuplicateMergeReviewPage() {
 
   const loadData = useCallback(async () => {
     const [incList, dupList] = await Promise.all([
-      mockApi.incidents(),
-      mockApi.duplicates(),
+      api.incidents(),
+      api.duplicates(),
     ]);
     setIncidents(incList);
     setPairings(dupList);
@@ -34,7 +34,7 @@ export function DuplicateMergeReviewPage() {
 
   const handleMergeConfirm = async (reason: string) => {
     if (targetIncident && secondaryIncident && secondaryIncident.reportIds.length > 0) {
-      await mockApi.mergeReports(targetIncident.id, secondaryIncident.reportIds, reason);
+      await api.mergeReports(targetIncident.id, secondaryIncident.reportIds, reason);
       setStatusMessage(
         `Merged ${secondaryIncident.reportIds.length} report(s) into ${targetIncident.title}.`
       );

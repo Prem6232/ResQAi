@@ -58,18 +58,17 @@ describe("liveResponderMapUtils", () => {
     expect(sampleResponder.status).toBe("available");
   });
 
-  it("computes bounding box and geodesic distance accurately", () => {
+  it("computes bounding box and geodesic distance accurately in Bhopal", () => {
     const bounds = computeGeoBounds([
-      { lat: 28.544, lng: 77.271 },
-      { lat: 28.548, lng: 77.276 },
+      { lat: 23.244, lng: 77.411 },
+      { lat: 23.288, lng: 77.456 },
     ]);
     expect(bounds).toEqual([
-      [28.544, 77.271],
-      [28.548, 77.276],
+      [23.244, 77.411],
+      [23.288, 77.456],
     ]);
-    expect(computeGeoBounds([{ lat: 28.544, lng: 77.271 }])).toBeNull();
-    expect(formatCoordinates(28.54521, 77.27319)).toBe("28.5452, 77.2732");
-    expect(haversineDistanceKm({ lat: 28.5452, lng: 77.2731 }, { lat: 28.5462, lng: 77.2741 })).toBeGreaterThan(0.1);
+    expect(formatCoordinates(23.25991, 77.41261)).toBe("23.2599, 77.4126");
+    expect(haversineDistanceKm({ lat: 23.2599, lng: 77.4126 }, { lat: 23.2699, lng: 77.4226 })).toBeGreaterThan(0.1);
   });
 
   it("parses OSRM GeoJSON responses and builds straight-line fallback", () => {

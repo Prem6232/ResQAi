@@ -1,6 +1,6 @@
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { useState } from "react";
 
 export function OperationalNotesForm({
@@ -25,7 +25,7 @@ export function OperationalNotesForm({
         setSaved(false);
         setError(null);
         try {
-          await mockApi.appendAssignmentNotes(assignmentId, note.trim());
+          await api.appendAssignmentNotes(assignmentId, note.trim());
           setNote("");
           setSaved(true);
           onSaved?.();

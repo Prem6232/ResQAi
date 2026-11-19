@@ -1,4 +1,4 @@
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { useState, useEffect } from "react";
 import type { ResponderProfile } from "@/types/responder";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
@@ -7,7 +7,7 @@ export function ResponderRosterDrawer() {
   const [responders, setResponders] = useState<ResponderProfile[]>([]);
 
   useEffect(() => {
-    mockApi.responders().then(setResponders);
+    api.responders().then(setResponders);
   }, []);
 
   return (

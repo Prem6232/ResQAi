@@ -1,4 +1,4 @@
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { useState, useEffect } from "react";
 import type { ResponderProfile } from "@/types/responder";
 import { Button } from "@/components/ui/button";
@@ -10,14 +10,14 @@ export function ResponderApprovalTable() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
-    mockApi.responders().then(setResponders);
+    api.responders().then(setResponders);
   }, []);
 
   const handleToggle = async (r: ResponderProfile) => {
     setLoadingId(r.id);
     try {
       await approveResponder(r.id, !r.approved);
-      const list = await mockApi.responders();
+      const list = await api.responders();
       setResponders(list);
     } finally {
       setLoadingId(null);

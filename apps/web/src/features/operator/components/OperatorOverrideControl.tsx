@@ -1,7 +1,7 @@
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 
 export function OperatorOverrideControl({
   incidentId,
@@ -21,7 +21,7 @@ export function OperatorOverrideControl({
     if (!incidentId || !reason.trim()) return;
     setSaving(true);
     try {
-      await mockApi.overrideIncident(
+      await api.overrideIncident(
         incidentId,
         currentCategory || "hazard",
         currentUrgency || "high",

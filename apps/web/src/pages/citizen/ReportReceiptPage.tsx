@@ -5,7 +5,7 @@ import { cancelReport } from "@/features/citizen/api/cancelReport";
 import { OwnReportReceipt } from "@/features/citizen/components/OwnReportReceipt";
 import { IncidentTimeline } from "@/components/coordination/IncidentTimeline";
 import { Button } from "@/components/ui/button";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { useState } from "react";
 
 export function ReportReceiptPage() {
@@ -15,7 +15,7 @@ export function ReportReceiptPage() {
 
   const singleQuery = useQuery({
     queryKey: ["citizen-report", id],
-    queryFn: () => mockApi.getReport(id!),
+    queryFn: () => api.getReport(id!),
     enabled: Boolean(id),
     retry: false,
   });

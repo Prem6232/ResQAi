@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import { useState } from "react";
 
 interface DeletionReceipt {
@@ -21,7 +21,7 @@ export function SettingsPrivacyPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await mockApi.requestDataDeletion(reason);
+      const res = await api.requestDataDeletion(reason);
       setReceipt({
         requestId: res.requestId,
         recordedAt: res.recordedAt,

@@ -1,5 +1,5 @@
 import { DuplicateIncidentCard } from "@/components/evidence/DuplicateIncidentCard";
-import { mockApi } from "@/lib/mock-api";
+import { api } from "@/lib/api";
 import type { DuplicateCandidate } from "@/types/ai-evidence";
 import { useState, useEffect } from "react";
 
@@ -18,7 +18,7 @@ export function DuplicateResolutionPanel({
       return;
     }
     if (incidentId) {
-      mockApi.evidence(incidentId).then((data) => {
+      api.evidence(incidentId).then((data) => {
         setDups(data?.duplicates ?? []);
       });
     }
