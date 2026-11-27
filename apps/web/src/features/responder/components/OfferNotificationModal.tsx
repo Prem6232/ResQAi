@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ResponderOfferCard } from "@/components/coordination/ResponderOfferCard";
 import { api } from "@/lib/api";
 import { useLiveEvents } from "@/hooks/useLiveEvents";
@@ -83,6 +83,9 @@ export function OfferNotificationModal({ onResponded }: { onResponded?: () => vo
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <DialogTitle>Assignment offer</DialogTitle>
+        <DialogDescription className="text-xs text-ink-700/60">
+          Review incoming assignment details and accept or decline before the timer expires.
+        </DialogDescription>
         {error ? <p className="mt-2 text-xs text-sos-600">{error}</p> : null}
         <div className="mt-3">
           <ResponderOfferCard

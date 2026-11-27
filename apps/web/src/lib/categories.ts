@@ -8,6 +8,8 @@ export const categoryMeta: Record<
   road_accident: { label: "Road accident", short: "Accident", icon: "🚗" },
   medical: { label: "Medical assistance", short: "Medical", icon: "✚" },
   personal_safety: { label: "Personal-safety SOS", short: "Safety", icon: "🛡️" },
+  water_flood: { label: "Water & Flood", short: "Flood", icon: "🌊" },
+  hazard: { label: "Safety hazard", short: "Hazard", icon: "⚠️" },
   other: { label: "Other / uncertain", short: "Other", icon: "⚑" },
 };
 

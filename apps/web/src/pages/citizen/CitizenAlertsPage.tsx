@@ -2,34 +2,54 @@ import { MobileHeader } from "@/components/common/Header";
 import { CampusBaseMap } from "@/components/maps/CampusBaseMap";
 import { CircleMarker, Popup } from "react-leaflet";
 import { api } from "@/lib/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { NearbyAlert } from "@/types/responder";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { routes } from "@/config/routes.config";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import { useLiveEvents } from "@/hooks/useLiveEvents";
 
 export function CitizenAlertsPage() {
   const geo = useGeolocation();
+  const { events } = useLiveEvents();
   const [alerts, setAlerts] = useState<NearbyAlert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAlerts = useCallback(async () => {
+    setError(null);
+    try {
+      const list = await api.alerts(geo.point.lat, geo.point.lng);
+      setAlerts(list);
+    } catch {
+      setError("Could not load nearby safety notices.");
+    } finally {
+      setLoading(false);
+    }
+  }, [geo.point.lat, geo.point.lng]);
 
   useEffect(() => {
-    let active = true;
-    setLoading(true);
-    api
-      .alerts(geo.point.lat, geo.point.lng)
-      .then((list) => {
-        if (active) setAlerts(list);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [geo.point.lat, geo.point.lng]);
+    void geo.request();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    void loadAlerts();
+  }, [loadAlerts]);
+
+  useEffect(() => {
+    if (events.length === 0) return;
+    const latest = events[0];
+    if (
+      latest.type === "report.received" ||
+      latest.type === "report.cancelled" ||
+      latest.type === "incident.updated"
+    ) {
+      void loadAlerts();
+    }
+  }, [events, loadAlerts]);
 
   return (
     <div>
@@ -56,6 +76,7 @@ export function CitizenAlertsPage() {
           ))}
       </CampusBaseMap>
       <div className="mt-4 space-y-3">
+        {error ? <p className="text-xs text-sos-600">{error}</p> : null}
         {loading ? (
           <p className="text-sm text-ink-700/50">Loading nearby notices…</p>
         ) : alerts.length > 0 ? (

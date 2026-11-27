@@ -2,6 +2,7 @@ export interface WsEvent {
   id: string;
   type:
     | "report.received"
+    | "report.cancelled"
     | "incident.updated"
     | "assignment.offered"
     | "assignment.updated"

@@ -39,7 +39,7 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
       onReportCreated(sosResult);
       Alert.alert(
         "🚨 SOS SIGNAL BROADCASTED",
-        "Your emergency beacon and live location have been instantly transmitted to Bhopal Emergency Dispatch, Responders, and your 3 Trusted Contacts.",
+        "Your emergency beacon and live location have been instantly transmitted to Bhopal Emergency Dispatch, Responders, and your trusted contacts.",
         [
           { text: "View My Report Status", onPress: onNavigateToReports },
           { text: "Dismiss", style: "cancel" },
@@ -142,7 +142,7 @@ export const CitizenHomeScreen: React.FC<CitizenHomeScreenProps> = ({
         </View>
 
         <View style={styles.footerNote}>
-          <Text style={styles.footerText}>ResQAi Emergency Coordination Platform · Campus Pilot</Text>
+          <Text style={styles.footerText}>ResQAi Emergency Coordination Platform · Bhopal Safety Grid</Text>
         </View>
       </ScrollView>
 

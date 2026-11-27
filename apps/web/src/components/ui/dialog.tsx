@@ -34,3 +34,17 @@ export function DialogContent({
 export function DialogTitle({ children }: { children: ReactNode }) {
   return <DialogPrimitive.Title className="font-display text-lg font-bold">{children}</DialogPrimitive.Title>;
 }
+
+export function DialogDescription({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <DialogPrimitive.Description className={cn("mt-2 text-sm text-ink-700/70", className)}>
+      {children}
+    </DialogPrimitive.Description>
+  );
+}

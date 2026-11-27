@@ -57,11 +57,11 @@ async def approve_responder(
 @router.get(
     "/operating-area",
     response_model=OperatingAreaResponse,
-    summary="Get campus geofence boundary polygon (All authenticated roles)",
+    summary="Get campus geofence boundary polygon (Admin & Operator)",
 )
 async def get_campus_operating_area(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(["admin", "operator", "responder", "citizen"])),
+    current_user: User = Depends(require_roles(["admin", "operator"])),
 ):
     """Retrieve active campus boundary geofence polygon."""
     return await service.get_active_operating_area(session=db)

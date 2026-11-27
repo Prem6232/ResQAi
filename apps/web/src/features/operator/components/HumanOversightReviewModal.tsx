@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useEffect, useState } from "react";
@@ -45,7 +45,7 @@ export function HumanOversightReviewModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogTitle>{title}</DialogTitle>
-        <p className="mt-2 text-sm text-ink-700/70">Human confirmation is required. AI cannot dispatch.</p>
+        <DialogDescription>Human confirmation is required. AI cannot dispatch.</DialogDescription>
         <Textarea className="mt-3" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason" />
         {error ? <p className="mt-2 text-xs font-medium text-rose-600">{error}</p> : null}
         <Button className="mt-4" variant="command" disabled={!reason.trim() || submitting} onClick={() => void handleConfirm()}>

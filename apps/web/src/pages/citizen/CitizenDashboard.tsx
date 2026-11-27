@@ -5,23 +5,36 @@ import { Link } from "react-router-dom";
 import { routes } from "@/config/routes.config";
 import type { IncidentCategory } from "@/types/incident";
 import { useAuth } from "@/hooks/useAuth";
-import { Flame, Car, HeartPulse, Shield, HelpCircle } from "lucide-react";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { Flame, Car, HeartPulse, Shield, Droplets, AlertTriangle, HelpCircle } from "lucide-react";
 
 const icons: Record<IncidentCategory, typeof Flame> = {
   fire_smoke: Flame,
   road_accident: Car,
   medical: HeartPulse,
   personal_safety: Shield,
+  water_flood: Droplets,
+  hazard: AlertTriangle,
   other: HelpCircle,
 };
 
 export function CitizenDashboard() {
   const { user } = useAuth();
+  const geo = useGeolocation();
+  const online = useOnlineStatus();
+
+  const statusText = !online
+    ? "Offline queue ready"
+    : geo.point.source === "gps"
+      ? "GPS live"
+      : "Bhopal Grid ready";
+
   return (
     <div>
       <MobileHeader
         role="Citizen"
-        right={<span className="text-[11px] text-duty-600">Live location off</span>}
+        right={<span className="text-[11px] text-duty-600">{statusText}</span>}
       />
       <SOSQuickButton />
       <h2 className="mb-3 mt-10 text-sm font-semibold text-ink-800">Report incident</h2>

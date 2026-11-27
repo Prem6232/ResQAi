@@ -25,6 +25,7 @@ export const CitizenMyReportsScreen: React.FC<CitizenMyReportsScreenProps> = ({
   const [selectedReport, setSelectedReport] = useState<CitizenReport | null>(null);
 
   const formatStatus = (rawStatus: string, label?: string) => {
+    if (rawStatus === "false_alarm" || rawStatus === "cancelled") return "Cancelled";
     const text = label || rawStatus;
     if (text === "received_by_server") return "Received";
     if (text === "in_review" || text === "triaged") return "In Review";
@@ -35,6 +36,11 @@ export const CitizenMyReportsScreen: React.FC<CitizenMyReportsScreenProps> = ({
 
   const getBadgeStyle = (status: string) => {
     switch (status) {
+      case "false_alarm":
+        return {
+          bg: "#F1F5F9",
+          text: "#475569",
+        };
       case "dispatched":
       case "verified":
         return {
@@ -109,7 +115,7 @@ export const CitizenMyReportsScreen: React.FC<CitizenMyReportsScreenProps> = ({
                   </View>
 
                   <Text style={styles.timestamp}>
-                    {report.timestamp} · {report.locationLabel || "Campus Quadrangle"}
+                    {report.timestamp} · {report.locationLabel || "Bhopal Metro"}
                   </Text>
 
                   {/* 4-Step Progress Stepper Bar */}

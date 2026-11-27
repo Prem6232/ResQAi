@@ -6,7 +6,12 @@ import { AuthContext } from "@/context/authContextStore";
 function readStored(): { user: SessionUser; tokens: AuthTokens } | null {
   const raw = localStorage.getItem("sg.session");
   if (!raw) return null;
-  return JSON.parse(raw) as { user: SessionUser; tokens: AuthTokens };
+  try {
+    return JSON.parse(raw) as { user: SessionUser; tokens: AuthTokens };
+  } catch {
+    localStorage.removeItem("sg.session");
+    return null;
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

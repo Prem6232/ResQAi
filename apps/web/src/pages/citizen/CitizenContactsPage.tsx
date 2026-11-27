@@ -14,18 +14,50 @@ interface ContactItem {
   isActive?: boolean;
 }
 
+function readBoolPref(key: string, fallback: boolean): boolean {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : raw === "true";
+  } catch {
+    return fallback;
+  }
+}
+
 export function CitizenContactsPage() {
-  const [share, setShare] = useState(true);
-  const [sms, setSms] = useState(true);
+  const [share, setShare] = useState(() => readBoolPref("sg.citizen.share", true));
+  const [sms, setSms] = useState(() => readBoolPref("sg.citizen.sms", true));
   const [contacts, setContacts] = useState<ContactItem[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newRel, setNewRel] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api.contacts().then(setContacts);
   }, []);
+
+  const maxReached = contacts.length >= 3;
+
+  const handleSave = async () => {
+    setError(null);
+    setSaving(true);
+    try {
+      await api.addContact({ name: newName.trim(), phone: newPhone.trim(), relationshipLabel: newRel.trim() });
+      setNewName("");
+      setNewPhone("");
+      setNewRel("");
+      setShowAdd(false);
+      const updated = await api.contacts();
+      setContacts(updated);
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { message?: string; detail?: string } } })?.response?.data;
+      setError(data?.message || data?.detail || "Could not save contact (check phone format & 3-contact limit).");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div>
@@ -56,9 +88,14 @@ export function CitizenContactsPage() {
                   type="button"
                   aria-label="Remove contact"
                   onClick={async () => {
-                    await api.deleteContact(c.id);
-                    const updated = await api.contacts();
-                    setContacts(updated);
+                    setError(null);
+                    try {
+                      await api.deleteContact(c.id);
+                      const updated = await api.contacts();
+                      setContacts(updated);
+                    } catch {
+                      setError("Could not remove trusted contact.");
+                    }
                   }}
                   className="ml-2 text-xs text-red-500 hover:text-red-700 font-medium"
                 >
@@ -96,22 +133,15 @@ export function CitizenContactsPage() {
             onChange={(e) => setNewRel(e.target.value)}
             className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
           />
+          {error ? <p className="text-xs text-sos-600">{error}</p> : null}
           <div className="flex gap-2">
             <Button
               className="flex-1"
               variant="command"
-              disabled={!newName.trim() || !newPhone.trim()}
-              onClick={async () => {
-                await api.addContact({ name: newName, phone: newPhone, relationshipLabel: newRel });
-                setNewName("");
-                setNewPhone("");
-                setNewRel("");
-                setShowAdd(false);
-                const updated = await api.contacts();
-                setContacts(updated);
-              }}
+              disabled={!newName.trim() || !newPhone.trim() || saving}
+              onClick={() => void handleSave()}
             >
-              Save contact
+              {saving ? "Saving…" : "Save contact"}
             </Button>
             <Button variant="outline" onClick={() => setShowAdd(false)}>
               Cancel
@@ -119,20 +149,51 @@ export function CitizenContactsPage() {
           </div>
         </div>
       ) : (
-        <Button className="mt-4 w-full" variant="outline" onClick={() => setShowAdd(true)}>
-          Add contact
-        </Button>
+        <div className="mt-4 space-y-2">
+          {error ? <p className="text-xs text-sos-600">{error}</p> : null}
+          <Button
+            className="w-full"
+            variant="outline"
+            disabled={maxReached}
+            onClick={() => {
+              setError(null);
+              setShowAdd(true);
+            }}
+          >
+            {maxReached ? "Maximum 3 trusted contacts reached" : "Add contact"}
+          </Button>
+        </div>
       )}
       <div className="mt-6 space-y-3 rounded-3xl bg-white p-4 shadow-card">
         <label className="flex items-center justify-between text-sm">
           Share live location
-          <Switch checked={share} onCheckedChange={setShare} />
+          <Switch
+            checked={share}
+            onCheckedChange={(v) => {
+              setShare(v);
+              try {
+                localStorage.setItem("sg.citizen.share", String(v));
+              } catch {
+                // ignore storage errors
+              }
+            }}
+          />
         </label>
         <label className="flex items-center justify-between text-sm">
           Notify by SMS
-          <Switch checked={sms} onCheckedChange={setSms} />
+          <Switch
+            checked={sms}
+            onCheckedChange={(v) => {
+              setSms(v);
+              try {
+                localStorage.setItem("sg.citizen.sms", String(v));
+              } catch {
+                // ignore storage errors
+              }
+            }}
+          />
         </label>
-        <p className="text-xs text-ink-700/45">SMS notification alerts live campus contacts.</p>
+        <p className="text-xs text-ink-700/45">SMS notification alerts live Bhopal emergency contacts.</p>
       </div>
     </div>
   );

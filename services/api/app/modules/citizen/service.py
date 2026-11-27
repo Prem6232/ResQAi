@@ -10,7 +10,8 @@ from geoalchemy2.shape import from_shape, to_shape
 
 from app.core.exceptions import AppException, NotFoundError, ForbiddenError
 from app.core.outbox import create_outbox_event
-from app.common.spatial import haversine_distance, coarsen_coordinates
+from app.common.spatial import haversine_distance, coarsen_coordinates, normalize_legacy_coords_to_bhopal
+from app.modules.realtime.publisher import broadcast_outbox_event
 from app.models.entities import Report, Incident, IncidentReport, MediaAsset, TrustedContact, User, AuditLog
 from app.modules.media.schemas import MediaAssetResponse
 from app.modules.media.service import get_media_url
@@ -118,7 +119,7 @@ async def create_sos_beacon(
         urgency="critical",
         raw_text=payload.note or "CRITICAL PERSONAL SOS",
         location=geom,
-        location_label=payload.location_label or "Main Quadrangle · Coordinates Broadcasted",
+        location_label=payload.location_label or "Bhopal Metro · Coordinates Broadcasted",
         status="submitted",
         processing_state="received",
         delivery_state="received_by_server",
@@ -132,7 +133,7 @@ async def create_sos_beacon(
     clustered_inc = await cluster_report_to_incident(db, report)
 
     # Outbox event for sub-second asynchronous notification
-    await create_outbox_event(
+    outbox_ev = await create_outbox_event(
         session=db,
         aggregate_type="Report",
         aggregate_id=report.id,
@@ -150,6 +151,10 @@ async def create_sos_beacon(
         }
     )
     await db.commit()
+    try:
+        await broadcast_outbox_event(outbox_ev)
+    except Exception as e:
+        logger.warning(f"Failed immediate broadcast for OUTBOX_SOS_CREATED: {e}")
 
     # Reload with relationships
     stmt = (
@@ -188,7 +193,7 @@ async def create_citizen_report(
         urgency=payload.urgency or "high",
         raw_text=payload.text,
         location=geom,
-        location_label=payload.location_label or "Campus Location",
+        location_label=payload.location_label or "Bhopal Metro Location",
         status="submitted",
         processing_state="received",
         delivery_state="received_by_server",
@@ -205,7 +210,7 @@ async def create_citizen_report(
                 m_stmt = select(MediaAsset).where(MediaAsset.id == media_uuid)
                 m_res = await db.execute(m_stmt)
                 asset = m_res.scalar_one_or_none()
-                if asset:
+                if asset and asset.report_id is None:
                     asset.report_id = report.id
             except ValueError:
                 pass
@@ -215,7 +220,7 @@ async def create_citizen_report(
     clustered_inc = await cluster_report_to_incident(db, report)
 
     # Transactional outbox event
-    await create_outbox_event(
+    outbox_ev = await create_outbox_event(
         session=db,
         aggregate_type="Report",
         aggregate_id=report.id,
@@ -232,6 +237,10 @@ async def create_citizen_report(
         }
     )
     await db.commit()
+    try:
+        await broadcast_outbox_event(outbox_ev)
+    except Exception as e:
+        logger.warning(f"Failed immediate broadcast for report.created: {e}")
 
     # Reload with relationships
     stmt = (
@@ -308,6 +317,9 @@ async def cancel_citizen_report(
     if report.reporter_id != user.id:
         raise ForbiddenError("Access denied: You can only cancel your own reports")
 
+    if report.status == "cancelled":
+        return build_report_response(report)
+
     # Check dispatch status across linked incidents
     if report.incident_links:
         for link in report.incident_links:
@@ -323,18 +335,23 @@ async def cancel_citizen_report(
     report.processing_state = "cancelled"
     report.cancelled_reason = reason
 
-    await create_outbox_event(
+    outbox_ev = await create_outbox_event(
         session=db,
         aggregate_type="Report",
         aggregate_id=report.id,
         event_type="report.cancelled",
         payload={
             "report_id": str(report.id),
+            "reporter_id": str(user.id),
             "reason": reason,
             "cancelled_at": datetime.utcnow().isoformat(),
         }
     )
     await db.commit()
+    try:
+        await broadcast_outbox_event(outbox_ev)
+    except Exception as e:
+        logger.warning(f"Failed immediate broadcast for report.cancelled: {e}")
     await db.refresh(report)
 
     # Re-query
@@ -443,12 +460,12 @@ async def get_nearby_alerts(
     incidents = res.scalars().all()
 
     alerts = []
+    q_lat, q_lng = normalize_legacy_coords_to_bhopal(lat, lng)
     for inc in incidents:
         point = to_shape(inc.location)
-        inc_lat = float(point.y)
-        inc_lng = float(point.x)
+        inc_lat, inc_lng = normalize_legacy_coords_to_bhopal(float(point.y), float(point.x))
 
-        distance_km = haversine_distance(lat, lng, inc_lat, inc_lng)
+        distance_km = haversine_distance(q_lat, q_lng, inc_lat, inc_lng)
         if distance_km <= radius_km:
             coarsened = coarsen_coordinates(inc_lat, inc_lng, grid_size=0.001)
             coarsened_lat, coarsened_lng = coarsened.lat, coarsened.lng
@@ -465,12 +482,17 @@ async def get_nearby_alerts(
             status_label = status_map.get(inc.status, "Active Emergency")
 
             tone = "active" if inc.urgency in ["critical", "high"] else "warning"
+            safe_location_label = (
+                "Bhopal Metro Area"
+                if (inc.hide_precise_location or inc.category == "personal_safety")
+                else (inc.location_label or "Bhopal Metro")
+            )
 
             alerts.append(
                 NearbyAlertResponse(
                     id=f"alt_{inc.public_code}",
                     category=inc.category,
-                    title=f"{inc.title} · {inc.location_label or 'Campus Area'}",
+                    title=f"{inc.title} · {safe_location_label}",
                     distanceLabel=dist_label,
                     distance_label=dist_label,
                     statusLabel=status_label,

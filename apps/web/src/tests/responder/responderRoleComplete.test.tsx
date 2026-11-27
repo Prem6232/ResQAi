@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -356,5 +356,30 @@ describe("Complete Responder Role Functional & Bugfix Suite", () => {
     await waitFor(() => {
       expect(mockSendLocationPing).toHaveBeenCalled();
     });
+  });
+
+  it("does not infinite-loop sendLocationPing when onLocationSynced triggers parent re-renders", async () => {
+    function Wrapper() {
+      const [syncCount, setSyncCount] = useState(0);
+      return (
+        <div>
+          <span data-testid="sync-count">{syncCount}</span>
+          <LiveResponderMap
+            mode="responder"
+            selfPoint={{ lat: 23.2599, lng: 77.4126, source: "gps" }}
+            enableAutoPing={true}
+            onLocationSynced={() => setSyncCount((c) => c + 1)}
+          />
+        </div>
+      );
+    }
+
+    renderWithRouter(<Wrapper />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sync-count").textContent).toBe("1");
+    });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(mockSendLocationPing).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("sync-count").textContent).toBe("1");
   });
 });

@@ -6,12 +6,27 @@ import { OwnReportReceipt } from "@/features/citizen/components/OwnReportReceipt
 import { IncidentTimeline } from "@/components/coordination/IncidentTimeline";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLiveEvents } from "@/hooks/useLiveEvents";
 
 export function ReportReceiptPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const { events } = useLiveEvents();
   const [cancelError, setCancelError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (events.length === 0) return;
+    const latest = events[0];
+    if (
+      latest.type === "report.cancelled" ||
+      latest.type === "incident.updated" ||
+      latest.type === "report.received"
+    ) {
+      void queryClient.invalidateQueries({ queryKey: ["citizen-report", id] });
+      void queryClient.invalidateQueries({ queryKey: ["my-reports"] });
+    }
+  }, [events, id, queryClient]);
 
   const singleQuery = useQuery({
     queryKey: ["citizen-report", id],
@@ -34,9 +49,8 @@ export function ReportReceiptPage() {
       void queryClient.invalidateQueries({ queryKey: ["my-reports"] });
     },
     onError: (err: unknown) => {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        "Report cannot be cancelled once dispatched.";
+      const data = (err as { response?: { data?: { message?: string; detail?: string } } })?.response?.data;
+      const msg = data?.message || data?.detail || "Report cannot be cancelled once dispatched.";
       setCancelError(msg);
     },
   });

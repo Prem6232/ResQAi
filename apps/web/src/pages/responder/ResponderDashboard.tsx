@@ -113,7 +113,7 @@ export function ResponderDashboard() {
           etaMinutes={featuredAssignment?.etaMinutes}
           distanceKm={featuredAssignment?.distanceKm}
           enableAutoPing={Boolean(activeMission)}
-          onLocationSynced={() => void refresh()}
+          onLocationSynced={refresh}
         />
       </div>
       <div className="mt-4">

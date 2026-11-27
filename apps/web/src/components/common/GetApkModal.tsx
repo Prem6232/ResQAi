@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Download, Smartphone, Check, Copy, ExternalLink, ShieldCheck, RefreshCw, QrCode } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 interface GetApkModalProps {
@@ -44,9 +44,9 @@ export function GetApkModal({ open, onOpenChange }: GetApkModalProps) {
                   Android APK
                 </span>
               </div>
-              <p className="mt-1 text-xs text-slate-300">
+              <DialogDescription className="mt-1 text-xs text-slate-300">
                 Install directly on your Android smartphone or tablet
-              </p>
+              </DialogDescription>
             </div>
           </div>
 

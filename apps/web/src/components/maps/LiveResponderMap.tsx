@@ -130,6 +130,29 @@ export function LiveResponderMap({
   const [gpsWarning, setGpsWarning] = useState<string | null>(null);
   const [autoPing, setAutoPing] = useState(enableAutoPing);
   const lastEventIdRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
+  const liveSelfPointRef = useRef(liveSelfPoint);
+  const onLocationSyncedRef = useRef(onLocationSynced);
+  const onRespondersUpdatedRef = useRef(onRespondersUpdated);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    liveSelfPointRef.current = liveSelfPoint;
+  }, [liveSelfPoint]);
+
+  useEffect(() => {
+    onLocationSyncedRef.current = onLocationSynced;
+  }, [onLocationSynced]);
+
+  useEffect(() => {
+    onRespondersUpdatedRef.current = onRespondersUpdated;
+  }, [onRespondersUpdated]);
 
   useEffect(() => {
     if (externalResponders) {
@@ -147,6 +170,7 @@ export function LiveResponderMap({
 
   useEffect(() => {
     if (selfPoint && selfPoint.source !== "unknown" && Number.isFinite(selfPoint.lat) && Number.isFinite(selfPoint.lng)) {
+      liveSelfPointRef.current = selfPoint;
       setLiveSelfPoint(selfPoint);
     }
   }, [selfPoint]);
@@ -156,21 +180,26 @@ export function LiveResponderMap({
     setSyncing(true);
     try {
       const fresh = await api.responders();
+      if (!mountedRef.current) return;
       setInternalResponders(fresh);
-      onRespondersUpdated?.(fresh);
+      onRespondersUpdatedRef.current?.(fresh);
       setLastUpdatedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
     } finally {
-      setSyncing(false);
+      if (mountedRef.current) setSyncing(false);
     }
-  }, [mode, onRespondersUpdated]);
+  }, [mode]);
+
+  const hasExternalResponders = Boolean(externalResponders);
 
   // Initial fetch (if control room did not pass responders) + polling interval
   useEffect(() => {
     if (mode !== "control_room") return;
-    if (!externalResponders) {
+    if (!hasExternalResponders) {
       void fetchControlRoomRoster();
-    } else if (!lastUpdatedAt) {
-      setLastUpdatedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    } else {
+      setLastUpdatedAt((prev) =>
+        prev ?? new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      );
     }
 
     const timer = window.setInterval(() => {
@@ -178,7 +207,7 @@ export function LiveResponderMap({
     }, pollIntervalMs);
 
     return () => window.clearInterval(timer);
-  }, [mode, externalResponders, fetchControlRoomRoster, pollIntervalMs, lastUpdatedAt]);
+  }, [mode, hasExternalResponders, fetchControlRoomRoster, pollIntervalMs]);
 
   // Apply real-time WebSocket responder telemetry / assignment events
   useEffect(() => {
@@ -191,7 +220,7 @@ export function LiveResponderMap({
       setInternalResponders((prev) => {
         const updated = applyWsResponderLocation(prev, latest);
         if (updated !== prev) {
-          onRespondersUpdated?.(updated);
+          onRespondersUpdatedRef.current?.(updated);
           setLastUpdatedAt(
             new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
           );
@@ -202,7 +231,7 @@ export function LiveResponderMap({
         void fetchControlRoomRoster();
       }
     }
-  }, [events, mode, fetchControlRoomRoster, onRespondersUpdated]);
+  }, [events, mode, fetchControlRoomRoster]);
 
   // Watch browser geolocation in responder mode
   useEffect(() => {
@@ -212,12 +241,14 @@ export function LiveResponderMap({
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         setGpsWarning(null);
-        setLiveSelfPoint({
+        const gpsPoint: GeoPoint = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           accuracyMeters: pos.coords.accuracy,
           source: "gps",
-        });
+        };
+        liveSelfPointRef.current = gpsPoint;
+        setLiveSelfPoint(gpsPoint);
       },
       () => {
         setGpsWarning("GPS signal unavailable — using last known Bhopal coordinates.");
@@ -229,17 +260,21 @@ export function LiveResponderMap({
 
   const sendManualPing = useCallback(async () => {
     if (mode !== "responder") return;
+    const point = liveSelfPointRef.current;
     setSyncing(true);
     try {
-      await sendLocationPing(liveSelfPoint);
+      await sendLocationPing(point);
+      if (!mountedRef.current) return;
       setLastUpdatedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-      onLocationSynced?.(liveSelfPoint);
+      onLocationSyncedRef.current?.(point);
     } catch {
-      setGpsWarning("Could not sync location ping to dispatch server.");
+      if (mountedRef.current) {
+        setGpsWarning("Could not sync location ping to dispatch server.");
+      }
     } finally {
-      setSyncing(false);
+      if (mountedRef.current) setSyncing(false);
     }
-  }, [mode, liveSelfPoint, onLocationSynced]);
+  }, [mode]);
 
   // Optional 15s automatic GPS ping streaming in responder mode
   useEffect(() => {

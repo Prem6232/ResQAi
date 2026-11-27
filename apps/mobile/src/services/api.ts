@@ -15,10 +15,12 @@ import {
 } from "../types";
 
 let currentAccessToken: string | null = null;
+let currentRefreshToken: string | null = null;
 let currentRole: Role = "citizen";
 let currentUser: UserProfile | null = null;
-let authPromise: Promise<string> | null = null;
+let refreshPromise: Promise<string> | null = null;
 let connectionListeners: Array<(connected: boolean) => void> = [];
+let authExpiredListeners: Array<() => void> = [];
 let lastKnownConnectionState: boolean | null = null;
 
 function notifyConnection(connected: boolean) {
@@ -26,6 +28,16 @@ function notifyConnection(connected: boolean) {
     lastKnownConnectionState = connected;
     connectionListeners.forEach((l) => l(connected));
   }
+}
+
+function notifyAuthExpired() {
+  authExpiredListeners.forEach((l) => {
+    try {
+      l();
+    } catch {
+      // ignore listener errors
+    }
+  });
 }
 
 export const mobileApi = {
@@ -51,30 +63,73 @@ export const mobileApi = {
     };
   },
 
-  async ensureAuthenticated(): Promise<string> {
-    if (currentAccessToken) return currentAccessToken;
-    if (authPromise) return authPromise;
+  onAuthExpired(listener: () => void): () => void {
+    authExpiredListeners.push(listener);
+    return () => {
+      authExpiredListeners = authExpiredListeners.filter((l) => l !== listener);
+    };
+  },
 
-    authPromise = (async () => {
+  async refreshSession(): Promise<string> {
+    if (!currentRefreshToken) {
+      throw new Error("No refresh token available");
+    }
+    if (refreshPromise) return refreshPromise;
+
+    const tokenToUse = currentRefreshToken;
+    refreshPromise = (async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
       try {
-        const res = await this.loginAs(currentRole);
-        return res.accessToken;
+        const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ refreshToken: tokenToUse, refresh_token: tokenToUse }),
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          throw new Error(`Refresh failed (${res.status})`);
+        }
+        const data = (await res.json()) as {
+          access_token?: string;
+          accessToken?: string;
+          refresh_token?: string;
+          refreshToken?: string;
+        };
+        const nextAccess = data.access_token || data.accessToken || "";
+        if (!nextAccess) {
+          throw new Error("Refresh response missing access token");
+        }
+        currentAccessToken = nextAccess;
+        currentRefreshToken = data.refresh_token || data.refreshToken || tokenToUse;
+        return nextAccess;
       } finally {
-        authPromise = null;
+        clearTimeout(timeout);
+        refreshPromise = null;
       }
     })();
-    return authPromise;
+
+    return refreshPromise;
   },
 
   async request<T>(endpoint: string, options: RequestInit = {}, retryCount = 1): Promise<T> {
-    const isPublic = endpoint.startsWith("/auth/login") || endpoint.startsWith("/auth/register") || endpoint === "/health";
-    
-    // Auto-authenticate if token is missing
+    const isPublic =
+      endpoint.startsWith("/auth/login") ||
+      endpoint.startsWith("/auth/register") ||
+      endpoint.startsWith("/auth/refresh") ||
+      endpoint === "/health";
+
     if (!isPublic && !currentAccessToken) {
-      try {
-        await this.ensureAuthenticated();
-      } catch (authErr) {
-        console.warn("Auto authentication on demand warning:", authErr);
+      if (currentRefreshToken) {
+        try {
+          await this.refreshSession();
+        } catch {
+          this.logout();
+          notifyAuthExpired();
+          throw new Error("Session expired. Please sign in again.");
+        }
+      } else {
+        throw new Error("Authentication required. Please sign in.");
       }
     }
 
@@ -99,11 +154,19 @@ export const mobileApi = {
         signal: controller.signal,
       });
 
-      // If token expired or invalid, auto-refresh and retry once
-      if (response.status === 401 && retryCount > 0 && !isPublic) {
-        currentAccessToken = null;
-        await this.loginAs(currentRole);
-        return this.request<T>(endpoint, options, retryCount - 1);
+      // Refresh only via real refresh token — never silently switch user identity to a demo account
+      if (response.status === 401 && !isPublic) {
+        if (retryCount > 0 && currentRefreshToken) {
+          try {
+            await this.refreshSession();
+            return this.request<T>(endpoint, options, retryCount - 1);
+          } catch {
+            // Fall through to clean logout below
+          }
+        }
+        this.logout();
+        notifyAuthExpired();
+        throw new Error("Session expired or unauthorized. Please sign in again.");
       }
 
       if (!response.ok) {
@@ -118,7 +181,9 @@ export const mobileApi = {
       if (retryCount > 0 && (err?.name === "AbortError" || err?.message?.includes("Network request failed"))) {
         return this.request<T>(endpoint, options, retryCount - 1);
       }
-      notifyConnection(false);
+      if (!err?.message?.includes("Session expired")) {
+        notifyConnection(false);
+      }
       throw err;
     } finally {
       clearTimeout(timeout);
@@ -149,17 +214,26 @@ export const mobileApi = {
   },
 
   async login(email: string, password: string): Promise<{ accessToken: string; user: UserProfile }> {
-    const res = await this.request<{ access_token: string; accessToken?: string; user: any }>(
-      "/auth/login",
-      {
-        method: "POST",
-        body: JSON.stringify({ email: email.trim(), password }),
-      }
-    );
+    const res = await this.request<{
+      access_token: string;
+      accessToken?: string;
+      refresh_token?: string;
+      refreshToken?: string;
+      user: any;
+    }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: email.trim(), password }),
+    });
+
+    const rawUser = res.user || {};
+    if (rawUser.role && rawUser.role !== "citizen" && rawUser.role !== "responder") {
+      throw new Error("Mobile app supports Citizen and First Responder accounts. Use the Web Console for Operator/Admin roles.");
+    }
 
     const token = res.access_token || res.accessToken || "";
+    const refresh = res.refresh_token || res.refreshToken || null;
     currentAccessToken = token;
-    const rawUser = res.user || {};
+    currentRefreshToken = refresh;
     const parsedRole: Role = rawUser.role === "responder" ? "responder" : "citizen";
     currentRole = parsedRole;
 
@@ -185,25 +259,29 @@ export const mobileApi = {
     phone?: string;
     unitCode?: string;
   }): Promise<{ accessToken: string; user: UserProfile }> {
-    const res = await this.request<{ access_token: string; accessToken?: string; user: any }>(
-      "/auth/register",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          email: payload.email.trim(),
-          password: payload.password,
-          full_name: payload.fullName.trim(),
-          name: payload.fullName.trim(),
-          role: payload.role,
-          phone: payload.phone?.trim() || undefined,
-          responder_type: payload.role === "responder" ? "campus_security" : undefined,
-          capabilities: payload.role === "responder" ? ["first_aid", "security_patrol", "rescue"] : undefined,
-        }),
-      }
-    );
+    const res = await this.request<{
+      access_token: string;
+      accessToken?: string;
+      refresh_token?: string;
+      refreshToken?: string;
+      user: any;
+    }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        email: payload.email.trim(),
+        password: payload.password,
+        full_name: payload.fullName.trim(),
+        name: payload.fullName.trim(),
+        role: payload.role,
+        phone: payload.phone?.trim() || undefined,
+        responder_type: payload.role === "responder" ? "campus_security" : undefined,
+        capabilities: payload.role === "responder" ? ["first_aid", "security_patrol", "rescue"] : undefined,
+      }),
+    });
 
     const token = res.access_token || res.accessToken || "";
     currentAccessToken = token;
+    currentRefreshToken = res.refresh_token || res.refreshToken || null;
     currentRole = payload.role;
 
     const rawUser = res.user || {};
@@ -229,7 +307,9 @@ export const mobileApi = {
 
   logout(): void {
     currentAccessToken = null;
+    currentRefreshToken = null;
     currentUser = null;
+    refreshPromise = null;
   },
 
   async getMe(): Promise<any> {
@@ -244,17 +324,26 @@ export const mobileApi = {
         let lat = 23.2599;
         let lng = 77.4126;
         if (item.location) {
-          lat = typeof item.location.lat === "number" ? item.location.lat : lat;
-          lng = typeof item.location.lng === "number" ? item.location.lng : lng;
+          const rawLat = typeof item.location.lat === "number" ? item.location.lat : lat;
+          const rawLng = typeof item.location.lng === "number" ? item.location.lng : lng;
+          if (rawLat >= 28.4 && rawLat <= 28.8 && rawLng >= 77.0 && rawLng <= 77.5) {
+            lat = Number((rawLat - 5.2853).toFixed(6));
+            lng = Number((rawLng + 0.1395).toFixed(6));
+          } else {
+            lat = rawLat;
+            lng = rawLng;
+          }
         }
 
-        const isResolved = item.delivery_state === "delivered" || item.processing_state === "resolved";
-        const isDispatched = item.processing_state === "verified" || item.processing_state === "dispatched";
+        const procState = String(item.processing_state || item.processingState || "received");
+        const delivState = String(item.delivery_state || item.deliveryState || "received_by_server");
+        const isCancelled = procState === "cancelled" || Boolean(item.cancelled_reason || item.cancelledReason);
+        const hasIncident = Boolean(item.incident_id || item.incidentId);
 
         let currentStep = 1;
-        if (isResolved) currentStep = 4;
-        else if (isDispatched) currentStep = 3;
-        else if (item.processing_state === "in_review" || item.processing_state === "triaged") currentStep = 2;
+        if (isCancelled) currentStep = 1;
+        else if (procState === "ai_complete") currentStep = hasIncident ? 3 : 2;
+        else if (procState === "queued_for_ai") currentStep = 2;
 
         return {
           id: item.id,
@@ -264,10 +353,10 @@ export const mobileApi = {
             hour: "2-digit",
             minute: "2-digit",
           }),
-          status: item.delivery_state === "cancelled" ? "false_alarm" : (item.processing_state as any) || "in_review",
-          statusLabel: item.delivery_state || item.processing_state || "In review",
+          status: isCancelled ? "false_alarm" : procState === "ai_complete" ? "verified" : "in_review",
+          statusLabel: isCancelled ? "Cancelled" : delivState === "received_by_server" ? "Received" : delivState,
           currentStep,
-          stepDetails: item.text || "Report logged in PostGIS grid.",
+          stepDetails: item.cancelled_reason || item.cancelledReason || item.text || "Report logged in PostGIS grid.",
           locationLabel: item.location_label || item.locationLabel || "Bhopal City Center",
           location: { lat, lng },
         };
@@ -315,10 +404,10 @@ export const mobileApi = {
       category: input.category,
       timestamp: "Just now",
       status: "in_review",
-      statusLabel: "Received & Logged in DB",
+      statusLabel: res.deliveryState === "received_by_server" ? "Received" : "Submitted",
       currentStep: 2,
       stepDetails: "Persisted in PostgreSQL PostGIS, queued for operator triage.",
-      locationLabel: input.locationLabel,
+      locationLabel: res.locationLabel || input.locationLabel || "Bhopal City Center",
       location: { lat, lng },
     };
   },
@@ -336,7 +425,7 @@ export const mobileApi = {
       },
       location_label: "Live Emergency SOS Telemetry (Bhopal)",
       note: "Urgent SOS button activated from mobile app.",
-      idempotency_key: `sos_${Date.now()}`,
+      idempotency_key: `sos_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     };
 
     const res = await this.request<any>("/citizen/sos", {
@@ -349,11 +438,11 @@ export const mobileApi = {
       title: "CRITICAL PERSONAL SOS",
       category: "personal_sos",
       timestamp: "Just now",
-      status: "verified",
-      statusLabel: "Dispatched",
-      currentStep: 3,
-      stepDetails: "Critical alert broadcasted to Security & Medical teams.",
-      locationLabel: "Bhopal Central · Coordinates Broadcasted",
+      status: "received",
+      statusLabel: "Received · Awaiting operator triage",
+      currentStep: 1,
+      stepDetails: "Emergency SOS transmitted to Bhopal control room for immediate operator confirmation.",
+      locationLabel: res.locationLabel || "Bhopal Central · Coordinates Broadcasted",
       location: { lat, lng },
     };
   },
@@ -375,11 +464,11 @@ export const mobileApi = {
 
         return {
           id: item.id || `alert_${idx}`,
-          title: item.title || "Campus Safety Notice",
+          title: item.title || "Bhopal Safety Notice",
           category: (item.category as IncidentCategory) || "hazard",
           distance: item.distance_label || item.distanceLabel || "150m away",
           distanceMeters: 150,
-          locationLabel: item.location_label || item.locationLabel || "Campus Perimeter",
+          locationLabel: item.location_label || item.locationLabel || "Bhopal Metro",
           description: item.status_label || item.statusLabel || "Active monitoring in progress",
           status: item.tone === "active" ? "active" : "in_review",
           badgeText: item.tone?.toUpperCase() || (item.status ? String(item.status).toUpperCase() : "ACTIVE"),

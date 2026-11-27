@@ -10,6 +10,7 @@ export function submitReport(input: {
   channel: "sos" | "form" | "voice";
   idempotencyKey: string;
   delivered: boolean;
+  mediaAssetIds?: string[];
 }) {
   return api.submitReport(input);
 }

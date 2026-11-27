@@ -28,6 +28,7 @@ export function useSubmitSOS() {
           location: input.location,
           locationLabel: input.locationLabel,
           channel: input.channel,
+          mediaAssetIds: input.mediaAssetIds,
         });
         return { queued: true as const, idempotencyKey };
       }

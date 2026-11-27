@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -52,7 +52,12 @@ export default function App() {
 
   // Real Hardware GPS Location State — unlocked and updated in real-time
   const [deviceLocation, setDeviceLocation] = useState<GeoPoint>(BHOPAL_CITY_FALLBACK);
+  const deviceLocationRef = useRef<GeoPoint>(BHOPAL_CITY_FALLBACK);
   const [isRealGPS, setIsRealGPS] = useState<boolean>(false);
+
+  useEffect(() => {
+    deviceLocationRef.current = deviceLocation;
+  }, [deviceLocation]);
 
   // App Data Store — synchronized with live FastAPI backend
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
@@ -106,15 +111,69 @@ export default function App() {
   const handleAuthSuccess = (user: UserProfile, newRole: Role) => {
     setCurrentUser(user);
     setRole(newRole);
+    setCitizenTab("home");
+    setResponderTab("feed");
     setIsAuthenticated(true);
     setPermissionsModalVisible(true);
-    refreshRoleData(newRole, deviceLocation);
+    refreshRoleData(newRole, deviceLocationRef.current);
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
+    mobileRealtime.disconnect();
     mobileApi.logout();
     setCurrentUser(null);
     setIsAuthenticated(false);
+    setRole("citizen");
+    setCitizenTab("home");
+    setResponderTab("feed");
+    setContacts([]);
+    setAlerts([]);
+    setReports([]);
+    setFeaturedJob(null);
+    setResolvedJobs([]);
+  }, []);
+
+  useEffect(() => {
+    return mobileApi.onAuthExpired(() => {
+      handleLogout();
+    });
+  }, [handleLogout]);
+
+  const handleSelectRole = async (newRole: Role) => {
+    if (newRole === role) return;
+
+    const isDemoAccount = Boolean(currentUser?.email?.endsWith("@campus.demo"));
+    if (isDemoAccount) {
+      try {
+        mobileRealtime.disconnect();
+        const res = await mobileApi.loginAs(newRole);
+        setCurrentUser(res.user);
+        setRole(newRole);
+        setCitizenTab("home");
+        setResponderTab("feed");
+        mobileRealtime.connect();
+        await refreshRoleData(newRole, deviceLocationRef.current);
+      } catch {
+        Alert.alert("Role Switch Failed", "Could not switch demo session on backend.");
+      }
+      return;
+    }
+
+    if (currentUser && currentUser.role !== newRole) {
+      Alert.alert(
+        "Sign Out Required",
+        `Your current session (${currentUser.email}) only has ${currentUser.role} permissions. Sign out to switch to ${newRole} mode.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Sign Out", style: "destructive", onPress: handleLogout },
+        ]
+      );
+      return;
+    }
+
+    setRole(newRole);
+    if (newRole === "citizen") setCitizenTab("home");
+    if (newRole === "responder") setResponderTab("feed");
   };
 
   // Real device GPS tracking subscriber — tracks actual hardware coordinates
@@ -125,12 +184,14 @@ export default function App() {
       // 1. Initial GPS lock
       const initial = await mobileLocation.getCurrentLocation();
       if (initial) {
+        deviceLocationRef.current = initial;
         setDeviceLocation(initial);
         setIsRealGPS(true);
       }
 
       // 2. Watch position continuously as user moves
       unsubscribeLocation = await mobileLocation.startLiveTracking((coords) => {
+        deviceLocationRef.current = coords;
         setDeviceLocation(coords);
         setIsRealGPS(true);
       });
@@ -144,18 +205,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      mobileRealtime.disconnect();
+      return;
+    }
 
-    let unsubscribe: (() => void) | null = null;
-
-    refreshRoleData(role, deviceLocation);
+    refreshRoleData(role, deviceLocationRef.current);
     mobileRealtime.connect();
 
-    unsubscribe = mobileRealtime.subscribe((event) => {
+    const unsubscribe = mobileRealtime.subscribe((event) => {
       console.log("Realtime event received on mobile:", event);
       if (role === "citizen") {
-        mobileApi.getCitizenReports().then((r) => r.length && setReports(r));
-        mobileApi.getNearbyAlerts(deviceLocation).then((a) => a.length && setAlerts(a));
+        mobileApi.getCitizenReports().then(setReports);
+        mobileApi.getNearbyAlerts(deviceLocationRef.current).then(setAlerts);
       } else {
         mobileApi.getResponderAssignments().then((a) => {
           setFeaturedJob(a[0] ?? null);
@@ -167,18 +229,28 @@ export default function App() {
     });
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      unsubscribe();
+      mobileRealtime.disconnect();
     };
-  }, [role, isAuthenticated, deviceLocation.lat, deviceLocation.lng]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, isAuthenticated]);
 
-  // Citizen Report Creation handler
-  const handleCreateReport = async (newRep: {
-    category: IncidentCategory;
-    title: string;
-    text: string;
-    locationLabel: string;
-    voiceTranscript?: string;
-  }) => {
+  // Citizen Report Creation handler (skips duplicate POST if report already saved by SOS)
+  const handleCreateReport = async (
+    newRep:
+      | CitizenReport
+      | {
+          category: IncidentCategory;
+          title: string;
+          text: string;
+          locationLabel: string;
+          voiceTranscript?: string;
+        }
+  ) => {
+    if (!("text" in newRep)) {
+      setReports((prev) => [newRep, ...prev.filter((r) => r.id !== newRep.id)]);
+      return;
+    }
     try {
       const savedReport = await mobileApi.createReport({
         category: newRep.category,
@@ -449,9 +521,7 @@ export default function App() {
           currentUser={currentUser}
           onLogout={handleLogout}
           onSelectRole={(newRole) => {
-            setRole(newRole);
-            if (newRole === "citizen") setCitizenTab("home");
-            if (newRole === "responder") setResponderTab("feed");
+            void handleSelectRole(newRole);
           }}
           onClose={() => setRoleModalVisible(false)}
         />

@@ -6,27 +6,44 @@ type MessageHandler = (data: any) => void;
 class MobileRealtimeService {
   private socket: WebSocket | null = null;
   private listeners: Set<MessageHandler> = new Set();
-  private reconnectTimer: any = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private isConnecting = false;
+  private shouldReconnect = false;
 
   connect() {
-    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
+    const token = mobileApi.getAccessToken();
+    if (!token) {
       return;
     }
 
-    const token = mobileApi.getAccessToken();
-    const url = token ? `${WS_BASE_URL}?token=${token}` : WS_BASE_URL;
+    this.shouldReconnect = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    if (
+      this.socket &&
+      (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
+    const url = `${WS_BASE_URL}?token=${encodeURIComponent(token)}`;
 
     try {
       this.isConnecting = true;
-      this.socket = new WebSocket(url);
+      const ws = new WebSocket(url);
+      this.socket = ws;
 
-      this.socket.onopen = () => {
+      ws.onopen = () => {
+        if (this.socket !== ws) return;
         this.isConnecting = false;
         console.log("🟢 Mobile Realtime WebSocket connected to ResQAi backend");
       };
 
-      this.socket.onmessage = (event) => {
+      ws.onmessage = (event) => {
+        if (this.socket !== ws) return;
         try {
           const data = JSON.parse(event.data);
           this.listeners.forEach((handler) => handler(data));
@@ -35,20 +52,33 @@ class MobileRealtimeService {
         }
       };
 
-      this.socket.onerror = (err) => {
+      ws.onerror = (err) => {
+        if (this.socket !== ws) return;
         console.warn("WebSocket error:", err);
       };
 
-      this.socket.onclose = () => {
+      ws.onclose = async (ev) => {
+        if (this.socket !== ws) return;
         this.socket = null;
         this.isConnecting = false;
-        // Schedule auto-reconnect
-        if (!this.reconnectTimer) {
-          this.reconnectTimer = setTimeout(() => {
-            this.reconnectTimer = null;
-            this.connect();
-          }, 5000);
+        if (!this.shouldReconnect) return;
+
+        if (ev?.code === 4001 || ev?.code === 4401 || ev?.code === 1008) {
+          try {
+            await mobileApi.refreshSession();
+          } catch {
+            this.shouldReconnect = false;
+            return;
+          }
         }
+
+        if (!this.shouldReconnect || this.reconnectTimer) return;
+        this.reconnectTimer = setTimeout(() => {
+          this.reconnectTimer = null;
+          if (this.shouldReconnect) {
+            this.connect();
+          }
+        }, 5000);
       };
     } catch (e) {
       this.isConnecting = false;
@@ -64,13 +94,20 @@ class MobileRealtimeService {
   }
 
   disconnect() {
+    this.shouldReconnect = false;
+    this.isConnecting = false;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     if (this.socket) {
-      this.socket.close();
+      const prev = this.socket;
       this.socket = null;
+      prev.onopen = null;
+      prev.onmessage = null;
+      prev.onerror = null;
+      prev.onclose = null;
+      prev.close();
     }
   }
 }

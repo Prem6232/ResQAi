@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   View,
@@ -38,6 +38,16 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
   const [recording, setRecording] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [aiTag, setAiTag] = useState<{ label: string; confidence: number } | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      setSelectedCategory(initialCategory);
+      setDescription("");
+      setVoiceTranscript(null);
+      setAiTag(null);
+      setRecording(false);
+    }
+  }, [visible, initialCategory]);
 
   const categories: Array<{ id: IncidentCategory; label: string }> = [
     { id: "fire_smoke", label: "Fire & Smoke" },

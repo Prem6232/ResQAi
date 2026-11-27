@@ -87,6 +87,15 @@ export function useWebSocket(enabled: boolean) {
     let timer: number | undefined;
     let isCleanedUp = false;
 
+    const detachSocket = (sock?: WebSocket) => {
+      if (!sock) return;
+      sock.onopen = null;
+      sock.onmessage = null;
+      sock.onclose = null;
+      sock.onerror = null;
+      sock.close();
+    };
+
     const connect = async () => {
       if (isCleanedUp) return;
 
@@ -100,17 +109,19 @@ export function useWebSocket(enabled: boolean) {
 
       if (isCleanedUp) return;
 
+      detachSocket(ws);
       const wsUrl = `${apiConfig.wsUrl}?token=${encodeURIComponent(token)}`;
-      ws = new WebSocket(wsUrl);
+      const currentWs = new WebSocket(wsUrl);
+      ws = currentWs;
 
-      ws.onopen = () => {
-        if (isCleanedUp) return;
+      currentWs.onopen = () => {
+        if (isCleanedUp || ws !== currentWs) return;
         setConnected(true);
         attempt = 0;
       };
 
-      ws.onmessage = (msg) => {
-        if (isCleanedUp) return;
+      currentWs.onmessage = (msg) => {
+        if (isCleanedUp || ws !== currentWs) return;
         try {
           const event = JSON.parse(msg.data) as WsEvent;
           if (event && event.id) {
@@ -123,8 +134,8 @@ export function useWebSocket(enabled: boolean) {
         }
       };
 
-      ws.onclose = async (event) => {
-        if (isCleanedUp) return;
+      currentWs.onclose = async (event) => {
+        if (isCleanedUp || ws !== currentWs) return;
         setConnected(false);
 
         // If rejected due to unauthorized / expired token
@@ -147,7 +158,7 @@ export function useWebSocket(enabled: boolean) {
         timer = window.setTimeout(connect, delay);
       };
 
-      ws.onerror = () => {
+      currentWs.onerror = () => {
         // Error will be followed by onclose
       };
     };
@@ -158,9 +169,8 @@ export function useWebSocket(enabled: boolean) {
     const handleAuthChanged = () => {
       if (timer) window.clearTimeout(timer);
       attempt = 0;
-      if (ws) {
-        ws.close();
-      }
+      detachSocket(ws);
+      ws = undefined;
       connect();
     };
 
@@ -172,7 +182,8 @@ export function useWebSocket(enabled: boolean) {
       if (timer) window.clearTimeout(timer);
       window.removeEventListener("sg:auth-changed", handleAuthChanged);
       window.removeEventListener("storage", handleAuthChanged);
-      ws?.close();
+      detachSocket(ws);
+      ws = undefined;
     };
   }, [enabled]);
 

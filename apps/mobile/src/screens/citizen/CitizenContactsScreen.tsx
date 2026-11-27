@@ -41,7 +41,7 @@ export const CitizenContactsScreen: React.FC<CitizenContactsScreenProps> = ({
     if (isMaxReached) {
       Alert.alert(
         "Maximum Contacts Limit",
-        "Campus safety policy limits trusted emergency contacts to 3 per account to ensure high-priority dispatch delivery. Please remove an existing contact to add a new one."
+        "Bhopal safety policy limits trusted emergency contacts to 3 per account to ensure high-priority dispatch delivery. Please remove an existing contact to add a new one."
       );
       return;
     }
@@ -198,7 +198,7 @@ export const CitizenContactsScreen: React.FC<CitizenContactsScreenProps> = ({
             <View style={styles.settingText}>
               <Text style={styles.settingTitle}>Automated SMS dispatch</Text>
               <Text style={styles.settingSub}>
-                Sends instant SMS alerts when campus security desk is dispatched
+                Sends instant SMS alerts when Bhopal emergency desk is dispatched
               </Text>
             </View>
             <Switch

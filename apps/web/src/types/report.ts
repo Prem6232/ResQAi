@@ -46,4 +46,5 @@ export interface ReportDraft {
   location?: GeoPoint;
   locationLabel?: string;
   channel: ReportChannel;
+  mediaAssetIds?: string[];
 }

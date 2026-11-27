@@ -5,6 +5,8 @@ export type IncidentCategory =
   | "road_accident"
   | "medical"
   | "personal_safety"
+  | "water_flood"
+  | "hazard"
   | "other";
 
 export type Urgency = "critical" | "high" | "medium" | "low";

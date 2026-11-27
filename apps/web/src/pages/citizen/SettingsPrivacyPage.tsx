@@ -38,7 +38,7 @@ export function SettingsPrivacyPage() {
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-extrabold">Privacy and consent</h1>
       <p className="text-sm text-ink-700/70">
-        You can request deletion of your personal reports subject to campus safety retention and
+        You can request deletion of your personal reports subject to Bhopal municipal safety retention and
         audit policy. Precise personal-safety locations are hidden on public maps.
       </p>
       <label className="block text-xs font-medium text-ink-700/70">

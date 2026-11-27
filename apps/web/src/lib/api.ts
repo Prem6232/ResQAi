@@ -127,9 +127,11 @@ export function normalizeCategory(raw: unknown): IncidentCategory {
   if (val === "fire_smoke" || val === "fire" || val === "smoke") return "fire_smoke";
   if (val === "road_accident" || val === "accident" || val === "traffic") return "road_accident";
   if (val === "medical" || val === "medical_emergency" || val === "health") return "medical";
-  if (val === "personal_safety" || val === "sos" || val === "safety" || val === "security" || val === "harassment") {
+  if (val === "personal_safety" || val === "sos" || val === "personal_sos" || val === "safety" || val === "security" || val === "harassment") {
     return "personal_safety";
   }
+  if (val === "water_flood" || val === "flood" || val === "water") return "water_flood";
+  if (val === "hazard") return "hazard";
   return "other";
 }
 

@@ -23,6 +23,7 @@ export function ReportIncidentWizard({ initialCategory }: { initialCategory?: In
     source: "manual_map",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { files, add, remove } = useMediaUploader();
   const submit = useSubmitSOS();
   const nav = useNavigate();
@@ -43,6 +44,7 @@ export function ReportIncidentWizard({ initialCategory }: { initialCategory?: In
           <StepLocationConfirm label={label} onLabel={setLabel} point={point} onPoint={setPoint} />
         ) : null}
       </div>
+      {submitError ? <p className="mt-3 text-xs text-sos-600">{submitError}</p> : null}
       <div className="mt-6 flex gap-2">
         {step > 0 ? (
           <Button variant="outline" onClick={() => setStep((s) => s - 1)}>
@@ -59,21 +61,27 @@ export function ReportIncidentWizard({ initialCategory }: { initialCategory?: In
             disabled={submit.isPending || submitting}
             onClick={async () => {
               setSubmitting(true);
+              setSubmitError(null);
               try {
-                const uploadedIds = (
-                  await Promise.all(files.map((f) => api.requestMediaUpload(f)))
-                ).filter((id): id is string => Boolean(id));
+                const uploadedIds =
+                  files.length > 0 && navigator.onLine !== false
+                    ? (await Promise.all(files.map((f) => api.requestMediaUpload(f)))).filter(
+                        (id): id is string => Boolean(id)
+                      )
+                    : [];
 
                 const result = await submit.mutateAsync({
                   category,
                   text: text.trim() || "Incident reported from citizen portal",
                   location: point,
-                  locationLabel: label || "Campus location (manual)",
+                  locationLabel: label.trim() || "Bhopal Metro (manual)",
                   channel: "form",
                   mediaAssetIds: uploadedIds,
                 });
                 if (result.queued) nav(routes.citizen.reports);
                 else nav(routes.citizen.report(result.report.id));
+              } catch {
+                setSubmitError("Unable to submit incident report. Please check your connection and try again.");
               } finally {
                 setSubmitting(false);
               }

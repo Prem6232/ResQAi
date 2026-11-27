@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useEffect, useState } from "react";
@@ -43,9 +43,9 @@ export function ReportMergeModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogTitle>Merge reports into one incident</DialogTitle>
-        <p className="mt-2 text-sm text-ink-700/70">
+        <DialogDescription>
           Original submissions stay in the audit trail. Merge does not discard evidence.
-        </p>
+        </DialogDescription>
         <Textarea
           className="mt-3"
           placeholder="Reason for merge"
