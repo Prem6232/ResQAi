@@ -470,12 +470,17 @@ export const mobileApi = {
     }
   },
 
-  async updateDuty(isOnDuty: boolean, availabilityStatus: string = "available"): Promise<any> {
+  async updateDuty(
+    isOnDuty: boolean,
+    availabilityStatus: string = "available",
+    shareLocation?: boolean
+  ): Promise<any> {
     return this.request("/responder/duty", {
       method: "PATCH",
       body: JSON.stringify({
         isOnDuty,
         availabilityStatus: isOnDuty ? availabilityStatus : "off_duty",
+        ...(shareLocation !== undefined ? { shareLocation } : {}),
       }),
     });
   },
@@ -514,6 +519,7 @@ export const mobileApi = {
           eta: `${etaMin} min`,
           etaMinutes: etaMin,
           timeAgo: "Live dispatch",
+          offerDeadline: a.offerDeadline || a.offer_deadline,
           status: a.status || "offered",
           aiSummary: a.routeNote || a.notes || "Immediate field response requested.",
           routeNote: a.routeNote,
@@ -538,10 +544,13 @@ export const mobileApi = {
           category: (inc.category as IncidentCategory) || "hazard",
           urgency: (inc.urgency as any) || "medium",
           locationLabel: inc.locationLabel || inc.location_label || "Bhopal Metro",
-          distance: `${(a.distanceKm || 0.8).toFixed(1)} km`,
-          eta: "Resolved",
-          timeAgo: "Completed",
+          distance: `${(a.distanceKm ?? a.distance_km ?? 0.8).toFixed(1)} km`,
+          distanceKm: a.distanceKm ?? a.distance_km ?? 0.8,
+          eta: a.etaMinutes ?? a.eta_minutes ? `${a.etaMinutes ?? a.eta_minutes} min` : "Resolved",
+          etaMinutes: a.etaMinutes ?? a.eta_minutes,
+          timeAgo: a.completedAt || a.completed_at ? "Completed" : "Closed",
           status: a.status || "completed",
+          aiSummary: a.routeNote || a.notes,
         };
       });
     } catch {

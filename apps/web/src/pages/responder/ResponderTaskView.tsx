@@ -11,8 +11,10 @@ import { useState, useEffect, useCallback } from "react";
 import type { Assignment } from "@/types/assignment";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import { useLiveEvents } from "@/hooks/useLiveEvents";
 
 export function ResponderTaskView() {
+  const { events } = useLiveEvents();
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -34,6 +36,20 @@ export function ResponderTaskView() {
     geo.request();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadAssignments]);
+
+  useEffect(() => {
+    if (events.length === 0) return;
+    const latest = events[0];
+    if (
+      latest.type === "assignment.offered" ||
+      latest.type === "assignment.updated" ||
+      latest.type === "assignment.expired" ||
+      latest.type === "assignment.failed" ||
+      latest.type === "incident.updated"
+    ) {
+      void loadAssignments();
+    }
+  }, [events, loadAssignments]);
 
   const handleTransition = async (next: "en_route" | "arrived" | "completed" | "failed", reason?: string) => {
     if (!assignment) return;

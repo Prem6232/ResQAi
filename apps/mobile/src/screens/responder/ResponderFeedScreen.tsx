@@ -35,17 +35,28 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
   unitCode = "F-2",
   unitName = "Unit F-2",
 }) => {
-  const [secondsRemaining, setSecondsRemaining] = useState(88);
+  const computeRemaining = (deadline?: string) => {
+    if (!deadline) return 88;
+    const ms = Date.parse(deadline) - Date.now();
+    return Number.isNaN(ms) ? 88 : Math.max(0, Math.ceil(ms / 1000));
+  };
+  const [secondsRemaining, setSecondsRemaining] = useState(() =>
+    computeRemaining(featuredJob?.offerDeadline)
+  );
 
-  // 90-second response window countdown
+  // Real offer_deadline countdown timer
   useEffect(() => {
     if (!featuredJob || featuredJob.status !== "offered") return;
-    setSecondsRemaining(88);
+    setSecondsRemaining(computeRemaining(featuredJob.offerDeadline));
     const interval = setInterval(() => {
-      setSecondsRemaining((s) => (s > 1 ? s - 1 : 0));
+      if (featuredJob.offerDeadline) {
+        setSecondsRemaining(computeRemaining(featuredJob.offerDeadline));
+      } else {
+        setSecondsRemaining((s) => (s > 1 ? s - 1 : 0));
+      }
     }, 1000);
     return () => clearInterval(interval);
-  }, [featuredJob?.id, featuredJob?.status]);
+  }, [featuredJob?.id, featuredJob?.status, featuredJob?.offerDeadline]);
 
   // Construct tactical map incident markers
   const mapIncidents: MapIncidentMarker[] = [];
@@ -101,7 +112,7 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
             </View>
             <Text style={styles.dutySubtitle}>
               {isOnDuty
-                ? "Broadcasting GPS telemetry to campus dispatch"
+                ? "Broadcasting GPS telemetry to Bhopal dispatch"
                 : "Off duty · No automatic dispatch calls assigned"}
             </Text>
           </View>
@@ -204,13 +215,19 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
           <View style={styles.activeMissionCard}>
             <View style={styles.activeMissionHeader}>
               <View style={styles.activePill}>
-                <Text style={styles.activePillText}>ACTIVE EN ROUTE MISSION</Text>
+                <Text style={styles.activePillText}>
+                  {featuredJob.status === "arrived"
+                    ? "UNIT ON SCENE"
+                    : featuredJob.status === "en_route"
+                    ? "EN ROUTE TO SCENE"
+                    : "DISPATCH ACCEPTED"}
+                </Text>
               </View>
               <Text style={styles.activeEtaText}>{featuredJob.eta}</Text>
             </View>
             <Text style={styles.activeTitle}>{featuredJob.title}</Text>
             <Text style={styles.activeLocation}>{featuredJob.locationLabel}</Text>
-            <Text style={styles.activeHint}>Switch to Active Navigation tab for live walkway routing.</Text>
+            <Text style={styles.activeHint}>Switch to Active Navigation tab for live Bhopal routing.</Text>
           </View>
         ) : (
           <View style={styles.noJobCard}>
@@ -218,7 +235,7 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
             <Text style={styles.noJobTitle}>No Active Dispatch Offers</Text>
             <Text style={styles.noJobSub}>
               {isOnDuty
-                ? "Standing by on campus grid. You will be notified when an emergency occurs near your patrol zone."
+                ? "Standing by on Bhopal grid. You will be notified when an emergency occurs near your patrol zone."
                 : "You are currently marked off-duty. Toggle switch above to receive dispatch offers."}
             </Text>
           </View>
@@ -226,7 +243,7 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
 
         {/* Resolved / Past Jobs */}
         <Text style={[styles.sectionTitle, { marginTop: 22 }]}>
-          Completed missions
+          Recent missions
         </Text>
 
         <View style={styles.resolvedList}>
@@ -240,7 +257,7 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
                   </Text>
                 </View>
                 <View style={styles.resolvedBadge}>
-                  <Text style={styles.resolvedBadgeText}>COMPLETED</Text>
+                  <Text style={styles.resolvedBadgeText}>{job.status.replace("_", " ").toUpperCase()}</Text>
                 </View>
               </View>
             ))

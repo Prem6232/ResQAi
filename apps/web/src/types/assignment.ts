@@ -30,6 +30,7 @@ export interface Assignment {
   slotId: string;
   status: AssignmentStatus;
   offeredAt: string;
+  offerDeadline?: string;
   acknowledgedAt?: string;
   completedAt?: string;
   etaMinutes?: number;

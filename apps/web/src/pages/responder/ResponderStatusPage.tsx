@@ -85,7 +85,16 @@ export function ResponderStatusPage() {
   };
 
   const handleToggleShare = async (next: boolean) => {
+    const prev = share;
     setShare(next);
+    setStatusError(null);
+    try {
+      await api.updateDuty(onDuty, next);
+    } catch {
+      setShare(prev);
+      setStatusError("Unable to update location sharing preference.");
+      return;
+    }
     if (next) {
       await handleLocationPing();
     } else {
@@ -138,7 +147,7 @@ export function ResponderStatusPage() {
             <>
               <Badge className="bg-paper-100">Emergency Response</Badge>
               <Badge className="bg-paper-100">Field Triage</Badge>
-              <Badge className="bg-paper-100">Campus Dispatch</Badge>
+              <Badge className="bg-paper-100">Bhopal Dispatch</Badge>
             </>
           )}
         </div>

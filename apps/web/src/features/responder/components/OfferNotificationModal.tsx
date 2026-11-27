@@ -17,6 +17,8 @@ function isResponderSoundEnabled(): boolean {
 export function OfferNotificationModal({ onResponded }: { onResponded?: () => void }) {
   const { events } = useLiveEvents();
   const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [incident, setIncident] = useState<AssignmentIncidentSummary | null>(null);
   const lastEventIdRef = useRef<string | null>(null);
@@ -27,6 +29,7 @@ export function OfferNotificationModal({ onResponded }: { onResponded?: () => vo
     if (off?.incident) {
       setAssignment(off);
       setIncident(off.incident);
+      setError(null);
       setOpen(true);
       if (triggerChime && isResponderSoundEnabled()) {
         playAlertChime("offer");
@@ -48,16 +51,29 @@ export function OfferNotificationModal({ onResponded }: { onResponded?: () => vo
 
     if (latest.type === "assignment.offered") {
       void checkOffers(true);
-    } else if (latest.type === "assignment.updated") {
+    } else if (
+      latest.type === "assignment.updated" ||
+      latest.type === "assignment.expired" ||
+      latest.type === "assignment.failed" ||
+      latest.type === "incident.updated"
+    ) {
       void checkOffers(false);
     }
   }, [events, checkOffers]);
 
   const handleRespond = async (status: "accepted" | "declined") => {
-    if (assignment) {
+    if (!assignment || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
       await api.respondToOffer(assignment.id, status);
       setOpen(false);
       onResponded?.();
+    } catch {
+      setError("Could not submit response. Offer may have expired.");
+      await checkOffers(false);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -67,12 +83,14 @@ export function OfferNotificationModal({ onResponded }: { onResponded?: () => vo
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <DialogTitle>Assignment offer</DialogTitle>
+        {error ? <p className="mt-2 text-xs text-sos-600">{error}</p> : null}
         <div className="mt-3">
           <ResponderOfferCard
             incident={incident}
             assignment={assignment}
-            onAccept={() => handleRespond("accepted")}
-            onDecline={() => handleRespond("declined")}
+            busy={submitting}
+            onAccept={() => void handleRespond("accepted")}
+            onDecline={() => void handleRespond("declined")}
           />
         </div>
       </DialogContent>

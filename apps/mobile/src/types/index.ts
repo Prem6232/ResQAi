@@ -91,7 +91,8 @@ export interface ResponderJob {
   eta: string;
   etaMinutes?: number;
   timeAgo: string;
-  status: "offered" | "accepted" | "en_route" | "arrived" | "completed" | "declined";
+  offerDeadline?: string;
+  status: "offered" | "accepted" | "en_route" | "arrived" | "completed" | "declined" | "failed" | "expired" | "cancelled";
   aiSummary?: string;
   routeNote?: string;
 }

@@ -5,6 +5,7 @@ export interface WsEvent {
     | "incident.updated"
     | "assignment.offered"
     | "assignment.updated"
+    | "assignment.expired"
     | "assignment.failed"
     | "responder.location"
     | "ai.assessment.ready";

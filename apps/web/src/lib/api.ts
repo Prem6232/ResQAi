@@ -207,6 +207,7 @@ function mapAssignment(a: RawRecord): Assignment {
     slotId: String(a.slotId || a.slot_id || a.id || "slot_1"),
     status: (a.status as AssignmentStatus) || "offered",
     offeredAt: String(a.offeredAt || a.offered_at || new Date().toISOString()),
+    offerDeadline: a.offerDeadline || a.offer_deadline ? String(a.offerDeadline || a.offer_deadline) : undefined,
     acknowledgedAt: a.acknowledgedAt || a.acknowledged_at ? String(a.acknowledgedAt || a.acknowledged_at) : undefined,
     completedAt: a.completedAt || a.completed_at ? String(a.completedAt || a.completed_at) : undefined,
     etaMinutes: typeof (a.etaMinutes ?? a.eta_minutes) === "number" ? Number(a.etaMinutes ?? a.eta_minutes) : undefined,
@@ -573,12 +574,15 @@ export const api = {
     return res.data;
   },
 
-  async updateDuty(isOnDuty: boolean) {
+  async updateDuty(isOnDuty: boolean, shareLocation?: boolean) {
     const res = await http.patch("/responder/duty", {
       isOnDuty,
       is_on_duty: isOnDuty,
       availabilityStatus: isOnDuty ? "available" : "off_duty",
       availability_status: isOnDuty ? "available" : "off_duty",
+      ...(shareLocation !== undefined
+        ? { shareLocation, share_location: shareLocation }
+        : {}),
     });
     return res.data;
   },

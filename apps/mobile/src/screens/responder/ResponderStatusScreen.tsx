@@ -170,9 +170,18 @@ export const ResponderStatusScreen: React.FC<ResponderStatusScreenProps> = ({
             </View>
             <Switch
               value={shareLocation}
-              onValueChange={(v) => {
+              onValueChange={async (v) => {
+                const prev = shareLocation;
                 setShareLocation(v);
                 onUpdateProfile({ shareLiveLocation: v });
+                try {
+                  await mobileApi.updateDuty(availability !== "off_duty", availability, v);
+                } catch (e) {
+                  console.warn("Share location sync failed", e);
+                  setShareLocation(prev);
+                  onUpdateProfile({ shareLiveLocation: prev });
+                  Alert.alert("Sync Error", "Unable to persist live location preference.");
+                }
               }}
               trackColor={{ false: "#CBD5E1", true: "#059669" }}
               thumbColor="#FFFFFF"

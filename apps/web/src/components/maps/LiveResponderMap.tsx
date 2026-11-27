@@ -142,7 +142,11 @@ export function LiveResponderMap({
   }, [selectedResponderId]);
 
   useEffect(() => {
-    if (selfPoint && selfPoint.source === "gps") {
+    setAutoPing(enableAutoPing);
+  }, [enableAutoPing]);
+
+  useEffect(() => {
+    if (selfPoint && selfPoint.source !== "unknown" && Number.isFinite(selfPoint.lat) && Number.isFinite(selfPoint.lng)) {
       setLiveSelfPoint(selfPoint);
     }
   }, [selfPoint]);
@@ -216,7 +220,7 @@ export function LiveResponderMap({
         });
       },
       () => {
-        setGpsWarning("GPS signal unavailable — using last known campus coordinates.");
+        setGpsWarning("GPS signal unavailable — using last known Bhopal coordinates.");
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 8000 }
     );

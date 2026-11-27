@@ -174,5 +174,6 @@ async def update_duty(
         db=db,
         user=current_user,
         is_on_duty=payload.is_on_duty,
-        availability_status=payload.availability_status
+        availability_status=payload.availability_status,
+        share_location=payload.share_location,
     )

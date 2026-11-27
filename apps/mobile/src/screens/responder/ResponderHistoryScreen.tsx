@@ -77,8 +77,20 @@ export const ResponderHistoryScreen: React.FC<ResponderHistoryScreenProps> = ({
                   <Text style={styles.jobTitle} numberOfLines={1}>
                     {job.title}
                   </Text>
-                  <View style={styles.resolvedPill}>
-                    <Text style={styles.resolvedPillText}>Resolved</Text>
+                  <View
+                    style={[
+                      styles.resolvedPill,
+                      job.status !== "completed" && { backgroundColor: "#F1F5F9" },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.resolvedPillText,
+                        job.status !== "completed" && { color: "#475569" },
+                      ]}
+                    >
+                      {job.status === "completed" ? "Resolved" : job.status.replace("_", " ").toUpperCase()}
+                    </Text>
                   </View>
                 </View>
 
@@ -92,7 +104,7 @@ export const ResponderHistoryScreen: React.FC<ResponderHistoryScreenProps> = ({
               <Feather name="check-circle" size={36} color="#10B981" />
               <Text style={styles.emptyTitle}>No Completed Missions Yet</Text>
               <Text style={styles.emptySub}>
-                When Unit F-2 responds to an emergency offer and completes the mission on scene, the mission briefing and outcome will be archived here.
+                When your unit responds to an emergency offer and finishes a mission, the briefing and outcome will be archived here.
               </Text>
             </View>
           )}
@@ -114,8 +126,22 @@ export const ResponderHistoryScreen: React.FC<ResponderHistoryScreenProps> = ({
               </View>
 
               <View style={styles.modalBadgeRow}>
-                <View style={styles.resolvedPill}>
-                  <Text style={styles.resolvedPillText}>RESOLVED ON SCENE</Text>
+                <View
+                  style={[
+                    styles.resolvedPill,
+                    selectedJob.status !== "completed" && { backgroundColor: "#F1F5F9" },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.resolvedPillText,
+                      selectedJob.status !== "completed" && { color: "#475569" },
+                    ]}
+                  >
+                    {selectedJob.status === "completed"
+                      ? "RESOLVED ON SCENE"
+                      : selectedJob.status.replace("_", " ").toUpperCase()}
+                  </Text>
                 </View>
                 <Text style={styles.modalTime}>{selectedJob.timeAgo || "Completed"}</Text>
               </View>

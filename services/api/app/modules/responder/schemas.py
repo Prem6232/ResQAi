@@ -74,6 +74,8 @@ class DutyUpdateRequest(BaseModel):
     is_on_duty: Optional[bool] = None
     availabilityStatus: Optional[str] = None # available, busy, off_duty, offline
     availability_status: Optional[str] = None
+    shareLocation: Optional[bool] = None
+    share_location: Optional[bool] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -83,6 +85,8 @@ class DutyUpdateRequest(BaseModel):
                 data["is_on_duty"] = data["isOnDuty"]
             if data.get("availabilityStatus") and not data.get("availability_status"):
                 data["availability_status"] = data["availabilityStatus"]
+            if data.get("shareLocation") is not None and data.get("share_location") is None:
+                data["share_location"] = data["shareLocation"]
         return data
 
 class AssignmentNotesRequest(BaseModel):

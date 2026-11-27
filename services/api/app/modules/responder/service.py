@@ -153,7 +153,7 @@ async def get_active_assignments_for_user(db: AsyncSession, user: User) -> List[
 
     now = datetime.utcnow()
     results = []
-    has_expired = False
+    expired_outbox_events = []
 
     for asg in assignments:
         if asg.status == "offered" and asg.offer_deadline and now > asg.offer_deadline:
@@ -166,12 +166,37 @@ async def get_active_assignments_for_user(db: AsyncSession, user: User) -> List[
                 note="Offer expired after 90 seconds deadline"
             )
             db.add(ev)
-            has_expired = True
+            if asg.incident and asg.incident.status == "assigned":
+                asg.incident.status = "confirmed"
+                db.add(IncidentStatusEvent(
+                    incident_id=asg.incident.id,
+                    from_status="assigned",
+                    to_status="confirmed",
+                    actor_role="system",
+                    note=f"Offer to unit {profile.unit_code} expired; incident reopened for dispatch",
+                ))
+            expired_outbox_events.append(await create_outbox_event(
+                session=db,
+                aggregate_type="Assignment",
+                aggregate_id=asg.id,
+                event_type="assignment.expired",
+                payload={
+                    "assignment_id": str(asg.id),
+                    "incident_id": str(asg.incident_id),
+                    "responder_id": str(asg.responder_id),
+                    "expired_at": now.isoformat(),
+                },
+            ))
         else:
             results.append(build_assignment_response(asg))
 
-    if has_expired:
+    if expired_outbox_events:
         await db.commit()
+        for outbox_ev in expired_outbox_events:
+            try:
+                await broadcast_outbox_event(outbox_ev)
+            except Exception as e:
+                logger.warning(f"Failed immediate broadcast for assignment.expired: {e}")
 
     return results
 
@@ -264,6 +289,16 @@ async def respond_to_assignment_offer(
         asg.status = "declined"
         asg.acknowledged_at = now
         profile.availability_status = "available"
+        if asg.incident and asg.incident.status == "assigned":
+            asg.incident.status = "confirmed"
+            db.add(IncidentStatusEvent(
+                incident_id=asg.incident.id,
+                from_status="assigned",
+                to_status="confirmed",
+                actor_id=user.id,
+                actor_role="responder",
+                note=f"Unit {profile.unit_code} declined offer; incident reopened for dispatch",
+            ))
         action_name = "DECLINE_OFFER"
         target_status = "declined"
 
@@ -367,6 +402,17 @@ async def update_assignment_status_action(
         asg.status = "failed"
         if asg.responder:
             asg.responder.availability_status = "available"
+        if asg.incident and asg.incident.status in ["assigned", "en_route"]:
+            prev_inc_status = asg.incident.status
+            asg.incident.status = "confirmed"
+            db.add(IncidentStatusEvent(
+                incident_id=asg.incident.id,
+                from_status=prev_inc_status,
+                to_status="confirmed",
+                actor_id=user.id,
+                actor_role=user.role,
+                note=f"Mission escalated as failed; reopened for re-dispatch: {note_text}",
+            ))
         
         # Trigger urgent outbox failure notification
         outbox_events.append(await create_outbox_event(
@@ -592,9 +638,10 @@ async def toggle_duty_status(
     db: AsyncSession,
     user: User,
     is_on_duty: Optional[bool] = None,
-    availability_status: Optional[str] = None
+    availability_status: Optional[str] = None,
+    share_location: Optional[bool] = None,
 ) -> Dict[str, Any]:
-    """Toggle responder on-duty state and availability."""
+    """Toggle responder on-duty state, availability, and live location sharing."""
     profile = await get_responder_profile_for_user(db, user)
 
     if is_on_duty is not None:
@@ -611,12 +658,17 @@ async def toggle_duty_status(
         elif availability_status in ["off_duty", "offline"]:
             profile.is_on_duty = False
 
+    if share_location is not None:
+        profile.share_location = bool(share_location)
+
     await db.commit()
     return {
         "isOnDuty": profile.is_on_duty,
         "is_on_duty": profile.is_on_duty,
         "availabilityStatus": profile.availability_status,
         "availability_status": profile.availability_status,
+        "shareLocation": profile.share_location,
+        "share_location": profile.share_location,
     }
 
 async def auto_expire_assignment_offers(db: AsyncSession) -> int:

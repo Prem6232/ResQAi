@@ -47,7 +47,13 @@ export function ResponderDashboard() {
   useEffect(() => {
     if (events.length === 0) return;
     const latest = events[0];
-    if (latest.type === "assignment.offered" || latest.type === "assignment.updated") {
+    if (
+      latest.type === "assignment.offered" ||
+      latest.type === "assignment.updated" ||
+      latest.type === "assignment.expired" ||
+      latest.type === "assignment.failed" ||
+      latest.type === "incident.updated"
+    ) {
       void refresh();
     }
   }, [events, refresh]);
