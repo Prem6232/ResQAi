@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
@@ -95,12 +95,8 @@ export default function App() {
         ]);
 
         if (prof) setResponderProfile(prof);
-        if (assignments.length) {
-          setFeaturedJob(assignments[0]);
-          setResolvedJobs(assignments.slice(1).concat(history));
-        } else if (history.length) {
-          setResolvedJobs(history);
-        }
+        setFeaturedJob(assignments[0] ?? null);
+        setResolvedJobs(history);
       }
     } catch (e) {
       console.warn("Backend data refresh warning:", e);
@@ -162,10 +158,10 @@ export default function App() {
         mobileApi.getNearbyAlerts(deviceLocation).then((a) => a.length && setAlerts(a));
       } else {
         mobileApi.getResponderAssignments().then((a) => {
-          if (a.length) {
-            setFeaturedJob(a[0]);
-            setResolvedJobs(a.slice(1));
-          }
+          setFeaturedJob(a[0] ?? null);
+        });
+        mobileApi.getResponderHistory().then((h) => {
+          setResolvedJobs(h);
         });
       }
     });
@@ -241,39 +237,38 @@ export default function App() {
   const handleAcceptJob = async (job: ResponderJob) => {
     try {
       await mobileApi.respondToOffer(job.id, true);
+      setFeaturedJob({
+        ...job,
+        status: "accepted",
+      });
+      setResponderTab("nav");
     } catch (e) {
       console.warn("Failed to accept offer on backend:", e);
+      Alert.alert("Offer Sync Error", "Could not accept dispatch offer. It may have expired.");
     }
-    setFeaturedJob({
-      ...job,
-      status: "accepted",
-    });
-    setResponderTab("nav");
   };
 
   // Responder Job Offer Decline handler
   const handleDeclineJob = async (job: ResponderJob) => {
     try {
       await mobileApi.respondToOffer(job.id, false);
+      setFeaturedJob(null);
+      const history = await mobileApi.getResponderHistory();
+      setResolvedJobs(history);
     } catch (e) {
       console.warn("Failed to decline offer on backend:", e);
+      Alert.alert("Offer Sync Error", "Could not decline dispatch offer on server.");
     }
-    setFeaturedJob(null);
+  };
+
+  // Responder En Route Transition
+  const handleMarkEnRoute = () => {
+    setFeaturedJob((prev) => (prev ? { ...prev, status: "en_route" } : null));
   };
 
   // Responder On Scene Arrived
-  const handleMarkArrived = async () => {
-    if (featuredJob) {
-      try {
-        await mobileApi.updateAssignmentStatus(featuredJob.id, "arrived");
-      } catch (e) {
-        console.warn("Failed to update status on backend:", e);
-      }
-      setFeaturedJob({
-        ...featuredJob,
-        status: "arrived",
-      });
-    }
+  const handleMarkArrived = () => {
+    setFeaturedJob((prev) => (prev ? { ...prev, status: "arrived" } : null));
   };
 
   // Responder Mission Completed
@@ -282,6 +277,16 @@ export default function App() {
       setResolvedJobs((prev) => [{ ...featuredJob, status: "completed" }, ...prev]);
       setFeaturedJob(null);
       setResponderTab("feed");
+      try {
+        const [assignments, history] = await Promise.all([
+          mobileApi.getResponderAssignments(),
+          mobileApi.getResponderHistory(),
+        ]);
+        setFeaturedJob(assignments[0] ?? null);
+        setResolvedJobs(history);
+      } catch (e) {
+        console.warn("Failed to refresh responder history:", e);
+      }
     }
   };
 
@@ -333,6 +338,8 @@ export default function App() {
               resolvedJobs={resolvedJobs}
               onAcceptJob={handleAcceptJob}
               onDeclineJob={handleDeclineJob}
+              unitCode={responderProfile.unitCode}
+              unitName={responderProfile.unitName}
             />
           );
         case "nav":
@@ -340,17 +347,21 @@ export default function App() {
             <ResponderActiveNavScreen
               currentLocation={deviceLocation}
               activeJob={featuredJob}
+              onMarkEnRoute={handleMarkEnRoute}
               onMarkArrived={handleMarkArrived}
               onMarkCompleted={handleMarkCompleted}
+              unitCode={responderProfile.unitCode}
+              unitName={responderProfile.unitName}
             />
           );
         case "history":
           return (
             <ResponderHistoryScreen
-              todayJobsCount={responderProfile.todayJobsCount}
+              todayJobsCount={responderProfile.todayJobsCount || resolvedJobs.length}
               avgArrivalMinutes={responderProfile.avgArrivalMinutes}
               acceptanceRatePct={responderProfile.acceptanceRatePct}
               historyJobs={resolvedJobs}
+              unitLabel={`${responderProfile.unitName} (${responderProfile.unitCode}) · ${responderProfile.station}`}
               onRefresh={() => mobileApi.getResponderHistory().then(setResolvedJobs)}
             />
           );

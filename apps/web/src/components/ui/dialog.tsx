@@ -15,10 +15,10 @@ export function DialogContent({
 }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-ink-900/40" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-[2000] bg-ink-900/40" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-white p-6 shadow-card",
+          "fixed left-1/2 top-1/2 z-[2001] w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-white p-6 shadow-card",
           className,
         )}
       >

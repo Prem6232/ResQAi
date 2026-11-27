@@ -18,11 +18,11 @@ export function FireSmokeEvidenceCard({ vision }: { vision?: VisionAssessment })
       <p className="mt-1 text-ink-700/70">
         {vision.explanation
           ? vision.explanation
-          : `Adapter: ${vision.adapter.replaceAll("_", " ")}. Model score is not the probability the incident is real.`}
+          : `Adapter: ${(vision.adapter ?? "vision_pipeline").replaceAll("_", " ")}. Model score is not the probability the incident is real.`}
       </p>
       {vision.modelScore != null ? (
         <p className="mt-2 text-xs text-ink-700/60">
-          Relative model score: {vision.modelScore.toFixed(2)} ({vision.adapter.replaceAll("_", " ")})
+          Relative model score: {vision.modelScore.toFixed(2)} ({(vision.adapter ?? "vision_pipeline").replaceAll("_", " ")})
         </p>
       ) : null}
     </div>

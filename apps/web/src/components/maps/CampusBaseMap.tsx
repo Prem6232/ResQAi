@@ -16,7 +16,7 @@ export function CampusBaseMap({
   center?: LatLngExpression;
 }) {
   return (
-    <div className="overflow-hidden rounded-3xl" style={{ height }}>
+    <div className="relative z-0 isolate overflow-hidden rounded-3xl" style={{ height }}>
       <MapContainer
         center={center ?? [mapConfig.campusCenter.lat, mapConfig.campusCenter.lng]}
         zoom={zoom}

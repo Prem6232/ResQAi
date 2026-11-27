@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -29,7 +29,14 @@ export const ResponderStatusScreen: React.FC<ResponderStatusScreenProps> = ({
   const [alertSound, setAlertSound] = useState(profile.alertSound);
   const [isPinging, setIsPinging] = useState(false);
 
+  useEffect(() => {
+    setAvailability(profile.availability);
+    setShareLocation(profile.shareLiveLocation);
+    setAlertSound(profile.alertSound);
+  }, [profile.availability, profile.shareLiveLocation, profile.alertSound]);
+
   const handleSelectAvailability = async (status: "available" | "busy" | "off_duty") => {
+    const prevStatus = availability;
     setAvailability(status);
     const isOnDuty = status !== "off_duty";
     onUpdateProfile({ availability: status, isOnDuty });
@@ -37,7 +44,10 @@ export const ResponderStatusScreen: React.FC<ResponderStatusScreenProps> = ({
     try {
       await mobileApi.updateDuty(isOnDuty, status);
     } catch (e) {
-      console.warn("Duty sync warning", e);
+      console.warn("Duty sync failed", e);
+      setAvailability(prevStatus);
+      onUpdateProfile({ availability: prevStatus, isOnDuty: prevStatus !== "off_duty" });
+      Alert.alert("Sync Error", "Unable to update duty status on server.");
     }
   };
 

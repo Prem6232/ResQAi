@@ -77,17 +77,19 @@ export function OperatorCommandCenter() {
     ]);
     setDetail(incDetail);
     setRecommendations(recs);
-    if (recs.length > 0) {
-      setSelectedResponderId(recs[0].responderId);
-    }
+    setSelectedResponderId((prev) =>
+      prev && recs.some((r) => r.responderId === prev) ? prev : recs[0]?.responderId ?? ""
+    );
   }, []);
 
   useEffect(() => {
     if (!incident?.id) {
       setDetail(null);
       setRecommendations([]);
+      setSelectedResponderId("");
       return;
     }
+    setSelectedResponderId("");
     void loadSelectedIncidentData(incident.id);
   }, [incident?.id, loadSelectedIncidentData]);
 
@@ -143,6 +145,8 @@ export function OperatorCommandCenter() {
   const openQueueCount = summary?.openReportsCount ?? open.length;
 
   const topRecommendation = recommendations[0];
+  const selectedRecommendation =
+    recommendations.find((r) => r.responderId === selectedResponderId) ?? topRecommendation;
   const fallbackResponder = responders.find((r) => r.status !== "offline") || responders[0];
   const dispatchTargetId = selectedResponderId || topRecommendation?.responderId || fallbackResponder?.id || "";
 
@@ -192,12 +196,12 @@ export function OperatorCommandCenter() {
       <div className="grid grid-cols-12 gap-5">
         {/* Left Column: Active Incidents Queue */}
         <section className="col-span-12 flex flex-col rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 shadow-xs lg:col-span-3">
-          <div className="mb-3.5 flex items-center justify-between">
-            <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
-              <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-              Incident Queue
+          <div className="mb-3.5 flex items-center justify-between gap-2">
+            <h2 className="flex min-w-0 items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rose-600" />
+              <span className="truncate">Incident Queue</span>
             </h2>
-            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800">
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800">
               {open.length} Active
             </span>
           </div>
@@ -305,9 +309,9 @@ export function OperatorCommandCenter() {
                         </option>
                       ))}
                     </select>
-                    {topRecommendation ? (
+                    {selectedRecommendation ? (
                       <p className="text-[11px] font-medium text-slate-500">
-                        ⚡ {topRecommendation.matchReason}
+                        ⚡ {selectedRecommendation.matchReason}
                       </p>
                     ) : null}
                   </>

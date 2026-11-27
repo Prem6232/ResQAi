@@ -83,6 +83,12 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     """Calculate the great circle distance between two points in kilometers."""
     return haversine_distance_meters(lat1, lon1, lat2, lon2) / 1000.0
 
+def normalize_legacy_coords_to_bhopal(lat: float, lng: float) -> Tuple[float, float]:
+    """Translate legacy Delhi-seed coordinates into Bhopal Metro bounds when computing ETAs."""
+    if 28.4 <= lat <= 28.8 and 77.0 <= lng <= 77.5:
+        return (round(lat - 5.2853, 6), round(lng + 0.1395, 6))
+    return (lat, lng)
+
 def geojson_to_wkt_polygon(geojson_geom: Dict[str, Any], srid: int = 4326) -> str:
     """Validate and convert GeoJSON Polygon dict to WKT with SRID."""
     geom = shape(geojson_geom)

@@ -12,23 +12,31 @@ export function useGeolocation() {
   const [consent, setConsent] = useState(false);
 
   const request = useCallback(() => {
-    if (!navigator.geolocation) {
-      setError("Geolocation is not available on this device.");
-      return;
-    }
-    setConsent(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setPoint({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracyMeters: pos.coords.accuracy,
-          source: "gps",
-        });
-      },
-      () => setError("Location permission denied. You can pick a point on the map."),
-      { enableHighAccuracy: true, timeout: 8000 },
-    );
+    return new Promise<GeoPoint | null>((resolve) => {
+      if (!navigator.geolocation) {
+        setError("Geolocation is not available on this device.");
+        resolve(null);
+        return;
+      }
+      setConsent(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const next: GeoPoint = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracyMeters: pos.coords.accuracy,
+            source: "gps",
+          };
+          setPoint(next);
+          resolve(next);
+        },
+        () => {
+          setError("Location permission denied. You can pick a point on the map.");
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 8000 },
+      );
+    });
   }, []);
 
   return { point, setPoint, error, consent, request };

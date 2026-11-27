@@ -88,7 +88,15 @@ export function ResponderDashboard() {
         role={unitCode ?? "Responder"}
         right={<ResponderStatusToggle onDuty={onDuty} onChange={handleDutyChange} />}
       />
-      <h1 className="mt-2 font-display text-2xl font-extrabold">Awaiting response</h1>
+      <h1 className="mt-2 font-display text-2xl font-extrabold">
+        {!onDuty
+          ? "Off Duty"
+          : activeMission
+            ? "Active Mission"
+            : offer
+              ? "Dispatch Offer Pending"
+              : "Awaiting Dispatch Offers"}
+      </h1>
       {error ? <p className="mt-2 text-xs text-sos-600">{error}</p> : null}
       <div className="mt-4">
         <LiveResponderMap
@@ -134,7 +142,7 @@ export function ResponderDashboard() {
             <div>
               <p className="font-medium">{item.incident?.title ?? `Incident ${item.incidentId.slice(0, 6)}`}</p>
               <p className="text-xs text-ink-700/50">
-                {item.incident?.locationLabel ?? "Campus Perimeter"} ·{" "}
+                {item.incident?.locationLabel ?? "Bhopal Metro"} ·{" "}
                 {formatRelative(item.completedAt || item.offeredAt)}
               </p>
             </div>

@@ -73,10 +73,11 @@ export function ResponderStatusPage() {
   const handleLocationPing = async () => {
     setPingStatus("Updating coordinates…");
     setStatusError(null);
-    geo.request();
+    const fresh = await geo.request();
+    const coords = fresh ?? geo.point;
     try {
-      await sendLocationPing(geo.point);
-      setPingStatus(`Location ping synced (${geo.point.lat.toFixed(4)}, ${geo.point.lng.toFixed(4)})`);
+      await sendLocationPing(coords);
+      setPingStatus(`Location ping synced (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`);
     } catch {
       setPingStatus(null);
       setStatusError("Could not send location ping.");
@@ -102,7 +103,7 @@ export function ResponderStatusPage() {
   };
 
   const displayName = profile?.name || user?.name || "Responder";
-  const campusName = profile?.campusName || user?.campusName || "Campus Operations";
+  const campusName = profile?.campusName || user?.campusName || "Bhopal Operations";
 
   return (
     <div className="space-y-4">

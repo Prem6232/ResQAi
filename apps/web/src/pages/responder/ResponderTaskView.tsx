@@ -2,6 +2,7 @@ import { ActiveTaskCard } from "@/features/responder/components/ActiveTaskCard";
 import { RouteGuidanceSheet } from "@/features/responder/components/RouteGuidanceSheet";
 import { StatusTransitionControls } from "@/features/responder/components/StatusTransitionControls";
 import { OperationalNotesForm } from "@/features/responder/components/OperationalNotesForm";
+import { ResponderOfferCard } from "@/components/coordination/ResponderOfferCard";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -34,15 +35,29 @@ export function ResponderTaskView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadAssignments]);
 
-  const handleTransition = async (next: "en_route" | "arrived" | "completed") => {
+  const handleTransition = async (next: "en_route" | "arrived" | "completed" | "failed", reason?: string) => {
     if (!assignment) return;
     setUpdating(true);
     setError(null);
     try {
-      await api.updateAssignmentStatus(assignment.id, next);
+      await api.updateAssignmentStatus(assignment.id, next, reason);
       await loadAssignments();
     } catch {
       setError("Could not update assignment status.");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleRespondOffer = async (decision: "accepted" | "declined") => {
+    if (!assignment) return;
+    setUpdating(true);
+    setError(null);
+    try {
+      await api.respondToOffer(assignment.id, decision);
+      await loadAssignments();
+    } catch {
+      setError("Could not submit offer decision.");
     } finally {
       setUpdating(false);
     }
@@ -104,11 +119,20 @@ export function ResponderTaskView() {
         </div>
         {error ? <p className="mt-2 text-xs text-sos-600">{error}</p> : null}
         <div className="mt-4">
-          <StatusTransitionControls
-            status={assignment.status}
-            busy={updating}
-            onTransition={handleTransition}
-          />
+          {assignment.status === "offered" ? (
+            <ResponderOfferCard
+              incident={incident}
+              assignment={assignment}
+              onAccept={() => void handleRespondOffer("accepted")}
+              onDecline={() => void handleRespondOffer("declined")}
+            />
+          ) : (
+            <StatusTransitionControls
+              status={assignment.status}
+              busy={updating}
+              onTransition={handleTransition}
+            />
+          )}
         </div>
         <Button asChild className="mt-3 w-full" variant="outline">
           <Link to={routes.responder.feed}>Back to Duty Feed</Link>

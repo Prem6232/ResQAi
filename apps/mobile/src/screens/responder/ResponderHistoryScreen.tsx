@@ -16,6 +16,7 @@ interface ResponderHistoryScreenProps {
   avgArrivalMinutes: number;
   acceptanceRatePct: number;
   historyJobs: ResponderJob[];
+  unitLabel?: string;
   onRefresh?: () => void;
 }
 
@@ -24,6 +25,7 @@ export const ResponderHistoryScreen: React.FC<ResponderHistoryScreenProps> = ({
   avgArrivalMinutes,
   acceptanceRatePct,
   historyJobs,
+  unitLabel,
   onRefresh,
 }) => {
   const [selectedJob, setSelectedJob] = useState<ResponderJob | null>(null);
@@ -122,7 +124,7 @@ export const ResponderHistoryScreen: React.FC<ResponderHistoryScreenProps> = ({
               <Text style={styles.detailText}>{selectedJob.locationLabel}</Text>
 
               <Text style={styles.detailLabel}>Responding Unit</Text>
-              <Text style={styles.detailText}>Fire Unit F-2 · Northridge Central Post</Text>
+              <Text style={styles.detailText}>{unitLabel || "Assigned Emergency Unit"}</Text>
 
               <Text style={styles.detailLabel}>Mission Outcome</Text>
               <Text style={styles.detailText}>

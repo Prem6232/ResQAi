@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import AppException, NotFoundError, ForbiddenError
 from app.core.outbox import create_outbox_event
-from app.common.spatial import point_to_wkt, extract_lat_lng
+from app.common.spatial import point_to_wkt, extract_lat_lng, normalize_legacy_coords_to_bhopal
 from app.routing.engine import calculate_route
 from app.models.entities import (
     User,
@@ -247,10 +247,11 @@ async def respond_to_assignment_offer(
         
         # Link incident to assigned
         if asg.incident and asg.incident.status in ["reported", "under_review", "confirmed"]:
+            prev_inc_status = asg.incident.status
             asg.incident.status = "assigned"
             db.add(IncidentStatusEvent(
                 incident_id=asg.incident.id,
-                from_status=asg.incident.status,
+                from_status=prev_inc_status,
                 to_status="assigned",
                 actor_id=user.id,
                 actor_role="responder",
@@ -286,7 +287,7 @@ async def respond_to_assignment_offer(
     ))
 
     # Outbox event
-    await create_outbox_event(
+    outbox_ev = await create_outbox_event(
         session=db,
         aggregate_type="Assignment",
         aggregate_id=asg.id,
@@ -302,6 +303,10 @@ async def respond_to_assignment_offer(
     )
 
     await db.commit()
+    try:
+        await broadcast_outbox_event(outbox_ev)
+    except Exception as e:
+        logger.warning(f"Failed immediate broadcast for assignment offer response: {e}")
     return build_assignment_response(asg)
 
 async def update_assignment_status_action(
@@ -354,6 +359,7 @@ async def update_assignment_status_action(
 
     now = datetime.utcnow()
     note_text = explanation or reason or f"Transition to {normalized_target}"
+    outbox_events = []
 
     if normalized_target == "failed":
         if not reason and not explanation:
@@ -363,7 +369,7 @@ async def update_assignment_status_action(
             asg.responder.availability_status = "available"
         
         # Trigger urgent outbox failure notification
-        await create_outbox_event(
+        outbox_events.append(await create_outbox_event(
             session=db,
             aggregate_type="Assignment",
             aggregate_id=asg.id,
@@ -374,7 +380,7 @@ async def update_assignment_status_action(
                 "responder_id": str(asg.responder_id),
                 "explanation": note_text,
             }
-        )
+        ))
 
     elif normalized_target == "completed":
         asg.status = "completed"
@@ -384,11 +390,12 @@ async def update_assignment_status_action(
 
         # Advance incident if this was primary active mission
         if asg.incident:
+            prev_inc_status = asg.incident.status
             asg.incident.status = "resolved"
             asg.incident.resolved_at = now
             db.add(IncidentStatusEvent(
                 incident_id=asg.incident.id,
-                from_status="on_scene",
+                from_status=prev_inc_status,
                 to_status="resolved",
                 actor_id=user.id,
                 actor_role=user.role,
@@ -411,10 +418,11 @@ async def update_assignment_status_action(
     elif normalized_target in ["arrived", "on_scene"]:
         asg.status = "arrived"
         if asg.incident and asg.incident.status in ["assigned", "en_route"]:
+            prev_inc_status = asg.incident.status
             asg.incident.status = "on_scene"
             db.add(IncidentStatusEvent(
                 incident_id=asg.incident.id,
-                from_status=asg.incident.status,
+                from_status=prev_inc_status,
                 to_status="on_scene",
                 actor_id=user.id,
                 actor_role=user.role,
@@ -443,7 +451,7 @@ async def update_assignment_status_action(
     ))
 
     # Outbox event
-    await create_outbox_event(
+    outbox_events.append(await create_outbox_event(
         session=db,
         aggregate_type="Assignment",
         aggregate_id=asg.id,
@@ -455,9 +463,14 @@ async def update_assignment_status_action(
             "to_status": asg.status,
             "reason": note_text,
         }
-    )
+    ))
 
     await db.commit()
+    for ev in outbox_events:
+        try:
+            await broadcast_outbox_event(ev)
+        except Exception as e:
+            logger.warning(f"Failed immediate broadcast for {ev.event_type}: {e}")
     return build_assignment_response(asg)
 
 async def ingest_responder_location_ping(
@@ -488,8 +501,10 @@ async def ingest_responder_location_ping(
     )
     active_asg = (await db.execute(stmt)).scalars().first()
     if active_asg and active_asg.incident:
-        inc_lat, inc_lng = extract_lat_lng(active_asg.incident.location)
-        dist_km, eta_min = calculate_route(lat, lng, inc_lat, inc_lng)
+        raw_inc_lat, raw_inc_lng = extract_lat_lng(active_asg.incident.location)
+        inc_lat, inc_lng = normalize_legacy_coords_to_bhopal(raw_inc_lat, raw_inc_lng)
+        norm_lat, norm_lng = normalize_legacy_coords_to_bhopal(lat, lng)
+        dist_km, eta_min = calculate_route(norm_lat, norm_lng, inc_lat, inc_lng)
         active_asg.distance_km = dist_km
         active_asg.eta_minutes = eta_min
         incident_id_str = str(active_asg.incident_id)
@@ -550,6 +565,13 @@ async def append_assignment_notes(
     asg = (await db.execute(stmt)).scalar_one_or_none()
     if not asg:
         raise NotFoundError("Assignment not found")
+
+    if user.role == "responder":
+        profile = await get_responder_profile_for_user(db, user)
+        if asg.responder_id != profile.id:
+            raise ForbiddenError("Cannot append notes to another responder unit's assignment")
+    elif user.role not in ["operator", "admin"]:
+        raise ForbiddenError("Unauthorized to append operational notes")
 
     existing_notes = asg.route_note or ""
     timestamp = datetime.utcnow().strftime("%H:%M")
@@ -617,6 +639,7 @@ async def auto_expire_assignment_offers(db: AsyncSession) -> int:
         return 0
 
     expired_count = 0
+    outbox_events = []
     for asg in expired_offers:
         asg.status = "expired"
         if asg.responder and asg.responder.availability_status == "busy":
@@ -629,7 +652,7 @@ async def auto_expire_assignment_offers(db: AsyncSession) -> int:
             note="Offer expired automatically after 90 seconds response window"
         ))
 
-        await create_outbox_event(
+        outbox_events.append(await create_outbox_event(
             session=db,
             aggregate_type="Assignment",
             aggregate_id=asg.id,
@@ -640,10 +663,15 @@ async def auto_expire_assignment_offers(db: AsyncSession) -> int:
                 "responder_id": str(asg.responder_id),
                 "expired_at": now.isoformat(),
             }
-        )
+        ))
         expired_count += 1
 
     await db.commit()
+    for ev in outbox_events:
+        try:
+            await broadcast_outbox_event(ev)
+        except Exception as e:
+            logger.warning(f"Failed immediate broadcast for assignment.expired: {e}")
     logger.info(f"Auto-expired {expired_count} pending assignment offer(s)")
     return expired_count
 

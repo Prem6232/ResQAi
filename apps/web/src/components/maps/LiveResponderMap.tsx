@@ -421,7 +421,7 @@ export function LiveResponderMap({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-black/5" style={{ height: resolvedHeight }}>
+      <div className="relative z-0 isolate overflow-hidden rounded-2xl border border-black/5" style={{ height: resolvedHeight }}>
         <MapContainer
           center={initialCenter}
           zoom={mode === "control_room" ? 15 : mapConfig.defaultZoom}

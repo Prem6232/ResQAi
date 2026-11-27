@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -16,40 +16,73 @@ import { mobileApi } from "../../services/api";
 
 interface ResponderActiveNavScreenProps {
   activeJob: ResponderJob | null;
+  onMarkEnRoute?: () => void;
   onMarkArrived: () => void;
   onMarkCompleted?: () => void;
   currentLocation?: GeoPoint;
+  unitCode?: string;
+  unitName?: string;
 }
+
+const mapJobStatus = (status?: string): "accepted" | "en_route" | "arrived" | "completed" => {
+  if (status === "arrived") return "arrived";
+  if (status === "en_route") return "en_route";
+  if (status === "completed") return "completed";
+  return "accepted";
+};
 
 export const ResponderActiveNavScreen: React.FC<ResponderActiveNavScreenProps> = ({
   activeJob,
+  onMarkEnRoute,
   onMarkArrived,
   onMarkCompleted,
   currentLocation,
+  unitCode = "F-2",
+  unitName = "Unit F-2",
 }) => {
-  const [currentStatus, setCurrentStatus] = useState<"en_route" | "arrived" | "completed">(
-    activeJob?.status === "arrived" ? "arrived" : "en_route"
+  const [currentStatus, setCurrentStatus] = useState<"accepted" | "en_route" | "arrived" | "completed">(
+    mapJobStatus(activeJob?.status)
   );
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [fieldNotes, setFieldNotes] = useState("");
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    setCurrentStatus(mapJobStatus(activeJob?.status));
+  }, [activeJob?.id, activeJob?.status]);
+
   const handleArrived = async () => {
-    if (currentStatus === "en_route") {
-      setCurrentStatus("arrived");
-      onMarkArrived();
-      if (activeJob) {
-        try {
-          await mobileApi.updateAssignmentStatus(activeJob.id, "arrived", "Unit arrived on scene");
-        } catch (e) {
-          console.warn("Status update fallback", e);
-        }
+    if (!activeJob) {
+      Alert.alert("No Active Mission", "Accept a dispatch offer before updating mission status.");
+      return;
+    }
+
+    if (currentStatus === "accepted") {
+      try {
+        await mobileApi.updateAssignmentStatus(activeJob.id, "en_route", "Unit started en-route navigation");
+        setCurrentStatus("en_route");
+        onMarkEnRoute?.();
+      } catch (e) {
+        console.warn("Failed to transition to en_route", e);
+        Alert.alert("Sync Error", "Unable to update status to en route on server.");
       }
-      Alert.alert(
-        "✅ Arrived on Scene",
-        "Control Room and Citizen have been notified that Unit F-2 is actively on scene."
-      );
+      return;
+    }
+
+    if (currentStatus === "en_route") {
+      try {
+        await mobileApi.updateAssignmentStatus(activeJob.id, "arrived", "Unit arrived on scene");
+        setCurrentStatus("arrived");
+        onMarkArrived();
+        Alert.alert(
+          "✅ Arrived on Scene",
+          `Control Room and Citizen have been notified that ${unitName} is actively on scene.`
+        );
+      } catch (e) {
+        console.warn("Failed to transition to arrived", e);
+        Alert.alert("Sync Error", "Unable to mark scene arrival on server.");
+      }
     } else if (currentStatus === "arrived") {
       Alert.alert(
         "Complete Mission",
@@ -59,14 +92,13 @@ export const ResponderActiveNavScreen: React.FC<ResponderActiveNavScreenProps> =
           {
             text: "Complete Mission",
             onPress: async () => {
-              setCurrentStatus("completed");
-              if (onMarkCompleted) onMarkCompleted();
-              if (activeJob) {
-                try {
-                  await mobileApi.updateAssignmentStatus(activeJob.id, "completed", "Scene resolved and secured");
-                } catch (e) {
-                  console.warn("Complete status fallback", e);
-                }
+              try {
+                await mobileApi.updateAssignmentStatus(activeJob.id, "completed", "Scene resolved and secured");
+                setCurrentStatus("completed");
+                if (onMarkCompleted) onMarkCompleted();
+              } catch (e) {
+                console.warn("Complete status failed", e);
+                Alert.alert("Sync Error", "Unable to complete mission on server.");
               }
             },
           },
@@ -104,9 +136,9 @@ export const ResponderActiveNavScreen: React.FC<ResponderActiveNavScreenProps> =
   };
 
   const responderPoint: MapResponderMarker = {
-    id: "resp-f2",
-    unitCode: "F-2",
-    displayName: "Unit F-2",
+    id: `resp-${unitCode.toLowerCase()}`,
+    unitCode,
+    displayName: unitName,
     lat: currentLocation?.lat ?? 23.2599,
     lng: currentLocation?.lng ?? 77.4126,
     isOnDuty: true,
@@ -133,6 +165,8 @@ export const ResponderActiveNavScreen: React.FC<ResponderActiveNavScreenProps> =
             ? "MISSION COMPLETED · SCENE SECURED"
             : currentStatus === "arrived"
             ? "STATUS: ON SCENE · TELEMETRY ACTIVE"
+            : currentStatus === "accepted"
+            ? `DISPATCH ACCEPTED · DEPLOY TO ${(targetIncidentPoint.locationLabel || "TARGET LOCATION").toUpperCase()}`
             : `EN ROUTE TO ${(targetIncidentPoint.locationLabel || "TARGET LOCATION").toUpperCase()}`}
         </Text>
       </View>
@@ -152,10 +186,16 @@ export const ResponderActiveNavScreen: React.FC<ResponderActiveNavScreenProps> =
               ? "Mission finalized"
               : currentStatus === "arrived"
               ? "Arrived at target location"
-              : "Turn left at Library Walkway in 80m"}
+              : currentStatus === "accepted"
+              ? `Ready to deploy toward ${targetIncidentPoint.locationLabel}`
+              : `Proceed to ${targetIncidentPoint.locationLabel}`}
           </Text>
           <Text style={styles.guidanceSub}>
-            {currentStatus === "en_route" ? "Follow designated pedestrian channel" : "Unit on scene"}
+            {currentStatus === "en_route"
+              ? "Follow fastest Bhopal dispatch corridor"
+              : currentStatus === "accepted"
+              ? "Tap Start En Route before departing"
+              : "Unit on scene"}
           </Text>
         </View>
         <View style={styles.etaBadge}>
@@ -208,7 +248,9 @@ export const ResponderActiveNavScreen: React.FC<ResponderActiveNavScreenProps> =
               ? "✓ Mission Finalized"
               : currentStatus === "arrived"
               ? "✓ Complete Mission & Close Incident"
-              : "Mark Arrived on Scene"}
+              : currentStatus === "en_route"
+              ? "Mark Arrived on Scene"
+              : "Start En Route Navigation"}
           </Text>
         </TouchableOpacity>
 

@@ -11,8 +11,14 @@ from geoalchemy2.shape import to_shape, from_shape
 
 from app.core.exceptions import AppException, NotFoundError, ForbiddenError
 from app.core.outbox import create_outbox_event
-from app.common.spatial import haversine_distance, haversine_distance_meters, extract_lat_lng
+from app.common.spatial import (
+    haversine_distance,
+    haversine_distance_meters,
+    extract_lat_lng,
+    normalize_legacy_coords_to_bhopal,
+)
 from app.routing.engine import calculate_route
+from app.modules.realtime.publisher import broadcast_outbox_event
 from app.models.entities import (
     Incident,
     IncidentReport,
@@ -833,7 +839,8 @@ async def get_dispatch_recommendations(
     if not incident:
         raise NotFoundError(f"Incident '{incident_id}' not found")
 
-    inc_lat, inc_lng = extract_lat_lng(incident.location)
+    raw_inc_lat, raw_inc_lng = extract_lat_lng(incident.location)
+    inc_lat, inc_lng = normalize_legacy_coords_to_bhopal(raw_inc_lat, raw_inc_lng)
 
     CATEGORY_CAPABILITIES = {
         "fire_smoke": ["firefighting", "rescue", "hazard"],
@@ -856,7 +863,11 @@ async def get_dispatch_recommendations(
 
     recommendations: List[DispatchRecommendation] = []
     for p in profiles:
-        p_lat, p_lng = extract_lat_lng(p.last_known_location) if p.last_known_location else (inc_lat, inc_lng)
+        if p.last_known_location:
+            raw_p_lat, raw_p_lng = extract_lat_lng(p.last_known_location)
+            p_lat, p_lng = normalize_legacy_coords_to_bhopal(raw_p_lat, raw_p_lng)
+        else:
+            p_lat, p_lng = (inc_lat, inc_lng)
         dist_km, eta_min = calculate_route(p_lat, p_lng, inc_lat, inc_lng)
 
         unit_caps = set(p.capabilities or [])
@@ -927,8 +938,13 @@ async def dispatch_responder_offer(
     if not responder.is_approved:
         raise AppException(400, "RESPONDER_NOT_APPROVED", f"Unit {responder.unit_code} has not been approved by an administrator")
 
-    inc_lat, inc_lng = extract_lat_lng(incident.location)
-    p_lat, p_lng = extract_lat_lng(responder.last_known_location) if responder.last_known_location else (inc_lat, inc_lng)
+    raw_inc_lat, raw_inc_lng = extract_lat_lng(incident.location)
+    inc_lat, inc_lng = normalize_legacy_coords_to_bhopal(raw_inc_lat, raw_inc_lng)
+    if responder.last_known_location:
+        raw_p_lat, raw_p_lng = extract_lat_lng(responder.last_known_location)
+        p_lat, p_lng = normalize_legacy_coords_to_bhopal(raw_p_lat, raw_p_lng)
+    else:
+        p_lat, p_lng = (inc_lat, inc_lng)
     dist_km, eta_min = calculate_route(p_lat, p_lng, inc_lat, inc_lng)
 
     now = datetime.utcnow()
@@ -982,7 +998,7 @@ async def dispatch_responder_offer(
         }
     ))
 
-    await create_outbox_event(
+    outbox_ev = await create_outbox_event(
         session=db,
         aggregate_type="Assignment",
         aggregate_id=assignment.id,
@@ -1000,6 +1016,11 @@ async def dispatch_responder_offer(
 
     responder.availability_status = "busy"
     await db.commit()
+
+    try:
+        await broadcast_outbox_event(outbox_ev)
+    except Exception as e:
+        logger.warning(f"Failed immediate broadcast for assignment.offered: {e}")
 
     load_stmt = (
         select(Assignment)

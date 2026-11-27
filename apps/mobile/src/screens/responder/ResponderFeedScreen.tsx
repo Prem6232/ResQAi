@@ -20,6 +20,8 @@ interface ResponderFeedScreenProps {
   onAcceptJob: (job: ResponderJob) => void;
   onDeclineJob: (job: ResponderJob) => void;
   currentLocation?: GeoPoint;
+  unitCode?: string;
+  unitName?: string;
 }
 
 export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
@@ -30,6 +32,8 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
   onAcceptJob,
   onDeclineJob,
   currentLocation,
+  unitCode = "F-2",
+  unitName = "Unit F-2",
 }) => {
   const [secondsRemaining, setSecondsRemaining] = useState(88);
 
@@ -73,9 +77,9 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
 
   const mapResponders: MapResponderMarker[] = [
     {
-      id: "resp-f2",
-      unitCode: "F-2",
-      displayName: "Unit F-2",
+      id: `resp-${unitCode.toLowerCase()}`,
+      unitCode,
+      displayName: unitName,
       lat: currentLocation?.lat ?? 23.2599,
       lng: currentLocation?.lng ?? 77.4126,
       isOnDuty,
@@ -158,10 +162,10 @@ export const ResponderFeedScreen: React.FC<ResponderFeedScreenProps> = ({
             <Text style={styles.jobTitle}>{featuredJob.title}</Text>
             <Text style={styles.jobLocation}>{featuredJob.locationLabel}</Text>
 
-            {/* Chips row: HIGH | 1.2 km | Est. 5 min */}
+            {/* Chips row: URGENCY | distance | ETA */}
             <View style={styles.chipsRow}>
               <View style={[styles.chip, styles.chipUrgent]}>
-                <Text style={styles.chipUrgentText}>CRITICAL</Text>
+                <Text style={styles.chipUrgentText}>{featuredJob.urgency.toUpperCase()}</Text>
               </View>
               <View style={styles.chip}>
                 <Text style={styles.chipText}>{featuredJob.distance}</Text>
