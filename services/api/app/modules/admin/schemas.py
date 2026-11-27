@@ -23,8 +23,8 @@ class ResponderAdminOut(BaseModel):
     availability_status: str = Field(alias="status")
     share_location: bool = Field(alias="shareLocation")
     is_approved: bool = Field(alias="isApproved")
-    approved: bool = True
-    synthetic: bool = True
+    approved: bool = False
+    synthetic: bool = False
     last_ping_at: Optional[datetime] = Field(None, alias="lastLocationAt")
     last_known_location: Optional[GeoPoint] = Field(None, alias="lastLocation")
     created_at: datetime = Field(alias="createdAt")
@@ -72,7 +72,7 @@ class AuditLogOut(BaseModel):
     target_id: str = Field(alias="targetId")
     details: Dict[str, Any] = Field(default_factory=dict)
     ip_address: Optional[str] = Field(None, alias="ipAddress")
-    synthetic: bool = True
+    synthetic: bool = False
 
 class AuditLogListResponse(BaseModel):
     items: List[AuditLogOut]

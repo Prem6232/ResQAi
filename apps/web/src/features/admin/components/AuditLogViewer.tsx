@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getAuditLogs, type AuditLogRow } from "../api/getAuditLogs";
 import { useState } from "react";
 import { formatRelative } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   ShieldAlert,
   KeyRound,
@@ -10,6 +11,7 @@ import {
   ToggleLeft,
   Search,
   Filter,
+  RefreshCw,
 } from "lucide-react";
 
 function getActionBadgeStyle(action: string) {
@@ -25,7 +27,7 @@ function getActionBadgeStyle(action: string) {
       icon: KeyRound,
     };
   }
-  if (action.includes("INCIDENT") || action.includes("DISPATCH")) {
+  if (action.includes("INCIDENT") || action.includes("DISPATCH") || action.includes("APPROVE")) {
     return {
       bg: "bg-emerald-100 text-emerald-800 ring-emerald-600/20",
       icon: FileText,
@@ -49,8 +51,15 @@ function getActionBadgeStyle(action: string) {
   };
 }
 
+function formatDetails(details?: Record<string, unknown>): string | null {
+  if (!details) return null;
+  const entries = Object.entries(details);
+  if (entries.length === 0) return null;
+  return entries.map(([k, v]) => `${k}: ${String(v)}`).join(" · ");
+}
+
 export function AuditLogViewer() {
-  const { data: logs, isLoading, error } = useQuery<AuditLogRow[]>({
+  const { data: logs, isLoading, isFetching, error, refetch } = useQuery<AuditLogRow[]>({
     queryKey: ["audit"],
     queryFn: getAuditLogs,
   });
@@ -84,7 +93,8 @@ export function AuditLogViewer() {
     const matchesAction =
       actionFilter === "all" ||
       (actionFilter === "auth" && (row.action.includes("LOGIN") || row.action.includes("AUTH"))) ||
-      (actionFilter === "incident" && row.action.includes("INCIDENT")) ||
+      (actionFilter === "incident" && (row.action.includes("INCIDENT") || row.action.includes("DISPATCH"))) ||
+      (actionFilter === "vetting" && row.action.includes("RESPONDER")) ||
       (actionFilter === "config" && (row.action.includes("DRILL") || row.action.includes("POLYGON")));
 
     return matchesSearch && matchesAction;
@@ -92,7 +102,6 @@ export function AuditLogViewer() {
 
   return (
     <div className="space-y-4">
-      {/* Search and Filter toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-xs">
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -105,9 +114,19 @@ export function AuditLogViewer() {
               className="h-8 w-64 rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-900 focus:border-emerald-500 focus:outline-hidden"
             />
           </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isFetching}
+            onClick={() => void refetch()}
+            className="h-8 gap-1.5 rounded-lg border-slate-200 text-xs font-semibold text-slate-700"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Filter className="h-3.5 w-3.5 text-slate-400" />
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
             Category:
@@ -115,6 +134,7 @@ export function AuditLogViewer() {
           {[
             { id: "all", label: "All Events" },
             { id: "auth", label: "Auth / Security" },
+            { id: "vetting", label: "Responder Vetting" },
             { id: "incident", label: "Incidents" },
             { id: "config", label: "System Config" },
           ].map((cat) => (
@@ -133,12 +153,12 @@ export function AuditLogViewer() {
         </div>
       </div>
 
-      {/* Audit Log Entries List */}
       <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
         {filtered.length > 0 ? (
           <ul className="divide-y divide-slate-100">
             {filtered.map((row) => {
               const { bg, icon: ActionIcon } = getActionBadgeStyle(row.action);
+              const detailText = formatDetails(row.details);
 
               return (
                 <li
@@ -154,13 +174,20 @@ export function AuditLogViewer() {
                     </span>
 
                     <div className="text-xs">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className="font-semibold text-slate-800">{row.actor}</span>
                         <span className="text-slate-400">→</span>
                         <span className="font-mono text-[11px] text-slate-600 truncate max-w-xs sm:max-w-md">
                           {row.target}
                         </span>
                       </div>
+                      {detailText || row.ipAddress ? (
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          {detailText}
+                          {detailText && row.ipAddress ? " · " : ""}
+                          {row.ipAddress ? `IP: ${row.ipAddress}` : ""}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 

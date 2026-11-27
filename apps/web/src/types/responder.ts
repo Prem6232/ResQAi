@@ -15,6 +15,9 @@ export interface ResponderProfile {
   userId: string;
   unitCode: string;
   displayName: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
   type: "campus_security" | "volunteer" | "medical_volunteer" | "fire_warden";
   status: ResponderAvailability;
   capabilities: ResponderCapability[];

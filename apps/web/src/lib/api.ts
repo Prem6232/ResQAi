@@ -233,6 +233,41 @@ function mapAssignment(a: RawRecord): Assignment {
   };
 }
 
+function mapResponderProfile(r: RawRecord): ResponderProfile {
+  const rawLoc = (r.lastLocation || r.last_location || r.location) as RawRecord | undefined;
+  const lastLocation: GeoPoint | undefined =
+    rawLoc && typeof rawLoc.lat === "number" && typeof rawLoc.lng === "number"
+      ? sanitizeToBhopal({
+          lat: Number(rawLoc.lat),
+          lng: Number(rawLoc.lng),
+          source: (rawLoc.source as GeoPoint["source"]) || "gps",
+          accuracyMeters: typeof rawLoc.accuracyMeters === "number" ? rawLoc.accuracyMeters : undefined,
+        })
+      : undefined;
+  const userObj = r.user && typeof r.user === "object" ? (r.user as RawRecord) : undefined;
+  return {
+    id: String(r.id),
+    userId: String(r.userId || r.user_id || r.id),
+    unitCode: String(r.unitCode || r.unit_code || "UNIT-1"),
+    displayName: String(r.displayName || r.display_name || r.name || "Responder Unit"),
+    fullName: userObj?.full_name || userObj?.fullName ? String(userObj.full_name || userObj.fullName) : undefined,
+    email: userObj?.email ? String(userObj.email) : undefined,
+    phone: userObj?.phone ? String(userObj.phone) : undefined,
+    type: (r.type || r.responderType || r.responder_type || "campus_security") as ResponderProfile["type"],
+    status: (r.status || r.availabilityStatus || r.availability_status || (r.isOnDuty || r.is_on_duty ? "available" : "offline")) as ResponderProfile["status"],
+    capabilities: (Array.isArray(r.capabilities) ? r.capabilities : ["security_patrol"]) as ResponderProfile["capabilities"],
+    lastLocation,
+    lastLocationAt:
+      r.lastLocationAt || r.last_location_at || r.lastPingAt || r.last_ping_at
+        ? String(r.lastLocationAt || r.last_location_at || r.lastPingAt || r.last_ping_at)
+        : undefined,
+    currentJob: r.currentJob || r.current_job ? String(r.currentJob || r.current_job) : undefined,
+    shareLocation: Boolean(r.shareLocation ?? r.share_location ?? true),
+    approved: Boolean(r.isApproved ?? r.is_approved ?? r.approved ?? false),
+    synthetic: Boolean(r.synthetic ?? false),
+  };
+}
+
 /**
  * ResQAI Live Backend API Client (FastAPI)
  * All operations dispatch to live REST endpoints via Axios with JWT authorization.
@@ -452,36 +487,24 @@ export const api = {
     } catch {
       res = await http.get("/admin/responders");
     }
-    return (Array.isArray(res.data) ? res.data : []).map((r: RawRecord): ResponderProfile => {
-      const rawLoc = (r.lastLocation || r.last_location || r.location) as RawRecord | undefined;
-      const lastLocation: GeoPoint | undefined =
-        rawLoc && typeof rawLoc.lat === "number" && typeof rawLoc.lng === "number"
-          ? sanitizeToBhopal({
-              lat: Number(rawLoc.lat),
-              lng: Number(rawLoc.lng),
-              source: (rawLoc.source as GeoPoint["source"]) || "gps",
-              accuracyMeters: typeof rawLoc.accuracyMeters === "number" ? rawLoc.accuracyMeters : undefined,
-            })
-          : undefined;
-      return {
-        id: String(r.id),
-        userId: String(r.userId || r.user_id || r.id),
-        unitCode: String(r.unitCode || r.unit_code || "UNIT-1"),
-        displayName: String(r.displayName || r.display_name || r.name || "Responder Unit"),
-        type: (r.type || r.responderType || r.responder_type || "campus_security") as ResponderProfile["type"],
-        status: (r.status || r.availabilityStatus || r.availability_status || (r.isOnDuty || r.is_on_duty ? "available" : "offline")) as ResponderProfile["status"],
-        capabilities: (Array.isArray(r.capabilities) ? r.capabilities : ["security_patrol"]) as ResponderProfile["capabilities"],
-        lastLocation,
-        lastLocationAt:
-          r.lastLocationAt || r.last_location_at || r.lastPingAt || r.last_ping_at
-            ? String(r.lastLocationAt || r.last_location_at || r.lastPingAt || r.last_ping_at)
-            : undefined,
-        currentJob: r.currentJob || r.current_job ? String(r.currentJob || r.current_job) : undefined,
-        shareLocation: Boolean(r.shareLocation ?? r.share_location ?? true),
-        approved: Boolean(r.isApproved ?? r.is_approved ?? r.approved ?? true),
-        synthetic: Boolean(r.synthetic ?? false),
-      };
+    return (Array.isArray(res.data) ? res.data : []).map((r: RawRecord) => mapResponderProfile(r));
+  },
+
+  async adminResponders(): Promise<ResponderProfile[]> {
+    const res = await http.get("/admin/responders");
+    return (Array.isArray(res.data) ? res.data : []).map((r: RawRecord) => mapResponderProfile(r));
+  },
+
+  async toggleDrillMode(enabled: boolean): Promise<{ ok: boolean; drillMode: boolean }> {
+    const res = await http.post("/admin/drill-mode", {
+      enabled,
+      drillMode: enabled,
     });
+    const d = res.data as RawRecord;
+    return {
+      ok: Boolean(d.ok ?? true),
+      drillMode: Boolean(d.drillMode ?? d.drill_mode ?? enabled),
+    };
   },
 
   async assignments(): Promise<Assignment[]> {

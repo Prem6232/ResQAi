@@ -1,17 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
-import { Marker, Tooltip, useMapEvents } from "react-leaflet";
+import { Marker, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import { CampusBaseMap } from "@/components/maps/CampusBaseMap";
 import { PerimeterPolygon } from "@/components/maps/PerimeterPolygon";
 import {
   polygonLatLngToLngLat,
   polygonLngLatToLatLng,
-  syntheticCampusPolygon,
 } from "@/components/maps/mapConstants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getCampusBoundaries, updateCampusBoundaries } from "../api/updateCampusBoundaries";
+
+const BHOPAL_GRID_POLYGON: [number, number][] = [
+  [23.16, 77.3],
+  [23.16, 77.53],
+  [23.35, 77.53],
+  [23.35, 77.3],
+];
 
 function createVertexIcon(index: number) {
   return L.divIcon({
@@ -20,6 +26,26 @@ function createVertexIcon(index: number) {
     iconSize: [18, 18],
     iconAnchor: [9, 9],
   });
+}
+
+function MapBoundsSync({
+  positions,
+  fitTrigger,
+}: {
+  positions: [number, number][];
+  fitTrigger: number;
+}) {
+  const map = useMap();
+  const initialDone = useRef(false);
+
+  useEffect(() => {
+    if (positions.length < 3) return;
+    if (fitTrigger === 0 && initialDone.current) return;
+    map.fitBounds(positions, { padding: [36, 36], maxZoom: 14 });
+    initialDone.current = true;
+  }, [positions, fitTrigger, map]);
+
+  return null;
 }
 
 function InteractivePolygonLayer({
@@ -74,12 +100,13 @@ function InteractivePolygonLayer({
 }
 
 export function CampusBoundaryEditor() {
-  const [name, setName] = useState("Northridge Campus");
-  const [previewPositions, setPreviewPositions] = useState<[number, number][]>(syntheticCampusPolygon);
+  const [name, setName] = useState("Bhopal Metropolitan Safety Grid");
+  const [previewPositions, setPreviewPositions] = useState<[number, number][]>(BHOPAL_GRID_POLYGON);
   const [coordsText, setCoordsText] = useState(
-    JSON.stringify(polygonLatLngToLngLat(syntheticCampusPolygon), null, 2)
+    JSON.stringify(polygonLatLngToLngLat(BHOPAL_GRID_POLYGON), null, 2)
   );
   const [clickToAdd, setClickToAdd] = useState(true);
+  const [fitTrigger, setFitTrigger] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -103,6 +130,7 @@ export function CampusBoundaryEditor() {
             ? latLngs.slice(0, -1)
             : latLngs;
         syncFromPositions(openRing);
+        setFitTrigger((n) => n + 1);
       }
     });
   }, []);
@@ -130,7 +158,7 @@ export function CampusBoundaryEditor() {
     try {
       parsed = JSON.parse(coordsText);
     } catch {
-      setError("Coordinates must be valid JSON array of [lng, lat] pairs.");
+      setError("Coordinates must be a valid JSON array of [lng, lat] pairs.");
       return;
     }
 
@@ -142,7 +170,10 @@ export function CampusBoundaryEditor() {
     const polygon = parsed as number[][];
     setSaving(true);
     try {
-      const updated = await updateCampusBoundaries({ name: name.trim() || "Campus Geofence", polygon });
+      const updated = await updateCampusBoundaries({
+        name: name.trim() || "Bhopal Metropolitan Safety Grid",
+        polygon,
+      });
       if (updated.polygon?.length >= 3) {
         const latLngs = polygonLngLatToLatLng(updated.polygon);
         const openRing =
@@ -152,10 +183,12 @@ export function CampusBoundaryEditor() {
             ? latLngs.slice(0, -1)
             : latLngs;
         syncFromPositions(openRing);
+        setFitTrigger((n) => n + 1);
       }
       setSuccess(`Saved operating area "${updated.name}".`);
     } catch (err: unknown) {
       const detail =
+        (err as { response?: { data?: { detail?: string; message?: string } } })?.response?.data?.message ||
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         "Failed to update operating area polygon.";
       setError(detail);
@@ -167,8 +200,8 @@ export function CampusBoundaryEditor() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-ink-700/70">
-          Click the map to place vertices or drag numbered handles to reshape the geofence. Self-intersecting polygons are rejected by backend PostGIS/Shapely validation.
+        <p className="text-xs text-slate-600">
+          Click the map to place vertices or drag numbered handles to reshape the Bhopal geofence. Self-intersecting polygons are rejected by backend PostGIS/Shapely validation.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -192,15 +225,27 @@ export function CampusBoundaryEditor() {
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => syncFromPositions(syntheticCampusPolygon)}
+            onClick={() => setFitTrigger((n) => n + 1)}
           >
-            Reset rectangle
+            Fit polygon
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              syncFromPositions(BHOPAL_GRID_POLYGON);
+              setFitTrigger((n) => n + 1);
+            }}
+          >
+            Reset Bhopal Grid
           </Button>
         </div>
       </div>
       <div className="grid gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-7 overflow-hidden rounded-3xl bg-white p-2 shadow-card">
-          <CampusBaseMap height={400} zoom={15}>
+        <div className="lg:col-span-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-2 shadow-xs">
+          <CampusBaseMap height={420} zoom={11}>
+            <MapBoundsSync positions={previewPositions} fitTrigger={fitTrigger} />
             <InteractivePolygonLayer
               positions={previewPositions}
               clickToAdd={clickToAdd}
@@ -208,12 +253,12 @@ export function CampusBoundaryEditor() {
             />
           </CampusBaseMap>
         </div>
-        <div className="lg:col-span-5 space-y-3 rounded-3xl bg-white p-5 shadow-card">
-          <label className="block text-xs font-medium text-ink-700/70">
+        <div className="lg:col-span-5 space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+          <label className="block text-xs font-semibold text-slate-700">
             Operating Area Name
             <Input className="mt-1" value={name} onChange={(e) => setName(e.target.value)} />
           </label>
-          <label className="block text-xs font-medium text-ink-700/70">
+          <label className="block text-xs font-semibold text-slate-700">
             Polygon Coordinates ([lng, lat][]) · {previewPositions.length} vertices
             <Textarea
               className="mt-1 font-mono text-xs"
@@ -222,10 +267,10 @@ export function CampusBoundaryEditor() {
               onChange={(e) => handleCoordsTextChange(e.target.value)}
             />
           </label>
-          {error ? <p className="text-xs text-sos-600">{error}</p> : null}
-          {success ? <p className="text-xs text-duty-600">{success}</p> : null}
-          <Button variant="command" className="w-full" disabled={saving} onClick={handleSave}>
-            {saving ? "Validating & saving…" : "Save campus boundary"}
+          {error ? <p className="text-xs font-medium text-rose-600">{error}</p> : null}
+          {success ? <p className="text-xs font-medium text-emerald-700">{success}</p> : null}
+          <Button variant="command" className="w-full" disabled={saving} onClick={() => void handleSave()}>
+            {saving ? "Validating & saving…" : "Save operating boundary"}
           </Button>
         </div>
       </div>

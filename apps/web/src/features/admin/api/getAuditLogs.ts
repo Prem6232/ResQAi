@@ -6,6 +6,8 @@ export interface AuditLogRow {
   actor: string;
   action: string;
   target: string;
+  details?: Record<string, unknown>;
+  ipAddress?: string;
   synthetic: boolean;
 }
 
@@ -21,6 +23,9 @@ interface RawAuditLog {
   targetId?: string;
   target_id?: string;
   target?: string;
+  details?: Record<string, unknown>;
+  ipAddress?: string;
+  ip_address?: string;
   synthetic?: boolean;
 }
 
@@ -37,6 +42,8 @@ export async function getAuditLogs(): Promise<AuditLogRow[]> {
     actor: l.actorEmail || l.actor_email || l.actor || "system",
     action: l.action || "SYSTEM_EVENT",
     target: l.target || l.targetId || l.target_id || "general",
-    synthetic: Boolean(l.synthetic ?? true),
+    details: l.details && typeof l.details === "object" ? l.details : undefined,
+    ipAddress: l.ipAddress || l.ip_address || undefined,
+    synthetic: Boolean(l.synthetic ?? false),
   }));
 }

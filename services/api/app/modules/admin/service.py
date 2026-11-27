@@ -26,12 +26,35 @@ from app.modules.admin.schemas import (
     DrillModeResponse,
 )
 
+async def get_drill_mode_state(session: AsyncSession) -> bool:
+    """Resolve current drill mode from Redis, falling back to the latest AuditLog entry in Postgres."""
+    try:
+        r = get_redis_client()
+        drill_val = await r.get("system:drill_mode")
+        if drill_val is not None:
+            return drill_val != "false"
+    except Exception:
+        pass
+
+    stmt = (
+        select(AuditLog)
+        .where(AuditLog.action == "TOGGLE_DRILL_MODE")
+        .order_by(desc(AuditLog.created_at))
+        .limit(1)
+    )
+    latest_toggle = (await session.execute(stmt)).scalar_one_or_none()
+    if latest_toggle and isinstance(latest_toggle.details, dict) and "drill_mode" in latest_toggle.details:
+        return bool(latest_toggle.details["drill_mode"])
+    return True
+
+
 async def list_all_responders(session: AsyncSession) -> List[ResponderAdminOut]:
     """Retrieve all responder profiles with joined user account metadata."""
+    is_drill = await get_drill_mode_state(session)
     stmt = (
         select(ResponderProfile)
         .options(selectinload(ResponderProfile.user))
-        .order_by(ResponderProfile.unit_code.asc())
+        .order_by(ResponderProfile.is_approved.asc(), ResponderProfile.unit_code.asc())
     )
     result = await session.execute(stmt)
     profiles = result.scalars().all()
@@ -60,7 +83,7 @@ async def list_all_responders(session: AsyncSession) -> List[ResponderAdminOut]:
                 share_location=p.share_location,
                 is_approved=p.is_approved,
                 approved=p.is_approved,
-                synthetic=True,
+                synthetic=is_drill,
                 last_ping_at=p.last_ping_at,
                 last_known_location=loc,
                 created_at=p.created_at,
@@ -123,6 +146,7 @@ async def approve_or_revoke_responder(
             phone=profile.user.phone,
         )
 
+    is_drill = await get_drill_mode_state(session)
     return ResponderAdminOut(
         id=profile.id,
         user_id=profile.user_id,
@@ -135,7 +159,7 @@ async def approve_or_revoke_responder(
         share_location=profile.share_location,
         is_approved=profile.is_approved,
         approved=profile.is_approved,
-        synthetic=True,
+        synthetic=is_drill,
         last_ping_at=profile.last_ping_at,
         last_known_location=wkb_to_geopoint(profile.last_known_location),
         created_at=profile.created_at,
@@ -143,26 +167,26 @@ async def approve_or_revoke_responder(
     )
 
 async def get_active_operating_area(session: AsyncSession) -> OperatingAreaResponse:
-    """Get the active campus boundary polygon or fallback to synthetic campus geofence."""
+    """Get the active operating area polygon or initialize the Bhopal Metropolitan Safety Grid."""
     stmt = select(OperatingArea).where(OperatingArea.is_active == True).order_by(OperatingArea.created_at.desc())
     result = await session.execute(stmt)
     area = result.scalar_one_or_none()
 
     if not area:
-        # Fallback default seed polygon
+        # Fallback default Bhopal Metropolitan Safety Grid polygon
         default_geojson = {
             "type": "Polygon",
             "coordinates": [[
-                [77.2690, 28.5410],
-                [77.2770, 28.5410],
-                [77.2770, 28.5490],
-                [77.2690, 28.5490],
-                [77.2690, 28.5410]
+                [77.3000, 23.1600],
+                [77.5300, 23.1600],
+                [77.5300, 23.3500],
+                [77.3000, 23.3500],
+                [77.3000, 23.1600]
             ]]
         }
         wkt_str = geojson_to_wkt_polygon(default_geojson)
         area = OperatingArea(
-            name="Northridge Campus (synthetic)",
+            name="Bhopal Metropolitan Safety Grid",
             boundary=wkt_str,
             is_active=True,
         )
@@ -173,11 +197,11 @@ async def get_active_operating_area(session: AsyncSession) -> OperatingAreaRespo
     geojson_dict = wkb_to_geojson_polygon(area.boundary) or {
         "type": "Polygon",
         "coordinates": [[
-            [77.2690, 28.5410],
-            [77.2770, 28.5410],
-            [77.2770, 28.5490],
-            [77.2690, 28.5490],
-            [77.2690, 28.5410]
+            [77.3000, 23.1600],
+            [77.5300, 23.1600],
+            [77.5300, 23.3500],
+            [77.3000, 23.3500],
+            [77.3000, 23.1600]
         ]]
     }
     coords = geojson_dict.get("coordinates", [[]])[0]
@@ -234,7 +258,7 @@ async def update_campus_operating_area(
     result = await session.execute(stmt)
     area = result.scalar_one_or_none()
 
-    area_name = req.name or (area.name if area else "Northridge Campus")
+    area_name = req.name or (area.name if area else "Bhopal Metropolitan Safety Grid")
     if area:
         area.name = area_name
         area.boundary = wkt_poly
@@ -312,6 +336,7 @@ async def search_audit_logs(
     query = query.order_by(desc(AuditLog.created_at)).limit(min(limit, 200)).offset(offset)
     result = await session.execute(query)
     logs = result.scalars().all()
+    is_drill = await get_drill_mode_state(session)
 
     items = []
     for log in logs:
@@ -328,7 +353,7 @@ async def search_audit_logs(
                 target_id=log.target_id,
                 details=log.details or {},
                 ip_address=log.ip_address,
-                synthetic=True,
+                synthetic=is_drill,
             )
         )
 
