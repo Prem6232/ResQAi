@@ -15,7 +15,7 @@ import { DuplicateMergeReviewPage } from "@/pages/operator/DuplicateMergeReviewP
 import { OperatorOverrideControl } from "@/features/operator/components/OperatorOverrideControl";
 import { HumanOversightReviewModal } from "@/features/operator/components/HumanOversightReviewModal";
 
-const { mockApi, mockPushToast, mockGetAuditLogs } = vi.hoisted(() => ({
+const { mockApi, mockPushToast, mockGetAuditLogs, stableMap } = vi.hoisted(() => ({
   mockApi: {
     incidents: vi.fn(),
     responders: vi.fn(),
@@ -37,6 +37,12 @@ const { mockApi, mockPushToast, mockGetAuditLogs } = vi.hoisted(() => ({
   },
   mockPushToast: vi.fn(),
   mockGetAuditLogs: vi.fn(),
+  stableMap: {
+    fitBounds: vi.fn(),
+    setView: vi.fn(),
+    flyTo: vi.fn(),
+    invalidateSize: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/api", () => ({ api: mockApi }));
@@ -75,7 +81,8 @@ vi.mock("react-leaflet", () => ({
   CircleMarker: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
   Polyline: () => null,
   Tooltip: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-  useMap: () => ({ fitBounds: vi.fn(), setView: vi.fn(), flyTo: vi.fn() }),
+  useMap: () => stableMap,
+  useMapEvents: () => null,
 }));
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children?: ReactNode }) => <div data-testid="chart-container">{children}</div>,
