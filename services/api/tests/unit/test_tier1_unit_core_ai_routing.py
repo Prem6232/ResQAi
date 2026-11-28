@@ -472,3 +472,64 @@ def test_vision_detector_live_fcos_onnx_and_fallback(monkeypatch):
     fallback = asyncio.run(vd.predict(file_bytes=pos_bytes))
     assert fallback.modelVersion == "yolov8-fire-smoke-v2-mock"
     assert fallback.adapter == "labelled_demo_adapter"
+
+
+def test_cloud_asyncpg_redis_and_hf_hub_bootstrap(monkeypatch, tmp_path):
+    from app.core.config import normalize_asyncpg_url_and_connect_args, settings
+    from app.core.redis import create_redis_client
+    from app.ai import hf_bootstrap
+
+    # 1. Neon & Supabase URL translation for asyncpg SSL + PgBouncer transaction poolers
+    neon_url = "postgresql://u:p@ep-cool-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+    clean_neon, args_neon = normalize_asyncpg_url_and_connect_args(neon_url)
+    assert "sslmode" not in clean_neon and "channel_binding" not in clean_neon
+    assert args_neon == {"ssl": "require", "statement_cache_size": 0}
+
+    supa_url = "postgresql+asyncpg://postgres:p@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require"
+    clean_supa, args_supa = normalize_asyncpg_url_and_connect_args(supa_url)
+    assert "sslmode" not in clean_supa
+    assert args_supa == {"ssl": "require", "statement_cache_size": 0}
+
+    local_url = "postgresql+asyncpg://sentinel_user:pass@localhost:5432/sentinelgrid_db"
+    clean_local, args_local = normalize_asyncpg_url_and_connect_args(local_url)
+    assert clean_local == local_url and args_local == {}
+
+    # 2. Optional empty REDIS_URL in single-container HF Spaces inline mode
+    monkeypatch.setattr(settings, "REDIS_URL", "")
+    assert create_redis_client() is None
+
+    # 3. HF Hub bootstrap resolves models from AI_MODELS_ROOT even outside repo tree
+    models_root = tmp_path / "hf_models"
+    fake_snapshot_calls = []
+
+    def fake_snapshot_download(repo_id, repo_type, revision, token, local_dir, allow_patterns):
+        fake_snapshot_calls.append((repo_id, local_dir, allow_patterns))
+        base = Path(local_dir)
+        for rel in (
+            "text_classifier/model_fp32.onnx",
+            "voice_transcriber/model.bin",
+            "duplicate_matcher/model_int8.onnx",
+            "vision_detector/model_fp32.onnx",
+        ):
+            target = base / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(b"stub-weights")
+
+    import huggingface_hub
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", fake_snapshot_download)
+    monkeypatch.setattr(hf_bootstrap, "find_repo_root", lambda _anchor: None)
+    monkeypatch.setattr(settings, "AI_ADAPTER_MODE", "live")
+    monkeypatch.setattr(settings, "AI_MODELS_ROOT", str(models_root))
+    monkeypatch.setattr(settings, "HF_MODEL_REPO_ID", "demo/resqai-indian-emergency-models")
+    for attr in (
+        "TEXT_CLASSIFIER_MODEL_DIR",
+        "VOICE_TRANSCRIBER_MODEL_DIR",
+        "DUPLICATE_MATCHER_MODEL_DIR",
+        "VISION_DETECTOR_MODEL_DIR",
+    ):
+        monkeypatch.setattr(settings, attr, "")
+
+    report = hf_bootstrap.ensure_models_downloaded()
+    assert len(fake_snapshot_calls) == 1
+    assert all((models_root / k).is_dir() and report[k] == str(models_root / k) for k in report)
+    assert hf_bootstrap.resolve_model_dir("text_classifier", "", Path("/app/app/ai/adapters/text_classifier.py")) == models_root / "text_classifier"

@@ -1,11 +1,11 @@
 import asyncio
 from logging.config import fileConfig
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.ext.asyncio import async_engine_from_config, create_async_engine
 from sqlalchemy import pool
 from alembic import context
 
 # Import settings and models for autogenerate support
-from app.core.config import settings
+from app.core.config import settings, normalize_asyncpg_url_and_connect_args
 from app.core.database import Base
 import app.models # Ensures all models are registered on Base.metadata
 
@@ -14,8 +14,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Set database URL dynamically from app settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+_clean_db_url, _db_connect_args = normalize_asyncpg_url_and_connect_args(settings.DATABASE_URL)
+
+# Set database URL dynamically from app settings (normalized for asyncpg)
+config.set_main_option("sqlalchemy.url", _clean_db_url)
 
 target_metadata = Base.metadata
 
@@ -44,10 +46,10 @@ def do_run_migrations(connection):
 
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode using AsyncEngine."""
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+    connectable = create_async_engine(
+        _clean_db_url,
         poolclass=pool.NullPool,
+        connect_args=_db_connect_args,
     )
 
     async with connectable.connect() as connection:

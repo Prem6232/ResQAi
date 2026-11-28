@@ -1,7 +1,41 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
-from typing import List, Any, Union
+from typing import List, Any, Union, Dict, Tuple
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 import json
+
+
+def normalize_asyncpg_url_and_connect_args(raw_url: str) -> Tuple[str, Dict[str, Any]]:
+    """
+    Prepare DATABASE_URL for SQLAlchemy asyncpg on both local Docker and cloud
+    providers (Neon / Supabase / Render) by translating psycopg-style URL params
+    (sslmode, channel_binding) into asyncpg connect_args.
+    """
+    parsed = urlparse(raw_url)
+    query_items = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    sslmode = (query_items.pop("sslmode", "") or "").lower()
+    ssl_param = (query_items.pop("ssl", "") or "").lower()
+    query_items.pop("channel_binding", None)
+
+    clean_query = urlencode(query_items)
+    clean_url = urlunparse(parsed._replace(query=clean_query))
+
+    connect_args: Dict[str, Any] = {}
+    hostname = (parsed.hostname or "").lower()
+    is_cloud_pg = any(
+        suffix in hostname for suffix in (".neon.tech", ".supabase.co", ".supabase.com", ".render.com")
+    )
+    if sslmode in {"require", "verify-ca", "verify-full"} or ssl_param in {"require", "true"} or (
+        is_cloud_pg and sslmode != "disable"
+    ):
+        connect_args["ssl"] = "require"
+
+    # Transaction poolers (e.g. Supabase :6543 or Neon -pooler) fail on prepared statements unless cached size is 0
+    if parsed.port == 6543 or "pooler" in hostname:
+        connect_args["statement_cache_size"] = 0
+
+    return clean_url, connect_args
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "SENTINELGRID"
@@ -22,6 +56,7 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY: str = "minioadmin"
     S3_SECRET_KEY: str = "minioadminpassword123"
     S3_BUCKET_NAME: str = "sentinelgrid-evidence"
+    S3_ADDRESSING_STYLE: str = "path"
 
     # Geospatial / Routing
     OSRM_BASE_URL: str = "https://router.project-osrm.org"
@@ -31,7 +66,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 # 24 hours for dev/drill
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    
+
     # CORS
     CORS_ORIGINS: Union[List[str], str] = [
         "https://res-q-ai-coral.vercel.app",
@@ -39,15 +74,20 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://127.0.0.1:5173",
     ]
-    
+    CORS_ORIGIN_REGEX: str = r"^https://[a-zA-Z0-9-]+\.vercel\.app$|^http://(localhost|127\.0\.0\.1)(:\d+)?$"
+
     # Celery & Worker
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
-    
+
     # AI Pipeline & Adapters
     AI_ADAPTER_MODE: str = "live" # "live" or "mock"
     AI_PRELOAD_ON_STARTUP: bool = False
     AI_INLINE_OUTBOX_POLL_SECONDS: float = 0.0
+    AI_MODELS_ROOT: str = ""
+    HF_MODEL_REPO_ID: str = ""
+    HF_MODEL_REVISION: str = "main"
+    HF_TOKEN: str = ""
     TEXT_CLASSIFIER_MODEL_DIR: str = ""
     TEXT_CLASSIFIER_ONNX_FILE: str = "model_fp32.onnx"
     VOICE_TRANSCRIBER_MODEL_DIR: str = ""

@@ -25,4 +25,5 @@ numpy>=1.26.0
 faster-whisper>=1.1.0
 av>=11,<16
 pillow>=10.0.0
+huggingface-hub>=0.25.0
 

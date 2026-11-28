@@ -10,14 +10,34 @@ _redis_client: Optional[aioredis.Redis] = None
 # In-memory fallback if Redis is unavailable: { key: [timestamp1, timestamp2, ...] }
 _in_memory_ratelimit: dict[str, list[float]] = {}
 
+def redis_connect_kwargs(url: str) -> dict:
+    """Return aioredis.from_url kwargs supporting plain redis:// and Upstash rediss:// TLS."""
+    kwargs = {
+        "decode_responses": True,
+        "socket_connect_timeout": 2.0,
+        "socket_keepalive": True,
+        "health_check_interval": 30,
+    }
+    if url.startswith("rediss://"):
+        kwargs["ssl_cert_reqs"] = None
+    return kwargs
+
+
+def create_redis_client() -> Optional[aioredis.Redis]:
+    """Create an async Redis client supporting plain redis:// and Upstash TLS rediss://."""
+    url = (settings.REDIS_URL or "").strip()
+    if not url:
+        return None
+    return aioredis.from_url(url, **redis_connect_kwargs(url))
+
+
 def get_redis_client() -> aioredis.Redis:
     global _redis_client
     if _redis_client is None:
-        _redis_client = aioredis.from_url(
-            settings.REDIS_URL,
-            decode_responses=True,
-            socket_connect_timeout=2.0
-        )
+        client = create_redis_client()
+        if client is None:
+            raise RuntimeError("REDIS_URL is not configured")
+        _redis_client = client
     return _redis_client
 
 async def close_redis() -> None:

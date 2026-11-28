@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from app.ai.adapters.base import BaseAIAdapter
+from app.ai.hf_bootstrap import resolve_model_dir
 from app.ai.schemas import VoiceTranscriptionSchema
 
 logger = logging.getLogger("sentinelgrid.ai.voice_transcriber")
@@ -45,23 +46,23 @@ def _decode_audio_16k_mono(raw_bytes: bytes) -> np.ndarray:
 
 
 def _resolve_whisper_model_dir(configured_dir: str) -> Tuple[Path, str]:
-    if configured_dir:
-        model_dir = Path(configured_dir)
-    else:
-        repo_root = Path(__file__).resolve().parents[5]
-        model_dir = repo_root / "ml" / "voice_transcriber" / "artifacts" / "whisper-small-ct2"
+    model_dir = resolve_model_dir("voice_transcriber", configured_dir, Path(__file__))
 
     if not model_dir.exists() or not (model_dir / "model.bin").is_file():
         raise FileNotFoundError(f"Faster-Whisper CTranslate2 model not found in: {model_dir}")
 
     prompt = DEFAULT_INDIAN_EMERGENCY_PROMPT
-    cfg_path = model_dir.parents[1] / "configs" / "whisper_config.json"
-    if cfg_path.is_file():
-        try:
-            cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-            prompt = str(cfg.get("indian_emergency_initial_prompt") or prompt)
-        except Exception:
-            pass
+    cfg_candidates = [model_dir / "whisper_config.json"]
+    if len(model_dir.parents) >= 2:
+        cfg_candidates.append(model_dir.parents[1] / "configs" / "whisper_config.json")
+    for cfg_path in cfg_candidates:
+        if cfg_path.is_file():
+            try:
+                cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+                prompt = str(cfg.get("indian_emergency_initial_prompt") or prompt)
+                break
+            except Exception:
+                pass
     return model_dir, prompt
 
 

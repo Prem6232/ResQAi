@@ -94,13 +94,11 @@ async def execute_report_ai_pipeline(
             )
             session.add(assessment)
 
-            # Populate empty/placeholder report text with voice transcript or fuse both
+            # Populate empty/placeholder report text with voice transcript without mutating typed citizen text
             if voice_output.transcript:
                 cleaned_raw = (report.raw_text or "").strip()
                 if cleaned_raw.lower() in _PLACEHOLDER_REPORT_TEXTS:
                     report.raw_text = voice_output.transcript
-                elif voice_output.transcript not in cleaned_raw:
-                    report.raw_text = f"{cleaned_raw} | Voice transcript: {voice_output.transcript}"
         except Exception as e:
             logger.error(f"Voice transcription failed for report {report.id}: {e}", exc_info=True)
             has_failure = True

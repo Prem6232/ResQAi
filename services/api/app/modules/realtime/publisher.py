@@ -112,14 +112,16 @@ async def broadcast_outbox_event(event: OutboxEvent) -> int:
             envelope=envelope
         )
 
-        # 2. Multi-process Redis Pub/Sub publish
-        try:
-            r = get_redis_client()
-            envelope_str = json.dumps(envelope)
-            for r_ch in redis_channels:
-                await r.publish(r_ch, envelope_str)
-        except Exception as redis_err:
-            logger.warning(f"Redis pubsub publish warning: {redis_err}")
+        # 2. Multi-process Redis Pub/Sub publish (skipped in single-container inline mode)
+        from app.core.config import settings
+        if (settings.REDIS_URL or "").strip():
+            try:
+                r = get_redis_client()
+                envelope_str = json.dumps(envelope)
+                for r_ch in redis_channels:
+                    await r.publish(r_ch, envelope_str)
+            except Exception as redis_err:
+                logger.warning(f"Redis pubsub publish warning: {redis_err}")
 
         logger.debug(f"Broadcasted outbox event {event.id} ({event.event_type}) to {dispatched_count} local client(s)")
         return dispatched_count

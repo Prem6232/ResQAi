@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from app.ai.adapters.base import BaseAIAdapter
+from app.ai.hf_bootstrap import resolve_model_dir
 from app.ai.schemas import TextAssessmentSchema
 
 logger = logging.getLogger("sentinelgrid.ai.text_classifier")
@@ -61,11 +62,7 @@ def _detect_script_label(text: str) -> str:
 
 
 def _resolve_onnx_paths(configured_dir: str, preferred_filename: str) -> Tuple[Path, Path]:
-    if configured_dir:
-        model_dir = Path(configured_dir)
-    else:
-        repo_root = Path(__file__).resolve().parents[5]
-        model_dir = repo_root / "ml" / "text_classifier" / "artifacts" / "onnx"
+    model_dir = resolve_model_dir("text_classifier", configured_dir, Path(__file__))
 
     if not model_dir.exists():
         raise FileNotFoundError(f"ONNX model directory not found: {model_dir}")

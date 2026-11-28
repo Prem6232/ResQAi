@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from app.ai.adapters.base import BaseAIAdapter
+from app.ai.hf_bootstrap import resolve_model_dir
 from app.ai.schemas import DuplicateCandidateSchema
 from app.common.spatial import extract_lat_lng, haversine_distance_meters
 
@@ -20,11 +21,7 @@ _RUNTIME_CACHE: Dict[Tuple[str, str], "_OnnxDuplicateRuntime"] = {}
 
 
 def _resolve_onnx_paths(configured_dir: str, preferred_filename: str) -> Tuple[Path, Path]:
-    if configured_dir:
-        model_dir = Path(configured_dir)
-    else:
-        repo_root = Path(__file__).resolve().parents[5]
-        model_dir = repo_root / "ml" / "duplicate_matcher" / "artifacts" / "onnx"
+    model_dir = resolve_model_dir("duplicate_matcher", configured_dir, Path(__file__))
 
     if not model_dir.exists():
         raise FileNotFoundError(f"Duplicate matcher ONNX directory not found: {model_dir}")

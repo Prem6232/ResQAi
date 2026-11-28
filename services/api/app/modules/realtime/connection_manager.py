@@ -5,6 +5,7 @@ from typing import Set, Dict, Any, List, Optional
 from datetime import datetime, timezone
 from starlette.websockets import WebSocket, WebSocketState
 from app.models.entities import User
+from app.core.config import settings
 from app.core.redis import get_redis_client
 
 logger = logging.getLogger("sentinelgrid.realtime.manager")
@@ -121,7 +122,9 @@ class ConnectionManager:
         return dispatched_count
 
     def _ensure_redis_listener(self) -> None:
-        """Start Redis Pub/Sub background subscriber task if not already running."""
+        """Start Redis Pub/Sub background subscriber task if Redis is configured."""
+        if not (settings.REDIS_URL or "").strip():
+            return
         if not self._is_listening_redis:
             try:
                 loop = asyncio.get_running_loop()

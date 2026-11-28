@@ -45,16 +45,19 @@ def get_s3_client(for_public_presign: bool = False):
         if for_public_presign and settings.S3_PUBLIC_ENDPOINT_URL
         else settings.S3_ENDPOINT_URL
     )
+    addressing = getattr(settings, "S3_ADDRESSING_STYLE", "path") or "path"
     return boto3.client(
         "s3",
         endpoint_url=endpoint,
         aws_access_key_id=settings.S3_ACCESS_KEY,
         aws_secret_access_key=settings.S3_SECRET_KEY,
-        config=Config(signature_version="s3v4"),
+        config=Config(signature_version="s3v4", s3={"addressing_style": addressing}),
         region_name=settings.S3_REGION or "us-east-1",
     )
 
 def ensure_bucket_exists():
+    if not (settings.S3_ENDPOINT_URL or "").strip():
+        return
     s3 = get_s3_client()
     try:
         s3.head_bucket(Bucket=settings.S3_BUCKET_NAME)
@@ -64,6 +67,8 @@ def ensure_bucket_exists():
             logger.info(f"Created S3 bucket: {settings.S3_BUCKET_NAME}")
         except Exception as e:
             logger.warning(f"Could not create S3 bucket: {e}")
+    except Exception as e:
+        logger.warning(f"S3/R2 bucket check skipped: {e}")
 
 async def create_presigned_upload(
     db: AsyncSession,

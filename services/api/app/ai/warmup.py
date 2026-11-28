@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Dict
 
+from app.ai.hf_bootstrap import ensure_models_downloaded
 from app.core.config import settings
 
 logger = logging.getLogger("sentinelgrid.ai.warmup")
@@ -10,12 +11,17 @@ logger = logging.getLogger("sentinelgrid.ai.warmup")
 
 def preload_live_models() -> Dict[str, str]:
     """
-    Eagerly load local ONNX / CTranslate2 runtimes so the first citizen SOS
-    avoids cold-start model load latency. Safe if any artifact folder is absent.
+    Download missing live models if HF_MODEL_REPO_ID is configured and eagerly load
+    ONNX / CTranslate2 runtimes so the first citizen SOS avoids cold-start latency.
     """
     status: Dict[str, str] = {}
     if settings.AI_ADAPTER_MODE == "mock":
         return {"mode": "mock"}
+
+    try:
+        ensure_models_downloaded()
+    except Exception as exc:
+        logger.warning("HF Hub bootstrap failed cleanly: %s", exc)
 
     try:
         from app.ai.adapters.text_classifier import get_onnx_runtime as get_text_rt
