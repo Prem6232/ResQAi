@@ -16,8 +16,8 @@ if config.config_file_name is not None:
 
 _clean_db_url, _db_connect_args = normalize_asyncpg_url_and_connect_args(settings.DATABASE_URL)
 
-# Set database URL dynamically from app settings (normalized for asyncpg)
-config.set_main_option("sqlalchemy.url", _clean_db_url)
+# Set database URL dynamically from app settings (normalized for asyncpg, escaping % for ConfigParser)
+config.set_main_option("sqlalchemy.url", _clean_db_url.replace("%", "%%"))
 
 target_metadata = Base.metadata
 
