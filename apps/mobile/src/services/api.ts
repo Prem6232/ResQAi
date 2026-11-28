@@ -367,6 +367,64 @@ export const mobileApi = {
     }
   },
 
+  async previewTextTriage(text: string): Promise<{
+    suggestedCategory: IncidentCategory;
+    suggestedUrgency: "low" | "medium" | "high" | "critical";
+    modelScore: number;
+    reviewRequired: boolean;
+    explanation: string;
+    modelVersion: string;
+  }> {
+    return this.request("/citizen/triage-preview", {
+      method: "POST",
+      body: JSON.stringify({ text: text.trim() }),
+    });
+  },
+
+  async uploadMediaAsset(file: {
+    uri: string;
+    name: string;
+    mimeType: string;
+    sizeBytes?: number;
+  }): Promise<string> {
+    const fileRes = await fetch(file.uri);
+    const blob = await fileRes.blob();
+    const sizeBytes = file.sizeBytes || blob.size || 1024;
+    const presign = await this.request<{
+      mediaAssetId?: string;
+      media_asset_id?: string;
+      uploadUrl?: string;
+      upload_url?: string;
+    }>("/media/upload-url", {
+      method: "POST",
+      body: JSON.stringify({
+        fileName: file.name,
+        file_name: file.name,
+        mimeType: file.mimeType,
+        mime_type: file.mimeType,
+        fileSizeBytes: sizeBytes,
+        file_size_bytes: sizeBytes,
+      }),
+    });
+    const assetId = presign.mediaAssetId || presign.media_asset_id || "";
+    const uploadUrl = presign.uploadUrl || presign.upload_url || "";
+    if (!assetId) {
+      throw new Error("Media presign failed to return mediaAssetId");
+    }
+    if (uploadUrl) {
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.mimeType },
+        body: blob,
+      });
+      if (!putRes.ok) {
+        throw new Error(`Media upload failed with HTTP ${putRes.status}`);
+      }
+    }
+    await this.request(`/media/${assetId}/confirm`, { method: "POST" });
+    return assetId;
+  },
+
   async createReport(input: {
     category: IncidentCategory;
     title: string;
@@ -374,13 +432,25 @@ export const mobileApi = {
     locationLabel: string;
     lat?: number;
     lng?: number;
+    channel?: "sos" | "form" | "voice";
+    mediaAssetIds?: string[];
+    voiceTranscript?: string;
   }): Promise<CitizenReport> {
     const lat = input.lat ?? 23.2599;
     const lng = input.lng ?? 77.4126;
+    const normalizedCategory =
+      input.category === "personal_sos" ? "personal_safety" : input.category;
+    const derivedChannel =
+      input.channel ||
+      (input.category === "personal_sos"
+        ? "sos"
+        : input.voiceTranscript
+        ? "voice"
+        : "form");
 
     const payload = {
-      category: input.category,
-      text: input.text || input.title,
+      category: normalizedCategory,
+      text: input.text || input.voiceTranscript || input.title,
       location: {
         lat,
         lng,
@@ -388,9 +458,10 @@ export const mobileApi = {
         source: "gps",
       },
       location_label: input.locationLabel || "Bhopal City Center",
-      channel: input.category === "personal_sos" ? "sos" : "form",
+      channel: derivedChannel,
       urgency: input.category === "personal_sos" ? "critical" : "high",
       idempotency_key: `rep_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      media_asset_ids: input.mediaAssetIds ?? [],
     };
 
     const res = await this.request<any>("/citizen/reports", {
@@ -401,13 +472,14 @@ export const mobileApi = {
     return {
       id: res.id,
       title: input.title,
-      category: input.category,
+      category: normalizedCategory,
       timestamp: "Just now",
       status: "in_review",
       statusLabel: res.deliveryState === "received_by_server" ? "Received" : "Submitted",
       currentStep: 2,
-      stepDetails: "Persisted in PostgreSQL PostGIS, queued for operator triage.",
+      stepDetails: "Persisted in PostgreSQL PostGIS, queued for AI triage & operator review.",
       locationLabel: res.locationLabel || input.locationLabel || "Bhopal City Center",
+      voiceTranscript: input.voiceTranscript,
       location: { lat, lng },
     };
   },

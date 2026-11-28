@@ -1,0 +1,10 @@
+{
+  "model_id": "Systran/faster-whisper-small",
+  "local_dir": "artifacts/whisper-small-ct2",
+  "compute_type_cpu": "int8",
+  "compute_type_cuda": "float16",
+  "beam_size": 5,
+  "vad_filter": true,
+  "supported_languages": ["en", "hi"],
+  "indian_emergency_initial_prompt": "ResQAI Bhopal emergency SOS report. Locations: MP Nagar, Habibganj, Arera Colony, New Market, Kolar Road, Bairagarh, Misrod, Rani Kamalapati, Chuna Bhatti, Shahpura, MANIT. Words: aag, dhuwa, transformer, cylinder, scooty, auto, takkar, behosh, khoon, ambulance, paani, underpass, bijli, manhole, SOS."
+}

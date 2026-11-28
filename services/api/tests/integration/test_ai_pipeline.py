@@ -276,7 +276,7 @@ async def test_operator_ai_override_and_audit(
     Verifies incident update and immutable OVERRIDE_AI audit record.
     """
     inc = Incident(
-        public_code=f"AI-{uuid.uuid4().hex[:3].upper()}",
+        public_code=f"AI-{uuid.uuid4().hex[:8].upper()}",
         title="AI Override Test Incident",
         category="hazard",
         urgency="medium",
@@ -356,3 +356,297 @@ async def test_incident_detail_contains_ai_evidence(
     assert "text" in evidence
     assert evidence["text"]["suggestedCategory"] == "fire_smoke"
     assert "explanation" in evidence["text"]
+
+
+@pytest.mark.asyncio
+async def test_live_multimodal_ai_pipeline_end_to_end(
+    client: httpx.AsyncClient,
+    citizen_auth_headers: dict,
+    operator_auth_headers: dict,
+    db_session: AsyncSession,
+    monkeypatch,
+):
+    """
+    Full live-mode E2E check across MinIO S3 + PostgreSQL/PostGIS + all 4 real ML models:
+    Faster-Whisper CT2, MuRIL ONNX, FCOS-ResNet50-FPN ONNX, and Multilingual-E5 INT8 ONNX.
+    """
+    from pathlib import Path
+    from app.core.config import settings
+    from app.ai.warmup import preload_live_models
+    from app.modules.media.service import ensure_bucket_exists, get_s3_client
+
+    repo_root = Path(__file__).resolve().parents[4]
+    memo_wav = repo_root / "ml" / "voice_transcriber" / "datasets" / "raw" / "emergency_memos" / "memo_fire_01.wav"
+    fire_jpg = repo_root / "ml" / "vision_detector" / "datasets" / "raw" / "images" / "test_dfire_ood" / "test-00002-of-00003_00056_WEB10428.jpg"
+    assert memo_wav.is_file() and fire_jpg.is_file()
+
+    monkeypatch.setattr(settings, "AI_ADAPTER_MODE", "live")
+    warmup_status = preload_live_models()
+    assert warmup_status["text_classifier"].startswith("muril-indian-emergency-v1-onnx")
+    assert warmup_status["voice_transcriber"].startswith("faster-whisper-small-ct2")
+    assert warmup_status["duplicate_matcher"].startswith("e5-small-indian-duplicate-v1-onnx")
+    assert warmup_status["vision_detector"].startswith("fcos-r50-fpn-indian-fire-smoke-v1-onnx")
+
+    # Seed a nearby existing fire incident (~200m away at Chuna Bhatti: outside 150m auto-cluster, inside 300m E5 duplicate match)
+    nearby_inc = Incident(
+        public_code=f"LIVE-{uuid.uuid4().hex[:8].upper()}",
+        title="E-rickshaw battery explosion fire and dense smoke reported at Chuna Bhatti crossing",
+        category="fire_smoke",
+        urgency="critical",
+        status="reported",
+        location="SRID=4326;POINT(77.4190 23.2158)",
+        location_label="Chuna Bhatti Crossing",
+    )
+    db_session.add(nearby_inc)
+    await db_session.commit()
+
+    ensure_bucket_exists()
+    s3 = get_s3_client(for_public_presign=False)
+    audio_key = f"tests/live/{uuid.uuid4().hex}_memo.wav"
+    image_key = f"tests/live/{uuid.uuid4().hex}_fire.jpg"
+    s3.put_object(Bucket=settings.S3_BUCKET_NAME, Key=audio_key, Body=memo_wav.read_bytes(), ContentType="audio/wav")
+    s3.put_object(Bucket=settings.S3_BUCKET_NAME, Key=image_key, Body=fire_jpg.read_bytes(), ContentType="image/jpeg")
+
+    # Submit citizen report with Hinglish description (voice+vision media uploaded to MinIO)
+    rep_resp = await client.post(
+        "/api/v1/citizen/reports",
+        json={
+            "category": "fire_smoke",
+            "text": "Chuna Bhatti square pe e-rickshaw mein battery blast hoke aag aur dhuwa fail gaya",
+            "location": {"lat": 23.2140, "lng": 77.4190},
+            "locationLabel": "Chuna Bhatti Square",
+            "idempotencyKey": f"live_e2e_{uuid.uuid4().hex}",
+        },
+        headers=citizen_auth_headers,
+    )
+    assert rep_resp.status_code == status.HTTP_201_CREATED
+    rep_id = uuid.UUID(rep_resp.json()["id"])
+    inc_id = rep_resp.json()["incidentId"]
+
+    db_session.add_all([
+        MediaAsset(report_id=rep_id, file_type="audio", file_name="memo.wav", s3_key=audio_key, mime_type="audio/wav"),
+        MediaAsset(report_id=rep_id, file_type="image", file_name="fire.jpg", s3_key=image_key, mime_type="image/jpeg"),
+    ])
+    await db_session.commit()
+
+    evidence = await execute_report_ai_pipeline(db_session, rep_id)
+    assert evidence is not None
+    assert evidence.voice is not None and evidence.voice.modelVersion.startswith("faster-whisper-small-ct2")
+    assert evidence.text is not None and evidence.text.modelVersion.startswith("muril-indian-emergency-v1-onnx")
+    assert evidence.text.suggestedCategory == "fire_smoke"
+    assert evidence.vision is not None and evidence.vision.adapter == "live_model"
+    assert evidence.vision.finding == "possible_fire_smoke_evidence"
+    assert evidence.corroboratingVisual is True
+    assert any(d.incidentId == nearby_inc.public_code and d.recommendation == "likely_related" for d in evidence.duplicates)
+
+    # Confirm persisted AIAssessment rows record real live model versions (no heuristic-v1/mock)
+    ass_rows = (await db_session.execute(select(AIAssessment).where(AIAssessment.report_id == rep_id))).scalars().all()
+    versions_by_type = {a.pipeline_type: a.model_version for a in ass_rows}
+    assert versions_by_type["voice_transcription"].startswith("faster-whisper-small-ct2")
+    assert versions_by_type["text_classifier"].startswith("muril-indian-emergency-v1-onnx")
+    assert versions_by_type["vision_fire_smoke"].startswith("fcos-r50-fpn-indian-fire-smoke-v1-onnx")
+    assert versions_by_type["duplicate_matching"].startswith("e5-small-indian-duplicate-v1-onnx")
+
+    # Confirm operator detail workspace surfaces live vision & text evidence plus /health ai_mode=live
+    detail = await client.get(f"/api/v1/operator/incidents/{inc_id}", headers=operator_auth_headers)
+    assert detail.status_code == status.HTTP_200_OK
+    detail_ev = detail.json()["evidence"]
+    assert detail_ev["text"]["modelVersion"].startswith("muril-indian-emergency-v1-onnx")
+    assert detail_ev["vision"]["adapter"] == "live_model"
+    assert detail_ev["voice"]["modelVersion"].startswith("faster-whisper-small-ct2")
+
+    health = await client.get("/health")
+    assert health.status_code == status.HTTP_200_OK
+    assert health.json()["ai_mode"] == "live"
+
+
+@pytest.mark.asyncio
+async def test_live_presign_upload_voice_placeholder_fusion_and_ws_fanout(
+    client: httpx.AsyncClient,
+    citizen_auth_headers: dict,
+    operator_auth_headers: dict,
+    db_session: AsyncSession,
+    monkeypatch,
+):
+    """
+    Verifies real-world citizen flow end-to-end:
+    1) POST /media/upload-url -> S3/MinIO object upload -> POST /media/{id}/confirm
+    2) POST /citizen/reports with mobile category 'personal_sos' and placeholder UI text
+    3) Outbox relay drains 'report.created' + follow-up 'ai.assessment.ready'
+    4) Faster-Whisper replaces placeholder text BEFORE live MuRIL classification
+    5) WebSocket envelope carries incidentId and citizen + operator target channels
+    6) Operator detail exposes evidence['voice'] and corroboratingVisual=False (audio only)
+    """
+    from pathlib import Path
+    from app.core.config import settings
+    from app.modules.media.service import ensure_bucket_exists, get_s3_client
+    from app.modules.realtime.publisher import format_outbox_envelope, get_target_channels_for_event
+
+    repo_root = Path(__file__).resolve().parents[4]
+    memo_wav = repo_root / "ml" / "voice_transcriber" / "datasets" / "raw" / "emergency_memos" / "memo_fire_01.wav"
+    assert memo_wav.is_file()
+    monkeypatch.setattr(settings, "AI_ADAPTER_MODE", "live")
+    ensure_bucket_exists()
+
+    # 1. Presign upload URL for audio memo
+    presign_resp = await client.post(
+        "/api/v1/media/upload-url",
+        json={
+            "fileName": "voice_memo.wav",
+            "mimeType": "audio/wav",
+            "fileSizeBytes": memo_wav.stat().st_size,
+        },
+        headers=citizen_auth_headers,
+    )
+    assert presign_resp.status_code == status.HTTP_200_OK
+    asset_id = presign_resp.json()["mediaAssetId"]
+
+    asset_row = await db_session.get(MediaAsset, uuid.UUID(asset_id))
+    assert asset_row is not None
+    get_s3_client(for_public_presign=False).put_object(
+        Bucket=settings.S3_BUCKET_NAME,
+        Key=asset_row.s3_key,
+        Body=memo_wav.read_bytes(),
+        ContentType="audio/wav",
+    )
+
+    confirm_resp = await client.post(f"/api/v1/media/{asset_id}/confirm", headers=citizen_auth_headers)
+    assert confirm_resp.status_code == status.HTTP_200_OK
+
+    # 2. Submit report using mobile alias 'personal_sos' and placeholder UI text
+    rep_resp = await client.post(
+        "/api/v1/citizen/reports",
+        json={
+            "category": "personal_sos",
+            "text": "Incident reported from citizen portal",
+            "channel": "voice",
+            "location": {"lat": 23.2310, "lng": 77.4340},
+            "locationLabel": "MP Nagar Zone 2",
+            "mediaAssetIds": [asset_id],
+            "idempotencyKey": f"voice_relay_{uuid.uuid4().hex}",
+        },
+        headers=citizen_auth_headers,
+    )
+    assert rep_resp.status_code == status.HTTP_201_CREATED
+    rep_json = rep_resp.json()
+    assert rep_json["category"] == "personal_safety"
+    rep_id = uuid.UUID(rep_json["id"])
+    reporter_id = rep_json["reporterId"]
+    inc_id = rep_json["incidentId"]
+
+    # 3. Single outbox relay run drains report.created AND immediately relays ai.assessment.ready
+    processed = await async_relay_outbox_events(batch_size=50)
+    assert processed >= 2
+
+    db_session.expire_all()
+    rep_db = await db_session.get(Report, rep_id)
+    assert rep_db is not None
+    assert rep_db.processing_state == "ai_complete"
+    assert rep_db.raw_text != "Incident reported from citizen portal"
+    assert len(rep_db.raw_text.strip()) > 10
+
+    ai_ev = (
+        await db_session.execute(
+            select(OutboxEvent).where(
+                OutboxEvent.aggregate_id == rep_id,
+                OutboxEvent.event_type == "ai.assessment.ready",
+            )
+        )
+    ).scalars().first()
+    assert ai_ev is not None
+    assert ai_ev.status == "published"
+    assert ai_ev.payload.get("incident_id") == inc_id
+    assert ai_ev.payload.get("reporter_id") == reporter_id
+
+    envelope = format_outbox_envelope(ai_ev)
+    assert envelope["incidentId"] == inc_id
+    internal_channels, _ = get_target_channels_for_event(ai_ev)
+    assert "operator:all" in internal_channels
+    assert f"citizen:{reporter_id}" in internal_channels
+
+    # 4. Operator incident detail exposes transcribed voice card and audio-only corroboratingVisual=False
+    op_detail = await client.get(f"/api/v1/operator/incidents/{inc_id}", headers=operator_auth_headers)
+    assert op_detail.status_code == status.HTTP_200_OK
+    op_ev = op_detail.json()["evidence"]
+    assert op_ev["voice"]["modelVersion"].startswith("faster-whisper-small-ct2")
+    assert op_ev["voice"]["transcript"] == rep_db.raw_text
+    assert op_ev["text"]["modelVersion"].startswith("muril-indian-emergency-v1-onnx")
+    assert op_ev["corroboratingVisual"] is False
+
+
+@pytest.mark.asyncio
+async def test_live_triage_preview_and_non_fire_corroborating_visual_false(
+    client: httpx.AsyncClient,
+    citizen_auth_headers: dict,
+    operator_auth_headers: dict,
+    db_session: AsyncSession,
+    monkeypatch,
+):
+    """
+    Verifies /citizen/triage-preview with live MuRIL on Hinglish input AND ensures
+    attaching a non-fire Indian traffic image produces corroboratingVisual=False.
+    """
+    from pathlib import Path
+    from app.core.config import settings
+    from app.modules.media.service import ensure_bucket_exists, get_s3_client
+
+    monkeypatch.setattr(settings, "AI_ADAPTER_MODE", "live")
+    repo_root = Path(__file__).resolve().parents[4]
+    non_fire_img = (
+        repo_root / "ml" / "vision_detector" / "datasets" / "raw" / "images" / "test_indian_neg" / "img_0906.jpg"
+    )
+    assert non_fire_img.is_file()
+
+    # 1. Live triage preview with Hinglish waterlogging report
+    preview_resp = await client.post(
+        "/api/v1/citizen/triage-preview",
+        json={"text": "Habibganj underpass me bahut paani bhar gaya hai scooty band ho gayi"},
+        headers=citizen_auth_headers,
+    )
+    assert preview_resp.status_code == status.HTTP_200_OK
+    preview_json = preview_resp.json()
+    assert preview_json["suggestedCategory"] == "water_flood"
+    assert preview_json["modelVersion"].startswith("muril-indian-emergency-v1-onnx")
+
+    # 2. Report with non-fire road image -> FCOS returns no_supported_visual_evidence & corroboratingVisual=False
+    ensure_bucket_exists()
+    img_key = f"tests/live/{uuid.uuid4().hex}_traffic.jpg"
+    get_s3_client(for_public_presign=False).put_object(
+        Bucket=settings.S3_BUCKET_NAME,
+        Key=img_key,
+        Body=non_fire_img.read_bytes(),
+        ContentType="image/jpeg",
+    )
+
+    rep_resp = await client.post(
+        "/api/v1/citizen/reports",
+        json={
+            "category": "road_accident",
+            "text": "Kolar road par do scooty takkar, traffic jam lag gaya",
+            "location": {"lat": 23.2040, "lng": 77.4210},
+            "locationLabel": "Kolar Road",
+            "idempotencyKey": f"neg_vis_{uuid.uuid4().hex}",
+        },
+        headers=citizen_auth_headers,
+    )
+    assert rep_resp.status_code == status.HTTP_201_CREATED
+    rep_id = uuid.UUID(rep_resp.json()["id"])
+    inc_id = rep_resp.json()["incidentId"]
+
+    db_session.add(
+        MediaAsset(report_id=rep_id, file_type="image", file_name=non_fire_img.name, s3_key=img_key, mime_type="image/jpeg")
+    )
+    await db_session.commit()
+
+    evidence = await execute_report_ai_pipeline(db_session, rep_id)
+    assert evidence is not None
+    assert evidence.vision is not None
+    assert evidence.vision.adapter == "live_model"
+    assert evidence.vision.finding == "no_supported_visual_evidence"
+    assert evidence.corroboratingVisual is False
+
+    op_detail = await client.get(f"/api/v1/operator/incidents/{inc_id}", headers=operator_auth_headers)
+    assert op_detail.status_code == status.HTTP_200_OK
+    op_ev = op_detail.json()["evidence"]
+    assert op_ev["vision"]["finding"] == "no_supported_visual_evidence"
+    assert op_ev["corroboratingVisual"] is False

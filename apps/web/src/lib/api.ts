@@ -400,6 +400,16 @@ export const api = {
     return mapReport(res.data as RawRecord);
   },
 
+  async previewTextTriage(text: string): Promise<EvidenceAssessment["text"] | null> {
+    if (!text.trim()) return null;
+    try {
+      const res = await http.post("/citizen/triage-preview", { text: text.trim() });
+      return res.data as EvidenceAssessment["text"];
+    } catch {
+      return null;
+    }
+  },
+
   async requestMediaUpload(file: File): Promise<string | null> {
     try {
       const res = await http.post("/media/upload-url", {
@@ -413,15 +423,18 @@ export const api = {
       const data = res.data as RawRecord;
       const assetId = String(data.mediaAssetId || data.media_asset_id || "");
       const uploadUrl = String(data.uploadUrl || data.upload_url || "");
-      if (uploadUrl && !uploadUrl.includes("localhost:9000")) {
-        await fetch(uploadUrl, {
+      if (uploadUrl) {
+        const putRes = await fetch(uploadUrl, {
           method: "PUT",
           headers: { "Content-Type": file.type || "application/octet-stream" },
           body: file,
-        }).catch(() => undefined);
+        });
+        if (!putRes.ok) {
+          return null;
+        }
       }
       if (assetId) {
-        await http.post(`/media/${assetId}/confirm`).catch(() => undefined);
+        await http.post(`/media/${assetId}/confirm`);
         return assetId;
       }
       return null;

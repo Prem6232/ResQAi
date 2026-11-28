@@ -67,11 +67,23 @@ services:
       DATABASE_URL: postgresql+asyncpg://sentinel_user:sentinel_password_dev_123@postgres:5432/sentinelgrid_db
       REDIS_URL: redis://redis:6379/0
       S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://localhost:9000}
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: minioadminpassword123
       S3_BUCKET_NAME: sentinelgrid-evidence
       JWT_SECRET: dev_jwt_secret_sentinelgrid_supersecure_32chars_min
       ENVIRONMENT: development
+      AI_ADAPTER_MODE: live
+      AI_PRELOAD_ON_STARTUP: "true"
+      TEXT_CLASSIFIER_MODEL_DIR: /models/text_classifier
+      VOICE_TRANSCRIBER_MODEL_DIR: /models/voice_transcriber
+      DUPLICATE_MATCHER_MODEL_DIR: /models/duplicate_matcher
+      VISION_DETECTOR_MODEL_DIR: /models/vision_detector
+    volumes:
+      - ./ml/text_classifier/artifacts/onnx:/models/text_classifier:ro
+      - ./ml/voice_transcriber/artifacts/whisper-small-ct2:/models/voice_transcriber:ro
+      - ./ml/duplicate_matcher/artifacts/onnx:/models/duplicate_matcher:ro
+      - ./ml/vision_detector/artifacts/onnx:/models/vision_detector:ro
     ports:
       - "8000:8000"
     depends_on:
@@ -94,11 +106,23 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://localhost:9000}
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: minioadminpassword123
       S3_BUCKET_NAME: sentinelgrid-evidence
       JWT_SECRET: dev_jwt_secret_sentinelgrid_supersecure_32chars_min
       ENVIRONMENT: development
+      AI_ADAPTER_MODE: live
+      AI_PRELOAD_ON_STARTUP: "true"
+      TEXT_CLASSIFIER_MODEL_DIR: /models/text_classifier
+      VOICE_TRANSCRIBER_MODEL_DIR: /models/voice_transcriber
+      DUPLICATE_MATCHER_MODEL_DIR: /models/duplicate_matcher
+      VISION_DETECTOR_MODEL_DIR: /models/vision_detector
+    volumes:
+      - ./ml/text_classifier/artifacts/onnx:/models/text_classifier:ro
+      - ./ml/voice_transcriber/artifacts/whisper-small-ct2:/models/voice_transcriber:ro
+      - ./ml/duplicate_matcher/artifacts/onnx:/models/duplicate_matcher:ro
+      - ./ml/vision_detector/artifacts/onnx:/models/vision_detector:ro
     depends_on:
       postgres:
         condition: service_healthy

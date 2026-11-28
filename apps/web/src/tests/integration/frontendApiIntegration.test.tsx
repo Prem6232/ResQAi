@@ -596,4 +596,123 @@ describe("Tier 2 Integration Testing — Frontend UI + Real API Client + Axios I
     await waitFor(() => expect(screen.getByTestId("ws-connected").textContent).toBe("yes"));
     expect(sockets[1].url).toContain("tok-v2");
   });
+
+  it("INT-8: requestMediaUpload executes real PUT to localhost:9000 MinIO URL and IncidentDetailSheet renders voice + boundingBoxes", async () => {
+    const { IncidentDetailSheet } = await import("@/features/operator/components/IncidentDetailSheet");
+    const putCalls: Array<{ url: string; method?: string }> = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      putCalls.push({ url: String(input), method: init?.method });
+      return { ok: true, status: 200 } as Response;
+    }) as unknown) as typeof fetch;
+
+    http.defaults.adapter = (async (config: InternalAxiosRequestConfig) => {
+      const path = (config.url || "").replace(/^https?:\/\/[^/]+/, "").replace(/^\/api\/v1/, "");
+      if (config.method === "post" && path === "/media/upload-url") {
+        return {
+          data: {
+            mediaAssetId: "media-loc-1",
+            uploadUrl: "http://localhost:9000/sentinelgrid-evidence/evidence/test.jpg?X-Amz-Signature=demo",
+          },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        };
+      }
+      if (config.method === "post" && path === "/media/media-loc-1/confirm") {
+        return { data: { id: "media-loc-1" }, status: 200, statusText: "OK", headers: {}, config };
+      }
+      return { data: {}, status: 200, statusText: "OK", headers: {}, config };
+    }) as AxiosAdapter;
+
+    try {
+      const sampleFile = new File(["img-bytes"], "transformer.jpg", { type: "image/jpeg" });
+      const assetId = await api.requestMediaUpload(sampleFile);
+      expect(assetId).toBe("media-loc-1");
+      expect(putCalls).toHaveLength(1);
+      expect(putCalls[0].url).toContain("localhost:9000");
+      expect(putCalls[0].method).toBe("PUT");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    render(
+      <IncidentDetailSheet
+        incident={{
+          id: "inc-ev-1",
+          publicCode: "INC-901",
+          category: "fire_smoke",
+          urgency: "critical",
+          status: "reported",
+          title: "MP Nagar Fire",
+          location: { lat: 23.231, lng: 77.434, source: "gps" },
+          locationLabel: "MP Nagar Zone 2",
+          reportIds: ["rep-1"],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          evidenceLabel: "unverified",
+          hidePreciseLocationFromPublic: false,
+        }}
+        detail={{
+          incident: {
+            id: "inc-ev-1",
+            publicCode: "INC-901",
+            category: "fire_smoke",
+            urgency: "critical",
+            status: "reported",
+            title: "MP Nagar Fire",
+            location: { lat: 23.231, lng: 77.434, source: "gps" },
+            locationLabel: "MP Nagar Zone 2",
+            reportIds: ["rep-1"],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            evidenceLabel: "unverified",
+            hidePreciseLocationFromPublic: false,
+          },
+          linkedReports: [],
+          assignments: [],
+          timeline: [],
+          evidence: {
+            linkedReports: 1,
+            temporalConsistency: "aligned",
+            locationConsistency: "aligned",
+            reusedMediaFlag: false,
+            corroboratingVisual: true,
+            missing: [],
+            conflicting: [],
+            voice: {
+              transcript: "MP Nagar square pe transformer me aag lagi hai",
+              detectedLanguage: "hi-IN (Hindi / Hinglish, 96%)",
+              confidence: 0.94,
+              modelVersion: "faster-whisper-small-ct2-int8",
+            },
+            vision: {
+              pipeline: "fire_smoke",
+              finding: "possible_fire_smoke_evidence",
+              modelScore: 0.89,
+              modelVersion: "fcos-r50-fpn-indian-fire-smoke-v1-onnx",
+              adapter: "live_model",
+              explanation: "Detected active_flame across 1 region(s).",
+              boundingBoxes: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.4, label: "active_flame" }],
+            },
+            text: {
+              suggestedCategory: "fire_smoke",
+              suggestedUrgency: "critical",
+              modelScore: 0.91,
+              scoreMeaning: "Relative classifier score, not probability the incident is real.",
+              reviewRequired: true,
+              explanation: "Live MuRIL detection.",
+              modelVersion: "muril-indian-emergency-v1-onnx",
+            },
+            duplicates: [],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText(/MP Nagar square pe transformer me aag lagi hai/i)).toBeTruthy();
+    expect(screen.getByText(/Detections \(1\): active flame/i)).toBeTruthy();
+    expect(screen.getByText(/Review Required/i)).toBeTruthy();
+  });
 });

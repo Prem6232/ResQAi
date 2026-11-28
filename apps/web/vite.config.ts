@@ -43,19 +43,13 @@ export default defineConfig({
     watch: process.env.DISABLE_HMR === "true" ? null : {},
     proxy: {
       "/api/v1": {
-        target: "https://resqai-6s8c.onrender.com",
+        target: process.env.VITE_PROXY_TARGET || "http://127.0.0.1:8000",
         changeOrigin: true,
-        headers: {
-          Origin: "https://res-q-ai-coral.vercel.app",
-        },
       },
       "/ws": {
-        target: "wss://resqai-6s8c.onrender.com",
+        target: (process.env.VITE_PROXY_TARGET || "http://127.0.0.1:8000").replace(/^http/, "ws"),
         ws: true,
         changeOrigin: true,
-        headers: {
-          Origin: "https://res-q-ai-coral.vercel.app",
-        },
       },
     },
   },

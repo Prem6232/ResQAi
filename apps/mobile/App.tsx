@@ -257,6 +257,8 @@ export default function App() {
         title: newRep.title,
         text: newRep.text,
         locationLabel: newRep.locationLabel,
+        voiceTranscript: newRep.voiceTranscript,
+        channel: newRep.voiceTranscript ? "voice" : undefined,
         lat: deviceLocation.lat,
         lng: deviceLocation.lng,
       });

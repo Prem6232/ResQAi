@@ -21,7 +21,8 @@ export function ReportReceiptPage() {
     if (
       latest.type === "report.cancelled" ||
       latest.type === "incident.updated" ||
-      latest.type === "report.received"
+      latest.type === "report.received" ||
+      latest.type === "ai.assessment.ready"
     ) {
       void queryClient.invalidateQueries({ queryKey: ["citizen-report", id] });
       void queryClient.invalidateQueries({ queryKey: ["my-reports"] });

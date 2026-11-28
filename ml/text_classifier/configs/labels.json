@@ -1,0 +1,20 @@
+{
+  "categories": [
+    "fire_smoke",
+    "road_accident",
+    "medical",
+    "personal_safety",
+    "water_flood",
+    "hazard",
+    "other"
+  ],
+  "urgencies": [
+    "critical",
+    "high",
+    "medium",
+    "low"
+  ],
+  "review_confidence_threshold": 0.72,
+  "max_length": 128,
+  "base_model": "google/muril-base-cased"
+}

@@ -5,11 +5,14 @@ from typing import List
 from app.core.database import get_db
 from app.modules.auth.dependencies import get_current_user
 from app.models.entities import User
+from app.ai.pipeline import text_classifier
+from app.ai.schemas import TextAssessmentSchema
 from app.modules.citizen.schemas import (
     SOSRequest,
     ReportCreateRequest,
     ReportResponse,
     CancelReportRequest,
+    TriagePreviewRequest,
     PrivacyDeletionRequest,
     PrivacyDeletionResponse,
 )
@@ -108,6 +111,20 @@ async def cancel_report(
     Cancel a report if the linked incident has not yet been dispatched or confirmed.
     """
     return await cancel_citizen_report(db, current_user, id, payload.reason)
+
+@router.post(
+    "/triage-preview",
+    response_model=TextAssessmentSchema,
+    status_code=status.HTTP_200_OK,
+    summary="Preview live AI category/urgency suggestion for citizen report text",
+)
+async def preview_report_triage(
+    payload: TriagePreviewRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Run live text classifier preview without writing database state."""
+    return await text_classifier.predict(payload.text)
+
 
 @router.post(
     "/privacy/deletion-request",

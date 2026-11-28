@@ -11,7 +11,7 @@ import {
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, SHADOWS } from "../../theme";
 import { IncidentCategory } from "../../types";
-import { runTextClassifier, runVoiceTranscription } from "../../services/mlBridge";
+import { runTextClassifier } from "../../services/mlBridge";
 
 interface ReportWizardModalProps {
   visible: boolean;
@@ -35,17 +35,15 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<IncidentCategory>(initialCategory);
   const [description, setDescription] = useState("");
   const [locationLabel, setLocationLabel] = useState("Market Road; near old bus stand");
-  const [recording, setRecording] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
-  const [aiTag, setAiTag] = useState<{ label: string; confidence: number } | null>(null);
+  const [analyzingAi, setAnalyzingAi] = useState(false);
+  const [aiTag, setAiTag] = useState<{ label: string; confidence: number; explanation?: string } | null>(null);
 
   useEffect(() => {
     if (visible) {
       setSelectedCategory(initialCategory);
       setDescription("");
-      setVoiceTranscript(null);
       setAiTag(null);
-      setRecording(false);
+      setAnalyzingAi(false);
     }
   }, [visible, initialCategory]);
 
@@ -58,24 +56,20 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
     { id: "hazard", label: "Hazard" },
   ];
 
-  const handleSimulateVoiceRecord = async () => {
-    if (!recording) {
-      setRecording(true);
-      // Simulate 2 sec voice capture
-      setTimeout(async () => {
-        setRecording(false);
-        const result = await runVoiceTranscription("dummy.wav");
-        setVoiceTranscript(result.transcript);
-        setDescription((prev) => (prev ? `${prev} · ${result.transcript}` : result.transcript));
-        
-        // Trigger AI text categorization
-        const aiRes = await runTextClassifier(result.transcript);
-        setSelectedCategory(aiRes.suggestedCategory);
-        setAiTag({
-          label: `${aiRes.suggestedCategory.replace("_", " ").toUpperCase()}`,
-          confidence: Math.round(aiRes.modelConfidence * 100),
-        });
-      }, 2000);
+  const handleAnalyzeDescription = async () => {
+    const trimmed = description.trim();
+    if (!trimmed || analyzingAi) return;
+    setAnalyzingAi(true);
+    try {
+      const aiRes = await runTextClassifier(trimmed);
+      setSelectedCategory(aiRes.suggestedCategory);
+      setAiTag({
+        label: `${aiRes.suggestedCategory.replace("_", " ").toUpperCase()}`,
+        confidence: Math.round(aiRes.modelConfidence * 100),
+        explanation: aiRes.explanation,
+      });
+    } finally {
+      setAnalyzingAi(false);
     }
   };
 
@@ -89,14 +83,15 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
         ? "Medical Emergency"
         : selectedCategory === "water_flood"
         ? "Waterlogged Road"
+        : selectedCategory === "personal_sos" || selectedCategory === "personal_safety"
+        ? "Personal Safety SOS"
         : "Community Incident";
 
     onSubmit({
       category: selectedCategory,
       title,
-      text: description || "Citizen emergency report submitted via ResQAI App.",
+      text: description.trim() || "Citizen emergency report submitted via ResQAI App.",
       locationLabel,
-      voiceTranscript: voiceTranscript || undefined,
     });
     onClose();
   };
@@ -146,53 +141,49 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
               })}
             </View>
 
-            {/* Voice Audio Recording Simulation */}
+            {/* Server-Side AI Triage & Voice Info */}
             <Text style={[styles.sectionTitle, { marginTop: 18 }]}>
-              VOICE NOTE (WHISPER AI ASSISTED)
+              LIVE AI TRIAGE PREVIEW (MURIL & WHISPER)
             </Text>
             <View style={styles.voiceCard}>
               <TouchableOpacity
-                onPress={handleSimulateVoiceRecord}
+                onPress={handleAnalyzeDescription}
+                disabled={analyzingAi || !description.trim()}
                 style={[
                   styles.micButton,
-                  recording && styles.micButtonRecording,
+                  analyzingAi && styles.micButtonRecording,
                 ]}
               >
                 <Feather
-                  name={recording ? "mic-off" : "mic"}
-                  size={22}
-                  color={recording ? "#FFFFFF" : COLORS.sosPrimary}
+                  name="cpu"
+                  size={20}
+                  color={analyzingAi ? "#FFFFFF" : COLORS.sosPrimary}
                 />
               </TouchableOpacity>
               <View style={styles.voiceInfo}>
                 <Text style={styles.voiceTitle}>
-                  {recording
-                    ? "Listening and transcribing..."
-                    : voiceTranscript
-                    ? "Voice Transcribed (faster-whisper)"
-                    : "Tap mic to speak voice description"}
+                  {analyzingAi
+                    ? "Running live MuRIL triage..."
+                    : "Tap CPU icon to classify details (En / Hi / Hinglish)"}
                 </Text>
-                {voiceTranscript ? (
-                  <Text style={styles.voiceText}>"{voiceTranscript}"</Text>
-                ) : (
-                  <Text style={styles.voiceHint}>
-                    English, Hindi & Hinglish auto-transcribed
-                  </Text>
-                )}
+                <Text style={styles.voiceHint}>
+                  Audio attachments run Faster-Whisper server-side on submission.
+                </Text>
               </View>
             </View>
 
             {/* Text Description */}
             <Text style={[styles.sectionTitle, { marginTop: 18 }]}>
-              ADDITIONAL DETAILS
+              EMERGENCY DETAILS
             </Text>
             <TextInput
               style={styles.textInput}
-              placeholder="Describe situation, people affected, smoke color..."
+              placeholder="Describe situation (e.g., MP Nagar mein transformer me aag), people affected..."
               placeholderTextColor={COLORS.textMuted}
               multiline
               value={description}
               onChangeText={setDescription}
+              onBlur={handleAnalyzeDescription}
             />
 
             {/* AI Decision-Support Preview Banner */}
@@ -203,9 +194,14 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
                   size={18}
                   color="#2563EB"
                 />
-                <Text style={styles.aiBadgeText}>
-                  AI Triage Suggestion: {aiTag.label} ({aiTag.confidence}% match)
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.aiBadgeText}>
+                    AI Triage Suggestion: {aiTag.label} ({aiTag.confidence}% confidence)
+                  </Text>
+                  {aiTag.explanation ? (
+                    <Text style={[styles.voiceHint, { color: "#1E40AF" }]}>{aiTag.explanation}</Text>
+                  ) : null}
+                </View>
               </View>
             ) : null}
 

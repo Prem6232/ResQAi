@@ -1,0 +1,123 @@
+{
+  "base_model": "torchvision.models.detection.fcos_resnet50_fpn",
+  "device": "cuda",
+  "train_images": 4903,
+  "val_images": 884,
+  "elapsed_seconds": 1158.5,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 1.2996,
+      "sec": 206.0,
+      "count": 884,
+      "score_threshold": 0.4,
+      "mAP_50": 0.4814,
+      "ap_50": {
+        "smoke_plume": 0.5686,
+        "active_flame": 0.3943
+      },
+      "image_roc_auc": 0.8915,
+      "image_accuracy": 0.7941,
+      "image_f1": 0.8625,
+      "image_recall_pos": 0.9896,
+      "false_positive_rate": 0.5733,
+      "indian_neg_fpr": 0.3533,
+      "indian_neg_count": 150
+    },
+    {
+      "epoch": 2,
+      "train_loss": 1.1398,
+      "sec": 201.6,
+      "count": 884,
+      "score_threshold": 0.4,
+      "mAP_50": 0.4911,
+      "ap_50": {
+        "smoke_plume": 0.6029,
+        "active_flame": 0.3793
+      },
+      "image_roc_auc": 0.9156,
+      "image_accuracy": 0.8835,
+      "image_f1": 0.9161,
+      "image_recall_pos": 0.974,
+      "false_positive_rate": 0.2866,
+      "indian_neg_fpr": 0.28,
+      "indian_neg_count": 150
+    },
+    {
+      "epoch": 3,
+      "train_loss": 1.0702,
+      "sec": 197.4,
+      "count": 884,
+      "score_threshold": 0.4,
+      "mAP_50": 0.5397,
+      "ap_50": {
+        "smoke_plume": 0.6316,
+        "active_flame": 0.4478
+      },
+      "image_roc_auc": 0.9346,
+      "image_accuracy": 0.9016,
+      "image_f1": 0.9274,
+      "image_recall_pos": 0.9636,
+      "false_positive_rate": 0.215,
+      "indian_neg_fpr": 0.26,
+      "indian_neg_count": 150
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.9959,
+      "sec": 202.8,
+      "count": 884,
+      "score_threshold": 0.4,
+      "mAP_50": 0.5408,
+      "ap_50": {
+        "smoke_plume": 0.6401,
+        "active_flame": 0.4414
+      },
+      "image_roc_auc": 0.9412,
+      "image_accuracy": 0.8869,
+      "image_f1": 0.9179,
+      "image_recall_pos": 0.9688,
+      "false_positive_rate": 0.2671,
+      "indian_neg_fpr": 0.2667,
+      "indian_neg_count": 150
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.9303,
+      "sec": 176.3,
+      "count": 884,
+      "score_threshold": 0.4,
+      "mAP_50": 0.5551,
+      "ap_50": {
+        "smoke_plume": 0.6373,
+        "active_flame": 0.4728
+      },
+      "image_roc_auc": 0.955,
+      "image_accuracy": 0.9061,
+      "image_f1": 0.9295,
+      "image_recall_pos": 0.948,
+      "false_positive_rate": 0.1726,
+      "indian_neg_fpr": 0.2333,
+      "indian_neg_count": 150
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.8874,
+      "sec": 173.2,
+      "count": 884,
+      "score_threshold": 0.4,
+      "mAP_50": 0.5604,
+      "ap_50": {
+        "smoke_plume": 0.6445,
+        "active_flame": 0.4762
+      },
+      "image_roc_auc": 0.954,
+      "image_accuracy": 0.9084,
+      "image_f1": 0.9311,
+      "image_recall_pos": 0.948,
+      "false_positive_rate": 0.1661,
+      "indian_neg_fpr": 0.2333,
+      "indian_neg_count": 150
+    }
+  ]
+}

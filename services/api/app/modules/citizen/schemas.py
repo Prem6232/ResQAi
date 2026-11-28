@@ -37,7 +37,7 @@ class SOSRequest(BaseModel):
 
 class ReportCreateRequest(BaseModel):
     category: str = Field(..., description="fire_smoke, road_accident, medical, personal_safety, water_flood, hazard, other")
-    text: str = Field(..., min_length=1)
+    text: str = Field(default="")
     location: GeoPointInput
     location_label: Optional[str] = None
     locationLabel: Optional[str] = None
@@ -52,6 +52,9 @@ class ReportCreateRequest(BaseModel):
     @classmethod
     def reconcile(cls, data: Any) -> Any:
         if isinstance(data, dict):
+            cat = str(data.get("category") or "").strip().lower()
+            if cat in {"personal_sos", "sos"}:
+                data["category"] = "personal_safety"
             if not data.get("location_label") and data.get("locationLabel"):
                 data["location_label"] = data["locationLabel"]
             if not data.get("idempotency_key") and data.get("idempotencyKey"):
@@ -59,6 +62,18 @@ class ReportCreateRequest(BaseModel):
             if not data.get("media_asset_ids") and data.get("mediaAssetIds"):
                 data["media_asset_ids"] = data["mediaAssetIds"]
         return data
+
+    @model_validator(mode="after")
+    def ensure_text_or_media(self) -> "ReportCreateRequest":
+        has_text = bool(self.text and self.text.strip())
+        has_media = bool(self.media_asset_ids and len(self.media_asset_ids) > 0)
+        if not has_text and not has_media:
+            raise ValueError("Either report text or at least one attached media asset is required.")
+        return self
+
+
+class TriagePreviewRequest(BaseModel):
+    text: str = Field(..., min_length=1)
 
 class CancelReportRequest(BaseModel):
     reason: Optional[str] = Field(default="Accidental report / situation resolved")

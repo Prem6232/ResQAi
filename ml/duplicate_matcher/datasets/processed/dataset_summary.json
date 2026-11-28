@@ -1,0 +1,34 @@
+{
+  "train_total": 1997,
+  "train_labels": {
+    "1": 1200,
+    "0": 797
+  },
+  "train_types": {
+    "cross_lingual_duplicate": 1200,
+    "diff_cat_diff_place": 200,
+    "same_place_diff_incident": 398,
+    "same_cat_diff_incident": 199
+  },
+  "val_total": 177,
+  "val_labels": {
+    "1": 90,
+    "0": 87
+  },
+  "test_total": 40,
+  "test_labels": {
+    "1": 20,
+    "0": 20
+  },
+  "test_types": {
+    "hinglish_to_english_pos": 13,
+    "hindi_to_hinglish_pos": 3,
+    "hindi_to_english_pos": 4,
+    "same_place_diff_event_neg": 11,
+    "diff_place_diff_event_neg": 1,
+    "same_place_false_alarm_neg": 1,
+    "hindi_same_place_diff_event_neg": 2,
+    "diff_event_neg": 3,
+    "false_alarm_vs_real_neg": 2
+  }
+}

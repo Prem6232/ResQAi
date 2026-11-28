@@ -10,6 +10,21 @@ export interface TextAssessment {
   modelVersion: string;
 }
 
+export interface VoiceAssessment {
+  transcript: string;
+  detectedLanguage: string;
+  confidence: number;
+  modelVersion?: string;
+}
+
+export interface VisionBoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label: string;
+}
+
 export interface VisionAssessment {
   pipeline: "fire_smoke";
   finding: "possible_fire_smoke_evidence" | "no_supported_visual_evidence" | "unavailable";
@@ -17,6 +32,7 @@ export interface VisionAssessment {
   modelVersion?: string;
   adapter: "live_model" | "unavailable" | "labelled_demo_adapter";
   explanation?: string;
+  boundingBoxes?: VisionBoundingBox[];
 }
 
 export interface DuplicateCandidate {
@@ -35,6 +51,7 @@ export interface EvidenceAssessment {
   missing: string[];
   conflicting: string[];
   text?: TextAssessment;
+  voice?: VoiceAssessment;
   vision?: VisionAssessment;
   duplicates: DuplicateCandidate[];
 }

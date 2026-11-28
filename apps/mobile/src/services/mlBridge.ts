@@ -1,18 +1,11 @@
 /**
  * ============================================================================
- * ML MODEL INTEGRATION BRIDGE
+ * ML MODEL INTEGRATION BRIDGE (Live FastAPI + Offline Graceful Fallback)
  * ============================================================================
- * 
- * Dear Developer:
- * This file is the dedicated integration bridge for your AI / ML models.
- * When your models are trained, plug their inference calls or backend endpoints
- * directly into these functions. The entire UI is already wired to display:
- * 
- * 1. Text Classification: TF-IDF + Logistic Regression / Multilingual Embeddings
- * 2. Voice Transcription: faster-whisper (CTranslate2)
- * 3. Narrow Vision: PyTorch Fire/Smoke classifier (MobileNetV3 / ResNet)
- * 4. Duplicate Matching: PostGIS distance + text cosine similarity
- * 5. Operator Assistant: Summarizer for rapid triage verification
+ * Connects Mobile UI previews directly to live backend ML endpoints:
+ * 1. POST /api/v1/citizen/triage-preview (MuRIL ONNX Hinglish/Hindi/English)
+ * 2. POST /api/v1/media/upload-url -> MinIO PUT -> FastAPI/Celery Whisper & FCOS
+ * 3. Server-side Multilingual-E5 + PostGIS duplicate matching
  * ============================================================================
  */
 
@@ -23,106 +16,148 @@ import {
   MLDuplicateDetectionOutput,
   IncidentCategory,
 } from "../types";
+import { mobileApi } from "./api";
 
-/**
- * 1. TEXT CLASSIFIER MODEL
- * Replace this implementation with your trained text model / API.
- */
-export async function runTextClassifier(
-  text: string
-): Promise<MLTextClassificationOutput> {
+function offlineKeywordTriageFallback(text: string): MLTextClassificationOutput {
   const lower = text.toLowerCase();
 
-  // Rule-informed baseline simulation (replace with real weights/inference)
   if (lower.includes("fire") || lower.includes("smoke") || lower.includes("aag") || lower.includes("dhuwa")) {
     return {
       suggestedCategory: "fire_smoke",
       suggestedUrgency: "critical",
-      modelConfidence: 0.94,
-      extractedLocation: "Market Road / Shop cluster",
-      explanation: "Detected high-frequency thermal keywords ('fire/smoke'). Confidence: 94%.",
+      modelConfidence: 0.75,
+      explanation: "Offline keyword fallback matched fire/smoke terms; live MuRIL triage runs on submission.",
     };
   }
 
-  if (lower.includes("accident") || lower.includes("bike") || lower.includes("car") || lower.includes("collision")) {
+  if (lower.includes("accident") || lower.includes("bike") || lower.includes("car") || lower.includes("collision") || lower.includes("takkar")) {
     return {
       suggestedCategory: "road_accident",
       suggestedUrgency: "high",
-      modelConfidence: 0.89,
-      extractedLocation: "Bypass Junction",
-      explanation: "Vehicle impact terminology detected. Confidence: 89%.",
+      modelConfidence: 0.72,
+      explanation: "Offline keyword fallback matched traffic crash terms; live MuRIL triage runs on submission.",
     };
   }
 
-  if (lower.includes("blood") || lower.includes("unconscious") || lower.includes("heart") || lower.includes("chot")) {
+  if (lower.includes("blood") || lower.includes("unconscious") || lower.includes("heart") || lower.includes("chot") || lower.includes("behosh")) {
     return {
       suggestedCategory: "medical",
       suggestedUrgency: "critical",
-      modelConfidence: 0.96,
-      explanation: "Urgent trauma / medical indicator present. Confidence: 96%.",
+      modelConfidence: 0.76,
+      explanation: "Offline keyword fallback matched medical trauma terms; live MuRIL triage runs on submission.",
+    };
+  }
+
+  if (lower.includes("water") || lower.includes("flood") || lower.includes("paani") || lower.includes("jalbharav")) {
+    return {
+      suggestedCategory: "water_flood",
+      suggestedUrgency: "medium",
+      modelConfidence: 0.70,
+      explanation: "Offline keyword fallback matched water/flood terms; live MuRIL triage runs on submission.",
     };
   }
 
   return {
     suggestedCategory: "hazard",
     suggestedUrgency: "medium",
-    modelConfidence: 0.72,
-    explanation: "General environmental hazard indicators detected. Confidence: 72%.",
+    modelConfidence: 0.55,
+    explanation: "Offline fallback estimate; live MuRIL emergency triage runs once connected.",
   };
 }
 
 /**
- * 2. VOICE TRANSCRIPTION (faster-whisper)
- * Replace with your Whisper transcription engine / endpoint.
+ * 1. TEXT CLASSIFIER MODEL (Live MuRIL ONNX via FastAPI /citizen/triage-preview)
+ */
+export async function runTextClassifier(
+  text: string
+): Promise<MLTextClassificationOutput> {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return {
+      suggestedCategory: "other",
+      suggestedUrgency: "medium",
+      modelConfidence: 0.0,
+      explanation: "Enter incident details to run live AI triage.",
+    };
+  }
+
+  if (mobileApi.getAccessToken()) {
+    try {
+      const liveRes = await mobileApi.previewTextTriage(trimmed);
+      return {
+        suggestedCategory: liveRes.suggestedCategory,
+        suggestedUrgency: liveRes.suggestedUrgency,
+        modelConfidence: liveRes.modelScore,
+        explanation: liveRes.explanation,
+      };
+    } catch {
+      // Graceful offline/transient network fallback
+    }
+  }
+
+  return offlineKeywordTriageFallback(trimmed);
+}
+
+/**
+ * 2. VOICE UPLOAD & TRANSCRIPTION (MinIO + Faster-Whisper server pipeline)
  */
 export async function runVoiceTranscription(
-  audioUri: string
-): Promise<MLVoiceTranscriptionOutput> {
-  // Simulating whisper async output
-  await new Promise((r) => setTimeout(r, 600));
+  audioUri: string,
+  mimeType: string = "audio/m4a"
+): Promise<MLVoiceTranscriptionOutput & { mediaAssetId?: string }> {
+  const uri = audioUri.trim();
+  if (!uri || uri === "dummy.wav") {
+    throw new Error("A recorded audio file URI is required before uploading for Faster-Whisper transcription.");
+  }
+
+  const assetId = await mobileApi.uploadMediaAsset({
+    uri,
+    name: `voice_memo_${Date.now()}.m4a`,
+    mimeType,
+  });
+
   return {
-    transcript: "Smoke observed coming from the shop near the corner, multiple people gathering outside.",
-    detectedLanguage: "en-IN (English / Hinglish)",
-    confidence: 0.95,
+    mediaAssetId: assetId,
+    transcript: "",
+    detectedLanguage: "auto (server faster-whisper)",
+    confidence: 1.0,
   };
 }
 
 /**
- * 3. NARROW VISION CLASSIFIER (Fire & Smoke Detection)
- * PyTorch transfer learning model (MobileNetV3 / ResNet-50)
+ * 3. NARROW VISION CLASSIFIER (MinIO + Server FCOS-ResNet50-FPN)
  */
 export async function runFireSmokeVisionClassifier(
-  imageUri: string
-): Promise<MLVisionDetectionOutput> {
-  await new Promise((r) => setTimeout(r, 800));
+  imageUri: string,
+  mimeType: string = "image/jpeg"
+): Promise<MLVisionDetectionOutput & { mediaAssetId?: string }> {
+  const uri = imageUri.trim();
+  if (!uri) {
+    throw new Error("An image file URI is required before uploading for vision verification.");
+  }
+  const assetId = await mobileApi.uploadMediaAsset({
+    uri,
+    name: `evidence_${Date.now()}.jpg`,
+    mimeType,
+  });
   return {
-    fireSmokeDetected: true,
-    confidence: 0.95,
-    explanation: "Visual fire and dense smoke patterns identified. 95% model confidence. Operator verification required.",
-    boundingBoxes: [
-      { x: 0.25, y: 0.3, width: 0.45, height: 0.35, label: "smoke_plume" },
-      { x: 0.4, y: 0.5, width: 0.2, height: 0.2, label: "active_flame" },
-    ],
+    mediaAssetId: assetId,
+    fireSmokeDetected: false,
+    confidence: 0,
+    explanation: "Image uploaded to MinIO; server FCOS fire/smoke verification runs asynchronously on submission.",
+    boundingBoxes: [],
   };
 }
 
 /**
- * 4. DUPLICATE INCIDENT DETECTOR
- * Geospatial distance + time decay + text similarity
+ * 4. DUPLICATE INCIDENT DETECTOR (Executed server-side by E5-small + PostGIS)
  */
-export async function runDuplicateDetector(params: {
+export async function runDuplicateDetector(_params: {
   category: IncidentCategory;
   text: string;
 }): Promise<MLDuplicateDetectionOutput> {
-  if (params.category === "fire_smoke") {
-    return {
-      isDuplicateCandidate: true,
-      existingIncidentId: "402",
-      similarityScore: 0.91,
-    };
-  }
   return {
     isDuplicateCandidate: false,
-    similarityScore: 0.18,
+    similarityScore: 0.0,
   };
 }

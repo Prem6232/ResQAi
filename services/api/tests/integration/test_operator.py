@@ -147,7 +147,7 @@ async def test_state_machine_legal_transitions_and_audit(
     """
     # Create fresh incident in reported state
     inc = Incident(
-        public_code=f"TST-{uuid.uuid4().hex[:3].upper()}",
+        public_code=f"TST-{uuid.uuid4().hex[:8].upper()}",
         title="State Machine Test Incident",
         category="medical",
         urgency="high",
@@ -208,7 +208,7 @@ async def test_state_machine_illegal_transitions_rejected(
     Illegal state transitions not in Section 2.2.B matrix must be rejected with HTTP 400.
     """
     inc = Incident(
-        public_code=f"ILL-{uuid.uuid4().hex[:3].upper()}",
+        public_code=f"ILL-{uuid.uuid4().hex[:8].upper()}",
         title="Illegal Transition Test",
         category="hazard",
         urgency="medium",
@@ -261,7 +261,7 @@ async def test_merge_reports_action_and_audit(
     """Operator merges multiple reports into one incident with mandatory reason."""
     # Target incident
     inc = Incident(
-        public_code=f"MRG-{uuid.uuid4().hex[:3].upper()}",
+        public_code=f"MRG-{uuid.uuid4().hex[:8].upper()}",
         title="Merge Target Incident",
         category="water_flood",
         urgency="high",
@@ -364,7 +364,7 @@ async def test_override_ai_assessment(
 ):
     """Operator overrides AI category or urgency with human authority."""
     inc = Incident(
-        public_code=f"OVR-{uuid.uuid4().hex[:3].upper()}",
+        public_code=f"OVR-{uuid.uuid4().hex[:8].upper()}",
         title="AI Classification Pending",
         category="other",
         urgency="low",

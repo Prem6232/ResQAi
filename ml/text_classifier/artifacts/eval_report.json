@@ -1,0 +1,373 @@
+{
+  "onnx_model_path": "F:\\ResQAi\\ml\\text_classifier\\artifacts\\onnx\\model_int8.onnx",
+  "onnx_size_mb": 693.81,
+  "test_samples": 270,
+  "overall": {
+    "category_accuracy": 0.8,
+    "category_macro_f1": 0.8097,
+    "urgency_accuracy": 0.7444,
+    "urgency_macro_f1": 0.7009,
+    "confident_coverage": 0.7593,
+    "confident_category_accuracy": 0.8585
+  },
+  "cpu_latency_ms": {
+    "mean": 26.3,
+    "p50": 25.57,
+    "p95": 30.45
+  },
+  "slices": {
+    "adversarial_false_alarm": {
+      "count": 21,
+      "cat_acc": 0.9524,
+      "cat_macro_f1": 0.4878,
+      "urg_acc": 0.9524
+    },
+    "hindi_devanagari": {
+      "count": 21,
+      "cat_acc": 1.0,
+      "cat_macro_f1": 1.0,
+      "urg_acc": 0.7619
+    },
+    "hinglish": {
+      "count": 35,
+      "cat_acc": 0.7143,
+      "cat_macro_f1": 0.6604,
+      "urg_acc": 0.6857
+    },
+    "indian_english": {
+      "count": 52,
+      "cat_acc": 0.8654,
+      "cat_macro_f1": 0.8456,
+      "urg_acc": 0.5769
+    },
+    "open_corpus_en": {
+      "count": 141,
+      "cat_acc": 0.7447,
+      "cat_macro_f1": 0.7297,
+      "urg_acc": 0.7872
+    }
+  },
+  "category_report": {
+    "fire_smoke": {
+      "precision": 0.9459459459459459,
+      "recall": 0.8536585365853658,
+      "f1-score": 0.8974358974358975,
+      "support": 41.0
+    },
+    "road_accident": {
+      "precision": 0.96875,
+      "recall": 0.7209302325581395,
+      "f1-score": 0.8266666666666667,
+      "support": 43.0
+    },
+    "medical": {
+      "precision": 0.7755102040816326,
+      "recall": 0.8837209302325582,
+      "f1-score": 0.8260869565217391,
+      "support": 43.0
+    },
+    "personal_safety": {
+      "precision": 1.0,
+      "recall": 0.8333333333333334,
+      "f1-score": 0.9090909090909091,
+      "support": 18.0
+    },
+    "water_flood": {
+      "precision": 0.7307692307692307,
+      "recall": 0.926829268292683,
+      "f1-score": 0.8172043010752689,
+      "support": 41.0
+    },
+    "hazard": {
+      "precision": 0.7575757575757576,
+      "recall": 0.6097560975609756,
+      "f1-score": 0.6756756756756757,
+      "support": 41.0
+    },
+    "other": {
+      "precision": 0.6538461538461539,
+      "recall": 0.7906976744186046,
+      "f1-score": 0.7157894736842105,
+      "support": 43.0
+    },
+    "accuracy": 0.8,
+    "macro avg": {
+      "precision": 0.8331996131741031,
+      "recall": 0.8027037247116657,
+      "f1-score": 0.8097071257357668,
+      "support": 270.0
+    },
+    "weighted avg": {
+      "precision": 0.818238895173419,
+      "recall": 0.8,
+      "f1-score": 0.8007923717437755,
+      "support": 270.0
+    }
+  },
+  "urgency_report": {
+    "critical": {
+      "precision": 0.8018867924528302,
+      "recall": 0.8173076923076923,
+      "f1-score": 0.8095238095238095,
+      "support": 104.0
+    },
+    "high": {
+      "precision": 0.7368421052631579,
+      "recall": 0.7368421052631579,
+      "f1-score": 0.7368421052631579,
+      "support": 95.0
+    },
+    "medium": {
+      "precision": 0.7857142857142857,
+      "recall": 0.44,
+      "f1-score": 0.5641025641025641,
+      "support": 25.0
+    },
+    "low": {
+      "precision": 0.6363636363636364,
+      "recall": 0.7608695652173914,
+      "f1-score": 0.693069306930693,
+      "support": 46.0
+    },
+    "accuracy": 0.7444444444444445,
+    "macro avg": {
+      "precision": 0.7402017049484775,
+      "recall": 0.6887548406970603,
+      "f1-score": 0.7008844464550561,
+      "support": 270.0
+    },
+    "weighted avg": {
+      "precision": 0.749303003076588,
+      "recall": 0.7444444444444445,
+      "f1-score": 0.741386031155008,
+      "support": 270.0
+    }
+  },
+  "sample_errors": [
+    {
+      "text": "hostel mess ki chimney se tez kaala dhuan aur chingari aa rahi jaldi fire unit bhejo",
+      "slice": "hinglish",
+      "true_category": "fire_smoke",
+      "pred_category": "fire_smoke",
+      "true_urgency": "critical",
+      "pred_urgency": "high",
+      "confidence": 0.8105
+    },
+    {
+      "text": "Bittan Market ke showroom ke AC compressor se halka smoke aa raha hai check karwayein",
+      "slice": "hinglish",
+      "true_category": "fire_smoke",
+      "pred_category": "medical",
+      "true_urgency": "medium",
+      "pred_urgency": "critical",
+      "confidence": 0.7522
+    },
+    {
+      "text": "\u0938\u0921\u093c\u0915 \u0915\u093f\u0928\u093e\u0930\u0947 \u092c\u093f\u091c\u0932\u0940 \u0916\u0902\u092d\u0947 \u0915\u0947 \u092c\u0949\u0915\u094d\u0938 \u0938\u0947 \u091a\u093f\u0902\u0917\u093e\u0930\u0940 \u0914\u0930 \u0939\u0932\u094d\u0915\u093e \u0927\u0941\u0906\u0902 \u0928\u093f\u0915\u0932 \u0930\u0939\u093e \u0939\u0948",
+      "slice": "hindi_devanagari",
+      "true_category": "fire_smoke",
+      "pred_category": "fire_smoke",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7966
+    },
+    {
+      "text": "Pungent electrical burning smoke coming out of basement UPS room, please inspect",
+      "slice": "indian_english",
+      "true_category": "fire_smoke",
+      "pred_category": "fire_smoke",
+      "true_urgency": "medium",
+      "pred_urgency": "critical",
+      "confidence": 0.808
+    },
+    {
+      "text": "Small wire sparking inside meter panel at Rani Kamalapati parking block",
+      "slice": "indian_english",
+      "true_category": "fire_smoke",
+      "pred_category": "hazard",
+      "true_urgency": "medium",
+      "pred_urgency": "medium",
+      "confidence": 0.3647
+    },
+    {
+      "text": "Kitchen exhaust fan smoking heavily inside crowded food court, no open flame yet",
+      "slice": "indian_english",
+      "true_category": "fire_smoke",
+      "pred_category": "other",
+      "true_urgency": "medium",
+      "pred_urgency": "low",
+      "confidence": 0.7745
+    },
+    {
+      "text": "10 number market turn par do bike takra gayi ek ladke ke kandhe mein chot aayi hai",
+      "slice": "hinglish",
+      "true_category": "road_accident",
+      "pred_category": "medical",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.6257
+    },
+    {
+      "text": "Jayanagar circle ke paas barish mein bike phisal gayi rider ko pair mein fracture lag raha",
+      "slice": "hinglish",
+      "true_category": "road_accident",
+      "pred_category": "medical",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7619
+    },
+    {
+      "text": "Minor auto and car scrape at Bittan Market circle, no one hurt, traffic slowing",
+      "slice": "indian_english",
+      "true_category": "road_accident",
+      "pred_category": "road_accident",
+      "true_urgency": "medium",
+      "pred_urgency": "critical",
+      "confidence": 0.7508
+    },
+    {
+      "text": "Delivery scooter skidded near Powai lake turn, rider injured and unable to stand",
+      "slice": "indian_english",
+      "true_category": "road_accident",
+      "pred_category": "medical",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7532
+    },
+    {
+      "text": "Multi-car pileup on Raisen Road flyover in dense fog, emergency rescue needed",
+      "slice": "indian_english",
+      "true_category": "road_accident",
+      "pred_category": "hazard",
+      "true_urgency": "critical",
+      "pred_urgency": "high",
+      "confidence": 0.7583
+    },
+    {
+      "text": "School van bumped rear of stationary tempo near Narela gate, minor bumper damage only",
+      "slice": "indian_english",
+      "true_category": "road_accident",
+      "pred_category": "road_accident",
+      "true_urgency": "medium",
+      "pred_urgency": "critical",
+      "confidence": 0.7663
+    },
+    {
+      "text": "Auto rickshaw collided with cyclist outside metro pillar, cyclist has bleeding knee",
+      "slice": "indian_english",
+      "true_category": "road_accident",
+      "pred_category": "road_accident",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7593
+    },
+    {
+      "text": "Tractor trolley axle snapped causing collision near outskirts highway toll plaza",
+      "slice": "indian_english",
+      "true_category": "road_accident",
+      "pred_category": "road_accident",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7305
+    },
+    {
+      "text": "football ground mein girne se dost ka takhna mud gaya sujan aa gayi chal nahi pa raha",
+      "slice": "hinglish",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.766
+    },
+    {
+      "text": "garmi se thoda chakkar aa raha paani peene ke baad baitha hun nurse bhejo",
+      "slice": "hinglish",
+      "true_category": "medical",
+      "pred_category": "other",
+      "true_urgency": "medium",
+      "pred_urgency": "low",
+      "confidence": 0.6081
+    },
+    {
+      "text": "lab mein kaanch tootne se student ke haath se bahut khoon beh raha hai first aid chahiye",
+      "slice": "hinglish",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7699
+    },
+    {
+      "text": "\u0938\u094d\u0915\u0942\u0932 \u092e\u0948\u0926\u093e\u0928 \u092e\u0947\u0902 \u0926\u094c\u0921\u093c\u0924\u0947 \u0938\u092e\u092f \u091b\u093e\u0924\u094d\u0930 \u0917\u093f\u0930 \u0917\u092f\u093e \u0914\u0930 \u0939\u093e\u0925 \u092e\u0947\u0902 \u0917\u0902\u092d\u0940\u0930 \u091a\u094b\u091f \u0906\u0908 \u0939\u0948",
+      "slice": "hindi_devanagari",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7403
+    },
+    {
+      "text": "\u0924\u0947\u091c \u0927\u0942\u092a \u0938\u0947 \u092f\u093e\u0924\u094d\u0930\u0940 \u0915\u094b \u091a\u0915\u094d\u0915\u0930 \u0906 \u0930\u0939\u0947 \u0939\u0948\u0902 \u0914\u0930 \u092a\u093e\u0928\u0940 \u0915\u0940 \u0909\u0932\u094d\u091f\u0940 \u0939\u094b \u0930\u0939\u0940 \u0939\u0948 \u092e\u0926\u0926 \u091a\u093e\u0939\u093f\u090f",
+      "slice": "hindi_devanagari",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "high",
+      "pred_urgency": "medium",
+      "confidence": 0.6927
+    },
+    {
+      "text": "Commuter slipped on wet marble stairs suffering painful wrist sprain, conscious and seated",
+      "slice": "indian_english",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "medium",
+      "pred_urgency": "critical",
+      "confidence": 0.7797
+    },
+    {
+      "text": "Minor dizzy spell after standing in sun near ticket counter, patient resting on bench",
+      "slice": "indian_english",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "medium",
+      "pred_urgency": "critical",
+      "confidence": 0.7482
+    },
+    {
+      "text": "Bhopal Junction platform bahar kuch gunde paise cheenne ki dhamki de rahe SOS",
+      "slice": "hinglish",
+      "true_category": "personal_safety",
+      "pred_category": "other",
+      "true_urgency": "critical",
+      "pred_urgency": "low",
+      "confidence": 0.3907
+    },
+    {
+      "text": "library se hostel jate waqt gali ki light kharab aur ajeeb log khade hain escort bhejein",
+      "slice": "hinglish",
+      "true_category": "personal_safety",
+      "pred_category": "medical",
+      "true_urgency": "medium",
+      "pred_urgency": "medium",
+      "confidence": 0.6029
+    },
+    {
+      "text": "Aggressive drunk argument breaking out near ATM booth at 10 Number Stop",
+      "slice": "indian_english",
+      "true_category": "personal_safety",
+      "pred_category": "other",
+      "true_urgency": "high",
+      "pred_urgency": "low",
+      "confidence": 0.6792
+    },
+    {
+      "text": "Chain snatching attempt reported outside temple entrance, suspects fleeing on motorbike",
+      "slice": "indian_english",
+      "true_category": "personal_safety",
+      "pred_category": "personal_safety",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.4774
+    }
+  ]
+}

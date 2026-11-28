@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { mobileApi } from "../src/services/api";
 import { mobileRealtime } from "../src/services/realtime";
+import { runTextClassifier } from "../src/services/mlBridge";
 
 describe("Mobile API Auth, Refresh Rotation & Realtime Service", () => {
   const originalFetch = global.fetch;
@@ -213,5 +214,69 @@ describe("Mobile API Auth, Refresh Rotation & Realtime Service", () => {
     jest.advanceTimersByTime(10_000);
     expect(openedUrls).toHaveLength(1);
     jest.useRealTimers();
+  });
+
+  it("wires runTextClassifier to live /citizen/triage-preview and normalizes personal_sos to personal_safety on submit", async () => {
+    const bodies: Array<Record<string, any>> = [];
+
+    global.fetch = (jest.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.body && typeof init.body === "string") {
+        bodies.push(JSON.parse(init.body));
+      }
+      if (url.endsWith("/citizen/triage-preview")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            suggestedCategory: "water_flood",
+            suggestedUrgency: "high",
+            modelScore: 0.92,
+            reviewRequired: false,
+            explanation: "Live MuRIL classified Hinglish waterlogging.",
+            modelVersion: "muril-indian-emergency-v1-onnx",
+          }),
+        };
+      }
+      if (url.endsWith("/citizen/reports")) {
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({
+            id: "rep-mob-sos-1",
+            category: "personal_safety",
+            deliveryState: "received_by_server",
+            locationLabel: "New Market, Bhopal",
+          }),
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as unknown) as typeof fetch;
+
+    mobileApi.setAccessToken("tok-live-mob");
+    const preview = await runTextClassifier("Habibganj underpass me paani bhar gaya");
+    expect(preview.suggestedCategory).toBe("water_flood");
+    expect(preview.modelConfidence).toBeCloseTo(0.92, 2);
+
+    const created = await mobileApi.createReport({
+      category: "personal_sos",
+      title: "Personal Safety SOS",
+      text: "Emergency near bus stop",
+      locationLabel: "New Market, Bhopal",
+    });
+    expect(created.category).toBe("personal_safety");
+    const reportPost = bodies.find((b) => "channel" in b && b.category === "personal_safety");
+    expect(reportPost?.category).toBe("personal_safety");
+    expect(reportPost?.channel).toBe("sos");
+
+    await mobileApi.createReport({
+      category: "fire_smoke",
+      title: "Fire Report",
+      text: "Transformer fire",
+      locationLabel: "MP Nagar",
+      voiceTranscript: "Transformer me aag lagi hai",
+    });
+    const voicePost = bodies.find((b) => b.category === "fire_smoke");
+    expect(voicePost?.channel).toBe("voice");
   });
 });

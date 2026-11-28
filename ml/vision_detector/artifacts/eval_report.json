@@ -1,0 +1,71 @@
+{
+  "model": "fcos_resnet50_fpn_fp32_onnx",
+  "size_mb": 128.57,
+  "val_calibrated_threshold": 0.5,
+  "cpu_p50_ms": 162.89,
+  "cpu_p95_ms": 179.98,
+  "validation": {
+    "count": 884,
+    "score_threshold": 0.5,
+    "mAP_50": 0.5601,
+    "ap_50": {
+      "smoke_plume": 0.6443,
+      "active_flame": 0.4759
+    },
+    "image_roc_auc": 0.954,
+    "image_accuracy": 0.8982,
+    "image_f1": 0.9209,
+    "image_recall_pos": 0.9081,
+    "false_positive_rate": 0.1205,
+    "indian_neg_fpr": 0.1733,
+    "indian_neg_count": 150
+  },
+  "ood_dfire": {
+    "count": 1435,
+    "score_threshold": 0.5,
+    "mAP_50": 0.6581,
+    "ap_50": {
+      "smoke_plume": 0.7707,
+      "active_flame": 0.5454
+    },
+    "image_roc_auc": 0.8839,
+    "image_accuracy": 0.9226,
+    "image_f1": 0.9586,
+    "image_recall_pos": 0.9332,
+    "false_positive_rate": 0.3333,
+    "indian_neg_fpr": null,
+    "indian_neg_count": 0
+  },
+  "ood_indian_negatives": {
+    "count": 185,
+    "score_threshold": 0.5,
+    "mAP_50": 0.0,
+    "ap_50": {
+      "smoke_plume": 0.0,
+      "active_flame": 0.0
+    },
+    "image_roc_auc": null,
+    "image_accuracy": 0.8432,
+    "image_f1": null,
+    "image_recall_pos": null,
+    "false_positive_rate": 0.1568,
+    "indian_neg_fpr": 0.1568,
+    "indian_neg_count": 185
+  },
+  "ood_combined_triage": {
+    "count": 1620,
+    "score_threshold": 0.5,
+    "mAP_50": 0.6545,
+    "ap_50": {
+      "smoke_plume": 0.7639,
+      "active_flame": 0.5451
+    },
+    "image_roc_auc": 0.9364,
+    "image_accuracy": 0.9136,
+    "image_f1": 0.9484,
+    "image_recall_pos": 0.9332,
+    "false_positive_rate": 0.1983,
+    "indian_neg_fpr": 0.1568,
+    "indian_neg_count": 185
+  }
+}

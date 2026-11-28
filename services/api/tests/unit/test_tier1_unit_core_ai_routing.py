@@ -1,4 +1,6 @@
 from datetime import timedelta
+import asyncio
+from pathlib import Path
 import uuid
 
 import pytest
@@ -257,3 +259,216 @@ def test_voice_vision_and_duplicate_matcher_adapters():
     assert "402" in by_code and by_code["402"].recommendation == "likely_related"
     assert "405" in by_code and by_code["405"].recommendation == "weak" and by_code["405"].score == 0.50
     assert "409" not in by_code
+
+
+def test_text_classifier_adapter_live_muril_onnx_and_fallback(monkeypatch):
+    onnx_dir = Path(__file__).resolve().parents[4] / "ml" / "text_classifier" / "artifacts" / "onnx"
+    assert (onnx_dir / "model_fp32.onnx").is_file(), f"Missing trained ONNX model at {onnx_dir}"
+
+    clf = TextClassifierAdapter(mode="live")
+
+    async def _run_cases():
+        fire = await clf.predict("MP Nagar transformer mein aag aur dhuwa nikal raha hai")
+        crash = await clf.predict("रेलवे स्टेशन के बाहर तेज रफ्तार कार ने दोपहिया को टक्कर मार दी दो लोग घायल हैं")
+        med = await clf.predict("Katara Hills park mein daudte waqt buzurg ko chest pain aur chakkar aa ke gir gaye")
+        safety = await clf.predict("raat ke 11 baje Narela mod pe do ladke bike se peecha kar rahe dar lag raha help")
+        flood = await clf.predict("Habibganj underpass mein kamar tak baarish ka paani bhar gaya ek car andar doob rahi hai")
+        slang = await clf.predict("Aaj ke match mein Sharma ji ne batting se aag laga di stadium mein")
+        return fire, crash, med, safety, flood, slang
+
+    fire, crash, med, safety, flood, slang = asyncio.run(_run_cases())
+
+    for res in (fire, crash, med, safety, flood, slang):
+        assert res.modelVersion.startswith("muril-indian-emergency-v1-onnx")
+        assert 0.0 <= res.modelScore <= 1.0
+
+    assert fire.suggestedCategory == "fire_smoke"
+    assert crash.suggestedCategory == "road_accident"
+    assert med.suggestedCategory == "medical"
+    assert safety.suggestedCategory == "personal_safety"
+    assert flood.suggestedCategory == "water_flood"
+    assert slang.suggestedCategory == "other"
+
+    # Missing ONNX path falls back cleanly to deterministic mock inference
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "TEXT_CLASSIFIER_MODEL_DIR", str(onnx_dir / "nonexistent_subdir"))
+    fallback = asyncio.run(clf.predict("Dense black smoke near New Market transformer"))
+    assert fallback.suggestedCategory == "fire_smoke"
+    assert fallback.modelVersion == "distilbert-emergency-v1-mock"
+
+
+def test_voice_transcriber_live_whisper_and_chained_classifier(monkeypatch):
+    repo_root = Path(__file__).resolve().parents[4]
+    whisper_dir = repo_root / "ml" / "voice_transcriber" / "artifacts" / "whisper-small-ct2"
+    memo_wav = repo_root / "ml" / "voice_transcriber" / "datasets" / "raw" / "emergency_memos" / "memo_fire_01.wav"
+    assert (whisper_dir / "model.bin").is_file(), f"Missing Faster-Whisper model in {whisper_dir}"
+    assert memo_wav.is_file(), f"Missing sample WAV in {memo_wav}"
+
+    wav_bytes = memo_wav.read_bytes()
+    vt = VoiceTranscriberAdapter(mode="live")
+    clf = TextClassifierAdapter(mode="live")
+
+    async def _run_voice_to_classifier():
+        v_direct = await vt.predict(file_bytes=wav_bytes)
+        t_res = await clf.predict(v_direct.transcript)
+
+        import app.ai.adapters.voice_transcriber as vt_mod
+        monkeypatch.setattr(vt_mod, "_fetch_s3_audio_bytes", lambda key: wav_bytes)
+        v_s3 = await vt.predict(s3_key="evidence/memo_fire_01.wav")
+        return v_direct, t_res, v_s3
+
+    v_direct, t_res, v_s3 = asyncio.run(_run_voice_to_classifier())
+
+    assert v_direct.modelVersion.startswith("faster-whisper-small-ct2")
+    assert "smoke" in v_direct.transcript.lower() or "transformer" in v_direct.transcript.lower()
+    assert 0.05 <= v_direct.confidence <= 0.99
+    assert v_direct.detectedLanguage.startswith("en-IN")
+    assert t_res.suggestedCategory == "fire_smoke"
+    assert v_s3.transcript == v_direct.transcript
+
+    # Missing Whisper path falls back cleanly to mock without crashing
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "VOICE_TRANSCRIBER_MODEL_DIR", str(whisper_dir / "nonexistent_subdir"))
+    fallback = asyncio.run(vt.predict(file_bytes=wav_bytes))
+    assert fallback.modelVersion == "faster-whisper-medium-mock"
+
+
+def test_duplicate_matcher_live_e5_onnx_and_fallback(monkeypatch):
+    from shapely.geometry import Point
+
+    onnx_dir = Path(__file__).resolve().parents[4] / "ml" / "duplicate_matcher" / "artifacts" / "onnx"
+    assert (onnx_dir / "model_int8.onnx").is_file(), f"Missing trained E5 ONNX model at {onnx_dir}"
+
+    matcher = DuplicateMatcherAdapter(mode="live")
+
+    class FakeCandidate:
+        def __init__(self, code, cat, loc, title):
+            self.public_code = code
+            self.category = cat
+            self.location = loc
+            self.title = title
+
+    cands = [
+        # True Hinglish -> English duplicate ~50m away
+        FakeCandidate(
+            "DUP-H2E",
+            "fire_smoke",
+            Point(77.4342, 23.2317),
+            "E-rickshaw battery explosion fire and dense smoke reported at Chuna Bhatti crossing",
+        ),
+        # True Hindi (Devanagari) -> English cross-category mistagged duplicate ~78m away
+        FakeCandidate(
+            "DUP-HI-MISTAG",
+            "hazard",
+            Point(77.4344, 23.2319),
+            "Heavy continuous rainfall submerged culvert underpass stranding multiple vehicles",
+        ),
+        # Same-place hard negative ~24m away: DIFFERENT real emergency at exact same spot!
+        FakeCandidate(
+            "NEG-SAME-PLACE",
+            "road_accident",
+            Point(77.4341, 23.2315),
+            "Chuna Bhatti square par bike phisal gayi rider ke pair mein chot lagi hai",
+        ),
+        # Out-of-radius > 300m
+        FakeCandidate(
+            "FAR-OUT",
+            "fire_smoke",
+            Point(77.4500, 23.2500),
+            "Chuna Bhatti square pe e-rickshaw mein battery blast hoke aag fail gayi",
+        ),
+    ]
+
+    async def _run():
+        res_fire = await matcher.predict(
+            category="fire_smoke",
+            text="Chuna Bhatti square pe e-rickshaw mein battery blast hoke aag aur dhuwa fail gaya",
+            lat=23.2313,
+            lng=77.4340,
+            candidates=cands,
+        )
+        res_flood = await matcher.predict(
+            category="water_flood",
+            text="लगातार बारिश से अंडरपास में पानी भर गया है और कई गाड़ियां फंस गई हैं",
+            lat=23.2313,
+            lng=77.4340,
+            candidates=cands,
+        )
+        return res_fire, res_flood
+
+    res_fire, res_flood = asyncio.run(_run())
+    fire_by_code = {r.incidentId: r for r in res_fire}
+    flood_by_code = {r.incidentId: r for r in res_flood}
+
+    assert "FAR-OUT" not in fire_by_code
+    assert fire_by_code["DUP-H2E"].recommendation == "likely_related"
+    assert fire_by_code["DUP-H2E"].score > fire_by_code["NEG-SAME-PLACE"].score
+    assert fire_by_code["NEG-SAME-PLACE"].recommendation == "weak"
+    assert any("e5-small-indian-duplicate-v1-onnx" in s for s in fire_by_code["DUP-H2E"].signals)
+
+    assert flood_by_code["DUP-HI-MISTAG"].recommendation in ("likely_related", "review")
+    assert flood_by_code["DUP-HI-MISTAG"].score > flood_by_code["NEG-SAME-PLACE"].score
+    assert any("e5-small-indian-duplicate-v1-onnx" in s for s in flood_by_code["DUP-HI-MISTAG"].signals)
+
+    # Missing ONNX path falls back cleanly to heuristic without crashing
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "DUPLICATE_MATCHER_MODEL_DIR", str(onnx_dir / "nonexistent_subdir"))
+    fallback = asyncio.run(
+        matcher.predict(
+            category="fire_smoke",
+            text="Chuna Bhatti square fire",
+            lat=23.2313,
+            lng=77.4340,
+            candidates=cands[:1],
+        )
+    )
+    assert len(fallback) == 1
+    assert fallback[0].incidentId == "DUP-H2E"
+    assert fallback[0].recommendation == "likely_related"
+
+
+def test_vision_detector_live_fcos_onnx_and_fallback(monkeypatch):
+    repo_root = Path(__file__).resolve().parents[4]
+    onnx_dir = repo_root / "ml" / "vision_detector" / "artifacts" / "onnx"
+    pos_img = repo_root / "ml" / "vision_detector" / "datasets" / "raw" / "images" / "test_dfire_ood" / "test-00002-of-00003_00056_WEB10428.jpg"
+    neg_img = repo_root / "ml" / "vision_detector" / "datasets" / "raw" / "images" / "test_indian_neg" / "img_0903.jpg"
+    assert (onnx_dir / "model_fp32.onnx").is_file(), f"Missing trained ONNX model in {onnx_dir}"
+    assert pos_img.is_file() and neg_img.is_file(), "Missing OOD sample test images"
+
+    pos_bytes = pos_img.read_bytes()
+    neg_bytes = neg_img.read_bytes()
+    vd = VisionDetectorAdapter(mode="live")
+
+    async def _run():
+        res_pos = await vd.predict(file_bytes=pos_bytes)
+        res_neg = await vd.predict(file_bytes=neg_bytes)
+
+        import app.ai.adapters.vision_detector as vd_mod
+        monkeypatch.setattr(vd_mod, "_fetch_s3_image_bytes", lambda key: pos_bytes)
+        res_s3 = await vd.predict(s3_key="evidence/fire_ood.jpg")
+        return res_pos, res_neg, res_s3
+
+    res_pos, res_neg, res_s3 = asyncio.run(_run())
+
+    assert res_pos.pipeline == "fire_smoke"
+    assert res_pos.finding == "possible_fire_smoke_evidence"
+    assert res_pos.adapter == "live_model"
+    assert res_pos.modelVersion.startswith("fcos-r50-fpn-indian-fire-smoke-v1-onnx")
+    assert res_pos.modelScore >= 0.50
+    labels = {b.label for b in res_pos.boundingBoxes}
+    assert {"smoke_plume", "active_flame"}.issubset(labels)
+    for b in res_pos.boundingBoxes:
+        assert 0.0 <= b.x <= 1.0 and 0.0 <= b.y <= 1.0
+        assert 0.0 < b.width <= 1.0 and 0.0 < b.height <= 1.0
+
+    assert res_neg.finding == "no_supported_visual_evidence"
+    assert res_neg.adapter == "live_model"
+    assert res_neg.boundingBoxes == []
+    assert res_s3.finding == res_pos.finding and res_s3.modelScore == res_pos.modelScore
+
+    # Missing ONNX path falls back cleanly to mock without crashing
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "VISION_DETECTOR_MODEL_DIR", str(onnx_dir / "nonexistent_subdir"))
+    fallback = asyncio.run(vd.predict(file_bytes=pos_bytes))
+    assert fallback.modelVersion == "yolov8-fire-smoke-v2-mock"
+    assert fallback.adapter == "labelled_demo_adapter"

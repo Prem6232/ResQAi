@@ -1,0 +1,373 @@
+{
+  "onnx_model_path": "F:\\ResQAi\\ml\\text_classifier\\artifacts\\onnx\\model_fp32.onnx",
+  "onnx_size_mb": 948.13,
+  "test_samples": 270,
+  "overall": {
+    "category_accuracy": 0.8704,
+    "category_macro_f1": 0.8746,
+    "urgency_accuracy": 0.8,
+    "urgency_macro_f1": 0.7689,
+    "confident_coverage": 0.7741,
+    "confident_category_accuracy": 0.9234
+  },
+  "cpu_latency_ms": {
+    "mean": 67.1,
+    "p50": 65.09,
+    "p95": 77.23
+  },
+  "slices": {
+    "adversarial_false_alarm": {
+      "count": 21,
+      "cat_acc": 0.9048,
+      "cat_macro_f1": 0.3167,
+      "urg_acc": 0.9048
+    },
+    "hindi_devanagari": {
+      "count": 21,
+      "cat_acc": 0.9524,
+      "cat_macro_f1": 0.951,
+      "urg_acc": 0.7143
+    },
+    "hinglish": {
+      "count": 35,
+      "cat_acc": 0.9714,
+      "cat_macro_f1": 0.972,
+      "urg_acc": 0.8
+    },
+    "indian_english": {
+      "count": 52,
+      "cat_acc": 0.9423,
+      "cat_macro_f1": 0.9444,
+      "urg_acc": 0.6346
+    },
+    "open_corpus_en": {
+      "count": 141,
+      "cat_acc": 0.8014,
+      "cat_macro_f1": 0.7777,
+      "urg_acc": 0.8582
+    }
+  },
+  "category_report": {
+    "fire_smoke": {
+      "precision": 0.8913043478260869,
+      "recall": 1.0,
+      "f1-score": 0.9425287356321839,
+      "support": 41.0
+    },
+    "road_accident": {
+      "precision": 0.9743589743589743,
+      "recall": 0.8837209302325582,
+      "f1-score": 0.926829268292683,
+      "support": 43.0
+    },
+    "medical": {
+      "precision": 0.8863636363636364,
+      "recall": 0.9069767441860465,
+      "f1-score": 0.896551724137931,
+      "support": 43.0
+    },
+    "personal_safety": {
+      "precision": 1.0,
+      "recall": 0.8888888888888888,
+      "f1-score": 0.9411764705882353,
+      "support": 18.0
+    },
+    "water_flood": {
+      "precision": 0.7547169811320755,
+      "recall": 0.975609756097561,
+      "f1-score": 0.851063829787234,
+      "support": 41.0
+    },
+    "hazard": {
+      "precision": 0.8333333333333334,
+      "recall": 0.7317073170731707,
+      "f1-score": 0.7792207792207793,
+      "support": 41.0
+    },
+    "other": {
+      "precision": 0.8611111111111112,
+      "recall": 0.7209302325581395,
+      "f1-score": 0.7848101265822784,
+      "support": 43.0
+    },
+    "accuracy": 0.8703703703703703,
+    "macro avg": {
+      "precision": 0.885884054875031,
+      "recall": 0.8725476955766235,
+      "f1-score": 0.8745972763201892,
+      "support": 270.0
+    },
+    "weighted avg": {
+      "precision": 0.8766384858992644,
+      "recall": 0.8703703703703703,
+      "f1-score": 0.868810154512558,
+      "support": 270.0
+    }
+  },
+  "urgency_report": {
+    "critical": {
+      "precision": 0.8050847457627118,
+      "recall": 0.9134615384615384,
+      "f1-score": 0.8558558558558559,
+      "support": 104.0
+    },
+    "high": {
+      "precision": 0.7684210526315789,
+      "recall": 0.7684210526315789,
+      "f1-score": 0.7684210526315789,
+      "support": 95.0
+    },
+    "medium": {
+      "precision": 0.7777777777777778,
+      "recall": 0.56,
+      "f1-score": 0.6511627906976745,
+      "support": 25.0
+    },
+    "low": {
+      "precision": 0.8717948717948718,
+      "recall": 0.7391304347826086,
+      "f1-score": 0.8,
+      "support": 46.0
+    },
+    "accuracy": 0.8,
+    "macro avg": {
+      "precision": 0.805769611991735,
+      "recall": 0.7452532564689316,
+      "f1-score": 0.7688599247962773,
+      "support": 270.0
+    },
+    "weighted avg": {
+      "precision": 0.8010215633567799,
+      "recall": 0.8,
+      "f1-score": 0.796622513986855,
+      "support": 270.0
+    }
+  },
+  "sample_errors": [
+    {
+      "text": "\u0938\u0921\u093c\u0915 \u0915\u093f\u0928\u093e\u0930\u0947 \u092c\u093f\u091c\u0932\u0940 \u0916\u0902\u092d\u0947 \u0915\u0947 \u092c\u0949\u0915\u094d\u0938 \u0938\u0947 \u091a\u093f\u0902\u0917\u093e\u0930\u0940 \u0914\u0930 \u0939\u0932\u094d\u0915\u093e \u0927\u0941\u0906\u0902 \u0928\u093f\u0915\u0932 \u0930\u0939\u093e \u0939\u0948",
+      "slice": "hindi_devanagari",
+      "true_category": "fire_smoke",
+      "pred_category": "fire_smoke",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7855
+    },
+    {
+      "text": "Pungent electrical burning smoke coming out of basement UPS room, please inspect",
+      "slice": "indian_english",
+      "true_category": "fire_smoke",
+      "pred_category": "fire_smoke",
+      "true_urgency": "medium",
+      "pred_urgency": "critical",
+      "confidence": 0.8103
+    },
+    {
+      "text": "Kitchen exhaust fan smoking heavily inside crowded food court, no open flame yet",
+      "slice": "indian_english",
+      "true_category": "fire_smoke",
+      "pred_category": "fire_smoke",
+      "true_urgency": "medium",
+      "pred_urgency": "high",
+      "confidence": 0.7851
+    },
+    {
+      "text": "10 number market turn par do bike takra gayi ek ladke ke kandhe mein chot aayi hai",
+      "slice": "hinglish",
+      "true_category": "road_accident",
+      "pred_category": "road_accident",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7847
+    },
+    {
+      "text": "Jayanagar circle ke paas barish mein bike phisal gayi rider ko pair mein fracture lag raha",
+      "slice": "hinglish",
+      "true_category": "road_accident",
+      "pred_category": "road_accident",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7515
+    },
+    {
+      "text": "Delivery scooter skidded near Powai lake turn, rider injured and unable to stand",
+      "slice": "indian_english",
+      "true_category": "road_accident",
+      "pred_category": "road_accident",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.6874
+    },
+    {
+      "text": "School van bumped rear of stationary tempo near Narela gate, minor bumper damage only",
+      "slice": "indian_english",
+      "true_category": "road_accident",
+      "pred_category": "road_accident",
+      "true_urgency": "medium",
+      "pred_urgency": "critical",
+      "confidence": 0.769
+    },
+    {
+      "text": "Auto rickshaw collided with cyclist outside metro pillar, cyclist has bleeding knee",
+      "slice": "indian_english",
+      "true_category": "road_accident",
+      "pred_category": "road_accident",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7531
+    },
+    {
+      "text": "Tractor trolley axle snapped causing collision near outskirts highway toll plaza",
+      "slice": "indian_english",
+      "true_category": "road_accident",
+      "pred_category": "road_accident",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.6995
+    },
+    {
+      "text": "football ground mein girne se dost ka takhna mud gaya sujan aa gayi chal nahi pa raha",
+      "slice": "hinglish",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7657
+    },
+    {
+      "text": "lab mein kaanch tootne se student ke haath se bahut khoon beh raha hai first aid chahiye",
+      "slice": "hinglish",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7549
+    },
+    {
+      "text": "\u0938\u094d\u0915\u0942\u0932 \u092e\u0948\u0926\u093e\u0928 \u092e\u0947\u0902 \u0926\u094c\u0921\u093c\u0924\u0947 \u0938\u092e\u092f \u091b\u093e\u0924\u094d\u0930 \u0917\u093f\u0930 \u0917\u092f\u093e \u0914\u0930 \u0939\u093e\u0925 \u092e\u0947\u0902 \u0917\u0902\u092d\u0940\u0930 \u091a\u094b\u091f \u0906\u0908 \u0939\u0948",
+      "slice": "hindi_devanagari",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.75
+    },
+    {
+      "text": "\u0924\u0947\u091c \u0927\u0942\u092a \u0938\u0947 \u092f\u093e\u0924\u094d\u0930\u0940 \u0915\u094b \u091a\u0915\u094d\u0915\u0930 \u0906 \u0930\u0939\u0947 \u0939\u0948\u0902 \u0914\u0930 \u092a\u093e\u0928\u0940 \u0915\u0940 \u0909\u0932\u094d\u091f\u0940 \u0939\u094b \u0930\u0939\u0940 \u0939\u0948 \u092e\u0926\u0926 \u091a\u093e\u0939\u093f\u090f",
+      "slice": "hindi_devanagari",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7752
+    },
+    {
+      "text": "Commuter slipped on wet marble stairs suffering painful wrist sprain, conscious and seated",
+      "slice": "indian_english",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "medium",
+      "pred_urgency": "critical",
+      "confidence": 0.7822
+    },
+    {
+      "text": "Minor dizzy spell after standing in sun near ticket counter, patient resting on bench",
+      "slice": "indian_english",
+      "true_category": "medical",
+      "pred_category": "medical",
+      "true_urgency": "medium",
+      "pred_urgency": "critical",
+      "confidence": 0.7687
+    },
+    {
+      "text": "girls PG gate ke saamne anjaan ladke shor macha ke pareshan kar rahe security bhejo",
+      "slice": "hinglish",
+      "true_category": "personal_safety",
+      "pred_category": "personal_safety",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7599
+    },
+    {
+      "text": "library se hostel jate waqt gali ki light kharab aur ajeeb log khade hain escort bhejein",
+      "slice": "hinglish",
+      "true_category": "personal_safety",
+      "pred_category": "hazard",
+      "true_urgency": "medium",
+      "pred_urgency": "medium",
+      "confidence": 0.2717
+    },
+    {
+      "text": "Aggressive drunk argument breaking out near ATM booth at 10 Number Stop",
+      "slice": "indian_english",
+      "true_category": "personal_safety",
+      "pred_category": "personal_safety",
+      "true_urgency": "high",
+      "pred_urgency": "medium",
+      "confidence": 0.6275
+    },
+    {
+      "text": "Chain snatching attempt reported outside temple entrance, suspects fleeing on motorbike",
+      "slice": "indian_english",
+      "true_category": "personal_safety",
+      "pred_category": "road_accident",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.5271
+    },
+    {
+      "text": "Evening jogger reporting harassment and catcalling by group parked near lakefront",
+      "slice": "indian_english",
+      "true_category": "personal_safety",
+      "pred_category": "personal_safety",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.759
+    },
+    {
+      "text": "Two intoxicated men blocking women commuters at bus bay and shouting abuses",
+      "slice": "indian_english",
+      "true_category": "personal_safety",
+      "pred_category": "personal_safety",
+      "true_urgency": "high",
+      "pred_urgency": "critical",
+      "confidence": 0.7487
+    },
+    {
+      "text": "Suspicious stranger loitering quietly near school pickup lane, security check advised",
+      "slice": "indian_english",
+      "true_category": "personal_safety",
+      "pred_category": "personal_safety",
+      "true_urgency": "medium",
+      "pred_urgency": "high",
+      "confidence": 0.7522
+    },
+    {
+      "text": "\u0915\u0949\u0932\u094b\u0928\u0940 \u0915\u0940 \u0938\u0921\u093c\u0915\u094b\u0902 \u092a\u0930 \u0918\u0941\u091f\u0928\u094b\u0902 \u0924\u0915 \u092a\u093e\u0928\u0940 \u092d\u0930\u0928\u0947 \u0938\u0947 \u0918\u0930\u094b\u0902 \u0938\u0947 \u0928\u093f\u0915\u0932\u0928\u093e \u092e\u0941\u0936\u094d\u0915\u093f\u0932 \u0939\u094b \u0917\u092f\u093e \u0939\u0948",
+      "slice": "hindi_devanagari",
+      "true_category": "water_flood",
+      "pred_category": "water_flood",
+      "true_urgency": "high",
+      "pred_urgency": "medium",
+      "confidence": 0.7796
+    },
+    {
+      "text": "Monsoon waterlogging up to car headlights inside Raisen Road culvert, commuters stuck",
+      "slice": "indian_english",
+      "true_category": "water_flood",
+      "pred_category": "water_flood",
+      "true_urgency": "critical",
+      "pred_urgency": "high",
+      "confidence": 0.7928
+    },
+    {
+      "text": "Heavy storm runoff submerging ground-floor shops in Chuna Bhatti low pocket",
+      "slice": "indian_english",
+      "true_category": "water_flood",
+      "pred_category": "water_flood",
+      "true_urgency": "critical",
+      "pred_urgency": "high",
+      "confidence": 0.77
+    }
+  ]
+}

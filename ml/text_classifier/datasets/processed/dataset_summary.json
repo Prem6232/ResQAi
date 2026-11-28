@@ -1,0 +1,46 @@
+{
+  "train_total": 4613,
+  "val_total": 733,
+  "test_total": 270,
+  "curated_indian_ood_total": 120,
+  "train_categories": {
+    "hazard": 772,
+    "personal_safety": 391,
+    "road_accident": 535,
+    "medical": 599,
+    "fire_smoke": 794,
+    "water_flood": 728,
+    "other": 794
+  },
+  "train_urgencies": {
+    "high": 1677,
+    "critical": 1455,
+    "medium": 665,
+    "low": 816
+  },
+  "val_categories": {
+    "hazard": 138,
+    "fire_smoke": 130,
+    "other": 122,
+    "medical": 81,
+    "road_accident": 74,
+    "water_flood": 130,
+    "personal_safety": 58
+  },
+  "test_categories": {
+    "fire_smoke": 41,
+    "road_accident": 43,
+    "medical": 43,
+    "personal_safety": 18,
+    "water_flood": 41,
+    "hazard": 41,
+    "other": 43
+  },
+  "test_slices": {
+    "hinglish": 35,
+    "hindi_devanagari": 21,
+    "indian_english": 52,
+    "adversarial_false_alarm": 21,
+    "open_corpus_en": 141
+  }
+}

@@ -185,11 +185,16 @@ async def create_citizen_report(
         if existing:
             return build_report_response(existing), False
 
+    normalized_category = (
+        "personal_safety"
+        if str(payload.category).lower().strip() in {"personal_sos", "sos"}
+        else payload.category
+    )
     geom = from_shape(Point(payload.location.lng, payload.location.lat), srid=4326)
     report = Report(
         reporter_id=user.id,
         channel=payload.channel or "form",
-        category=payload.category,
+        category=normalized_category,
         urgency=payload.urgency or "high",
         raw_text=payload.text,
         location=geom,
@@ -229,7 +234,7 @@ async def create_citizen_report(
             "report_id": str(report.id),
             "reporter_id": str(user.id),
             "incident_id": str(clustered_inc.id),
-            "category": payload.category,
+            "category": normalized_category,
             "channel": report.channel,
             "urgency": report.urgency,
             "lat": payload.location.lat,

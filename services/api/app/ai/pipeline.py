@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.entities import Report, MediaAsset, AIAssessment, Incident
+from app.models.entities import Report, MediaAsset, AIAssessment, Incident, IncidentReport
 from app.common.spatial import extract_lat_lng
 from app.core.outbox import create_outbox_event
 from app.ai.adapters.text_classifier import TextClassifierAdapter
@@ -27,6 +27,15 @@ text_classifier = TextClassifierAdapter()
 voice_transcriber = VoiceTranscriberAdapter()
 vision_detector = VisionDetectorAdapter()
 duplicate_matcher = DuplicateMatcherAdapter()
+
+_PLACEHOLDER_REPORT_TEXTS = {
+    "",
+    "incident reported from citizen portal",
+    "incident reported from citizen web",
+    "citizen emergency report submitted via resqai app.",
+    "voice emergency report",
+    "sos from citizen app",
+}
 
 async def execute_report_ai_pipeline(
     session: AsyncSession,
@@ -77,7 +86,7 @@ async def execute_report_ai_pipeline(
                 report_id=report.id,
                 pipeline_type="voice_transcription",
                 model_name="VoiceTranscriberAdapter",
-                model_version=voice_output.modelVersion,
+                model_version=(voice_output.modelVersion or "unknown")[:50],
                 confidence_score=voice_output.confidence,
                 explanation=f"Voice memo transcribed in {voice_output.detectedLanguage}",
                 raw_output=voice_output.model_dump(),
@@ -85,9 +94,13 @@ async def execute_report_ai_pipeline(
             )
             session.add(assessment)
 
-            # If report text was empty, populate with voice transcript
-            if not report.raw_text and voice_output.transcript:
-                report.raw_text = voice_output.transcript
+            # Populate empty/placeholder report text with voice transcript or fuse both
+            if voice_output.transcript:
+                cleaned_raw = (report.raw_text or "").strip()
+                if cleaned_raw.lower() in _PLACEHOLDER_REPORT_TEXTS:
+                    report.raw_text = voice_output.transcript
+                elif voice_output.transcript not in cleaned_raw:
+                    report.raw_text = f"{cleaned_raw} | Voice transcript: {voice_output.transcript}"
         except Exception as e:
             logger.error(f"Voice transcription failed for report {report.id}: {e}", exc_info=True)
             has_failure = True
@@ -111,7 +124,7 @@ async def execute_report_ai_pipeline(
             report_id=report.id,
             pipeline_type="text_classifier",
             model_name="TextClassifierAdapter",
-            model_version=text_output.modelVersion,
+            model_version=(text_output.modelVersion or "unknown")[:50],
             confidence_score=text_output.modelScore,
             explanation=text_output.explanation,
             raw_output=text_output.model_dump(),
@@ -144,7 +157,7 @@ async def execute_report_ai_pipeline(
                 report_id=report.id,
                 pipeline_type="vision_fire_smoke",
                 model_name="VisionDetectorAdapter",
-                model_version=vision_output.modelVersion,
+                model_version=(vision_output.modelVersion or "unknown")[:50],
                 confidence_score=vision_output.modelScore,
                 explanation=vision_output.explanation,
                 raw_output=vision_output.model_dump(),
@@ -174,7 +187,8 @@ async def execute_report_ai_pipeline(
             await session.execute(
                 select(Incident)
                 .where(Incident.status.notin_(["closed", "duplicate", "cancelled"]))
-                .limit(20)
+                .order_by(Incident.created_at.desc())
+                .limit(50)
             )
         ).scalars().all()
 
@@ -187,11 +201,17 @@ async def execute_report_ai_pipeline(
         )
 
         if duplicate_candidates:
+            has_onnx_signal = any(
+                "e5-small-indian-duplicate" in s
+                for cand in duplicate_candidates
+                for s in cand.signals
+            )
+            dup_version = duplicate_matcher.get_model_version() if has_onnx_signal else "heuristic-v1"
             assessment = AIAssessment(
                 report_id=report.id,
                 pipeline_type="duplicate_matching",
                 model_name="DuplicateMatcherAdapter",
-                model_version="heuristic-v1",
+                model_version=(dup_version or "heuristic-v1")[:50],
                 confidence_score=duplicate_candidates[0].score,
                 explanation=f"Identified {len(duplicate_candidates)} duplicate incident candidates",
                 raw_output={"candidates": [c.model_dump() for c in duplicate_candidates]},
@@ -220,17 +240,33 @@ async def execute_report_ai_pipeline(
         duplicates=duplicate_candidates,
     )
 
-    # Emit transactional outbox event
+    linked_incident_id: Optional[str] = None
+    if report.incident_links:
+        linked_incident_id = str(report.incident_links[0].incident_id)
+    else:
+        linked_inc_row = await session.scalar(
+            select(IncidentReport.incident_id).where(IncidentReport.report_id == report.id)
+        )
+        if linked_inc_row:
+            linked_incident_id = str(linked_inc_row)
+
+    # Emit transactional outbox event (routed to operators + submitting citizen)
+    outbox_payload: Dict[str, Any] = {
+        "report_id": str(report.id),
+        "processing_state": report.processing_state,
+        "evidence": evidence.model_dump(),
+    }
+    if linked_incident_id:
+        outbox_payload["incident_id"] = linked_incident_id
+    if report.reporter_id:
+        outbox_payload["reporter_id"] = str(report.reporter_id)
+
     await create_outbox_event(
         session=session,
         aggregate_type="Report",
         aggregate_id=report.id,
         event_type="ai.assessment.ready",
-        payload={
-            "report_id": str(report.id),
-            "processing_state": report.processing_state,
-            "evidence": evidence.model_dump(),
-        }
+        payload=outbox_payload,
     )
 
     await session.commit()

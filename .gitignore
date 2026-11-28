@@ -54,3 +54,22 @@ npm-debug.log*
 new_repo/
 temp_repo/
 .playwright-cli/
+
+# ML workspace caches, raw downloaded corpora, and large binary model weights
+ml/.venv/
+ml/.hf_cache/
+ml/**/datasets/raw/
+ml/**/datasets/*.jsonl
+ml/**/datasets/processed/*.jsonl
+ml/**/artifacts/best_checkpoint/
+ml/**/artifacts/onnx/
+ml/**/artifacts/whisper-*/
+ml/**/artifacts/checkpoint-*/
+ml/**/artifacts/**/*.safetensors
+ml/**/artifacts/**/*.bin
+ml/**/artifacts/**/*.pt
+ml/**/artifacts/**/*.pth
+ml/**/artifacts/**/*.onnx
+ml/**/artifacts/**/*.onnx.data
+ml/**/artifacts/**/*.data
+ml/**/artifacts/checkpoint-*/

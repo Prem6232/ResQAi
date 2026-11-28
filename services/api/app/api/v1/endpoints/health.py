@@ -12,6 +12,7 @@ async def check_health(db: AsyncSession = Depends(get_db)):
     health_status = {
         "status": "healthy",
         "api": "online",
+        "ai_mode": settings.AI_ADAPTER_MODE,
         "database": "unknown",
         "postgis_version": "unknown",
         "redis": "unknown"

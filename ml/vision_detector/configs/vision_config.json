@@ -1,0 +1,18 @@
+{
+  "base_model": "torchvision.models.detection.fcos_resnet50_fpn",
+  "license": "BSD-3-Clause",
+  "image_size": 384,
+  "num_classes": 3,
+  "id2label": {
+    "0": "smoke_plume",
+    "1": "active_flame"
+  },
+  "label2id": {
+    "smoke_plume": 0,
+    "active_flame": 1
+  },
+  "box_score_threshold": 0.5,
+  "nms_iou_threshold": 0.5,
+  "max_detections": 8,
+  "preferred_onnx_file": "model_fp32.onnx"
+}

@@ -1,0 +1,268 @@
+{
+  "model_id": "Systran/faster-whisper-small",
+  "model_size_mb": 486.22,
+  "cpu_int8": {
+    "device": "cpu",
+    "compute_type": "int8",
+    "hindi_kathbath": {
+      "count": 30,
+      "wer": 0.5041,
+      "cer": 0.1919,
+      "p50_ms": 2869.7
+    },
+    "emergency_voice_memos": {
+      "count": 21,
+      "wer": 0.0309,
+      "cer": 0.0075,
+      "p50_ms": 2383.7,
+      "e2e_voice_to_category_acc": 1.0,
+      "e2e_correct": "21/21"
+    },
+    "samples_preview": [
+      {
+        "id": "kathbath_hi_000",
+        "slice": "indian_hindi_kathbath",
+        "ref": "सुधीर मिश्रा की ये फिल्म लेखक शरत चंद्र चट्टोपाध्याय के उपन्यास देवदास पर आधारित होगी",
+        "hyp": "सुदेर मिश्षा की ही फिर्म लेक खिक शरद शंद्र चदो पाद्या के पन्न्यास देवदास पराद्धारी तो नहीं",
+        "confidence": 0.5818,
+        "latency_ms": 4370.7
+      },
+      {
+        "id": "kathbath_hi_001",
+        "slice": "indian_hindi_kathbath",
+        "ref": "खोज कम मांग के लिए इंजन में वेबसाइट पदोन्नति",
+        "hyp": "खोज कम मांग के लिये इंजन में वैपसाइत पदोनती",
+        "confidence": 0.642,
+        "latency_ms": 2486.0
+      },
+      {
+        "id": "kathbath_hi_002",
+        "slice": "indian_hindi_kathbath",
+        "ref": "ट्रेन लक्ष्मीबाई नगर भी नहीं पहुंचती कि लोगों का बतियाना बन्द हो जाता है",
+        "hyp": "त्रेन लक्ष्मिभाई नगर भी नहीं पूँस्ती की लोगो का बत्याना बन्द हो जाता है",
+        "confidence": 0.776,
+        "latency_ms": 3309.0
+      },
+      {
+        "id": "kathbath_hi_003",
+        "slice": "indian_hindi_kathbath",
+        "ref": "नई पॉलिसी के तहत एक्सट्रा चार्ज देकर ज्यादा एफएआर भी लिया जा सकता है",
+        "hyp": "नहीं पूलिसी के तहत एकस्ट्रा चार्ज देकर ज़ादा FIR भी लिया जा सकता है",
+        "confidence": 0.6625,
+        "latency_ms": 2889.9
+      },
+      {
+        "id": "kathbath_hi_004",
+        "slice": "indian_hindi_kathbath",
+        "ref": "उन्होंने वन मुख्यालय से प्रस्ताव पर अनुमति प्रदान करने का आग्रह किया है",
+        "hyp": "उनो नहीं वन मुख्याले से प्रस्ताव पर अनुमती प्रदान करने का अगरे किया है",
+        "confidence": 0.7151,
+        "latency_ms": 2964.1
+      },
+      {
+        "id": "kathbath_hi_005",
+        "slice": "indian_hindi_kathbath",
+        "ref": "उषा ने ऑटो चालक को बताया कि उसे भिंड जाना है",
+        "hyp": "उश्या ने उटो चालक को बताया की उसे भिंद जाना है",
+        "confidence": 0.708,
+        "latency_ms": 2454.7
+      },
+      {
+        "id": "kathbath_hi_006",
+        "slice": "indian_hindi_kathbath",
+        "ref": "देश की जनता अपने आप अन्ना की टीम के सवालों का जवाब चुनावों में देगी",
+        "hyp": "देश की चन्ता अपने आप अन्ना की तीम की सवालो का जवाब जुनावो मे देगी",
+        "confidence": 0.7734,
+        "latency_ms": 3157.4
+      },
+      {
+        "id": "kathbath_hi_007",
+        "slice": "indian_hindi_kathbath",
+        "ref": "शासन द्वारा मंजूरी मिलते ही ओपन जेल का निर्माण कार्य शुरू हो गया",
+        "hyp": "शाशन दोर मनजुरी मिलते ही ओपन जेल का निर्माल कार्लि शुरू हो गया",
+        "confidence": 0.6252,
+        "latency_ms": 3041.3
+      },
+      {
+        "id": "memo_fire_01",
+        "slice": "emergency_voice_memo",
+        "ref": "Urgent emergency near MP Nagar Zone 1. Thick black smoke and flames are coming out of the corner transformer shop.",
+        "hyp": "Urgent emergency near MP Nagar Zone 1. Thick black smoke and flames are coming out of the corner transformer shop.",
+        "confidence": 0.8085,
+        "latency_ms": 2649.1
+      },
+      {
+        "id": "memo_fire_02",
+        "slice": "emergency_voice_memo",
+        "ref": "Gas cylinder caught fire inside the hostel canteen kitchen at Arera Colony, heavy smoke everywhere.",
+        "hyp": "Gas cylinder caught fire inside the hostile canteen kitchen at Arera Colony, heavy smoke everywhere.",
+        "confidence": 0.8426,
+        "latency_ms": 2287.0
+      },
+      {
+        "id": "memo_fire_03",
+        "slice": "emergency_voice_memo",
+        "ref": "Dry grass and garbage burning rapidly close to parked two wheelers behind New Market.",
+        "hyp": "Dry grass and garbage burning rapidly close to Park 2 wheelers behind New Market.",
+        "confidence": 0.7914,
+        "latency_ms": 2201.2
+      },
+      {
+        "id": "memo_accident_01",
+        "slice": "emergency_voice_memo",
+        "ref": "Head on collision between a city bus and motorcycle at Habibganj crossing, the rider is bleeding on the road.",
+        "hyp": "Head on collision between a city bus and motorcycle at Habibganj crossing, the rider is bleeding on the road.",
+        "confidence": 0.8778,
+        "latency_ms": 2411.4
+      },
+      {
+        "id": "memo_accident_02",
+        "slice": "emergency_voice_memo",
+        "ref": "An auto rickshaw overturned near Kolar Road turn blocking traffic, two passengers are injured.",
+        "hyp": "An auto rickshaw overturned near Kolar Road turn blocking traffic, two passengers are injured.",
+        "confidence": 0.8749,
+        "latency_ms": 2361.4
+      },
+      {
+        "id": "memo_accident_03",
+        "slice": "emergency_voice_memo",
+        "ref": "Minor fender bender between two cars near TT Nagar signal causing a slow traffic queue.",
+        "hyp": "Minor fender bender between two cars near TT Nagar signal causing a slow traffic queue.",
+        "confidence": 0.7729,
+        "latency_ms": 2294.9
+      }
+    ]
+  },
+  "cuda_fp16": {
+    "device": "cuda",
+    "compute_type": "float16",
+    "hindi_kathbath": {
+      "count": 30,
+      "wer": 0.5124,
+      "cer": 0.1913,
+      "p50_ms": 592.6
+    },
+    "emergency_voice_memos": {
+      "count": 21,
+      "wer": 0.0309,
+      "cer": 0.0075,
+      "p50_ms": 307.4,
+      "e2e_voice_to_category_acc": 1.0,
+      "e2e_correct": "21/21"
+    },
+    "samples_preview": [
+      {
+        "id": "kathbath_hi_000",
+        "slice": "indian_hindi_kathbath",
+        "ref": "सुधीर मिश्रा की ये फिल्म लेखक शरत चंद्र चट्टोपाध्याय के उपन्यास देवदास पर आधारित होगी",
+        "hyp": "सुदेर मिश्षा की ये फिर्म लेक खिक शरद शंद्र चदो पाद्या के पन्यास देविदास पराद्धारी तो नहीं",
+        "confidence": 0.5901,
+        "latency_ms": 1327.0
+      },
+      {
+        "id": "kathbath_hi_001",
+        "slice": "indian_hindi_kathbath",
+        "ref": "खोज कम मांग के लिए इंजन में वेबसाइट पदोन्नति",
+        "hyp": "खोज कम मांग के लिए इंजन में वैपसाइत पदोनती",
+        "confidence": 0.6535,
+        "latency_ms": 500.4
+      },
+      {
+        "id": "kathbath_hi_002",
+        "slice": "indian_hindi_kathbath",
+        "ref": "ट्रेन लक्ष्मीबाई नगर भी नहीं पहुंचती कि लोगों का बतियाना बन्द हो जाता है",
+        "hyp": "त्रेन लक्ष्मिभाई नगर भी नहीं पूँस्ती की लोगो का बत्याना बन्द हो जाता है",
+        "confidence": 0.7713,
+        "latency_ms": 650.3
+      },
+      {
+        "id": "kathbath_hi_003",
+        "slice": "indian_hindi_kathbath",
+        "ref": "नई पॉलिसी के तहत एक्सट्रा चार्ज देकर ज्यादा एफएआर भी लिया जा सकता है",
+        "hyp": "नहीं पूलिसी के तहत एकस्ट्रा चार्ज देकर जाड़ा FI-R भी लिया जा सकता है",
+        "confidence": 0.669,
+        "latency_ms": 673.6
+      },
+      {
+        "id": "kathbath_hi_004",
+        "slice": "indian_hindi_kathbath",
+        "ref": "उन्होंने वन मुख्यालय से प्रस्ताव पर अनुमति प्रदान करने का आग्रह किया है",
+        "hyp": "नो नहीं वन मुख्याले से प्रस्ताब पर अनुमती प्रदान करने का अगरे किया है",
+        "confidence": 0.7178,
+        "latency_ms": 651.2
+      },
+      {
+        "id": "kathbath_hi_005",
+        "slice": "indian_hindi_kathbath",
+        "ref": "उषा ने ऑटो चालक को बताया कि उसे भिंड जाना है",
+        "hyp": "उश्याने अटो चालक को बताया की उसे भिंद जाना है",
+        "confidence": 0.7062,
+        "latency_ms": 441.7
+      },
+      {
+        "id": "kathbath_hi_006",
+        "slice": "indian_hindi_kathbath",
+        "ref": "देश की जनता अपने आप अन्ना की टीम के सवालों का जवाब चुनावों में देगी",
+        "hyp": "देश की चन्ता अपने आप अन्ना की तीम की सवालो का जवाब जुनावो में देगी",
+        "confidence": 0.7651,
+        "latency_ms": 649.0
+      },
+      {
+        "id": "kathbath_hi_007",
+        "slice": "indian_hindi_kathbath",
+        "ref": "शासन द्वारा मंजूरी मिलते ही ओपन जेल का निर्माण कार्य शुरू हो गया",
+        "hyp": "शाशन दोर मनजुरी मिलते ही अपन जेल का निर्मान कार्ली शुरू हो गया",
+        "confidence": 0.6364,
+        "latency_ms": 651.3
+      },
+      {
+        "id": "memo_fire_01",
+        "slice": "emergency_voice_memo",
+        "ref": "Urgent emergency near MP Nagar Zone 1. Thick black smoke and flames are coming out of the corner transformer shop.",
+        "hyp": "Urgent emergency near MP Nagar Zone 1. Thick black smoke and flames are coming out of the corner transformer shop.",
+        "confidence": 0.8023,
+        "latency_ms": 379.6
+      },
+      {
+        "id": "memo_fire_02",
+        "slice": "emergency_voice_memo",
+        "ref": "Gas cylinder caught fire inside the hostel canteen kitchen at Arera Colony, heavy smoke everywhere.",
+        "hyp": "Gas cylinder caught fire inside the hostile canteen kitchen at Arera Colony, heavy smoke everywhere.",
+        "confidence": 0.8483,
+        "latency_ms": 287.6
+      },
+      {
+        "id": "memo_fire_03",
+        "slice": "emergency_voice_memo",
+        "ref": "Dry grass and garbage burning rapidly close to parked two wheelers behind New Market.",
+        "hyp": "Dry grass and garbage burning rapidly close to Park 2 wheelers behind New Market.",
+        "confidence": 0.7843,
+        "latency_ms": 269.8
+      },
+      {
+        "id": "memo_accident_01",
+        "slice": "emergency_voice_memo",
+        "ref": "Head on collision between a city bus and motorcycle at Habibganj crossing, the rider is bleeding on the road.",
+        "hyp": "Head on collision between a city bus and motorcycle at Habibganj crossing, the rider is bleeding on the road.",
+        "confidence": 0.8811,
+        "latency_ms": 313.8
+      },
+      {
+        "id": "memo_accident_02",
+        "slice": "emergency_voice_memo",
+        "ref": "An auto rickshaw overturned near Kolar Road turn blocking traffic, two passengers are injured.",
+        "hyp": "An auto rickshaw overturned near Kolar Road turn blocking traffic, two passengers are injured.",
+        "confidence": 0.8636,
+        "latency_ms": 360.0
+      },
+      {
+        "id": "memo_accident_03",
+        "slice": "emergency_voice_memo",
+        "ref": "Minor fender bender between two cars near TT Nagar signal causing a slow traffic queue.",
+        "hyp": "Minor fender bender between two cars near TT Nagar signal causing a slow traffic queue.",
+        "confidence": 0.7683,
+        "latency_ms": 305.9
+      }
+    ]
+  }
+}

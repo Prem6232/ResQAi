@@ -1,0 +1,26 @@
+=== CATEGORY REPORT ===
+                 precision    recall  f1-score   support
+
+     fire_smoke       0.89      0.92      0.90       130
+  road_accident       0.97      0.89      0.93        74
+        medical       0.82      0.94      0.87        81
+personal_safety       0.97      1.00      0.98        58
+    water_flood       0.92      0.94      0.93       130
+         hazard       0.87      0.88      0.87       138
+          other       0.91      0.79      0.84       122
+
+       accuracy                           0.90       733
+      macro avg       0.91      0.91      0.90       733
+   weighted avg       0.90      0.90      0.90       733
+
+=== URGENCY REPORT ===
+              precision    recall  f1-score   support
+
+    critical       0.82      0.80      0.81       254
+        high       0.67      0.82      0.74       279
+      medium       0.76      0.44      0.55        78
+         low       0.87      0.74      0.80       122
+
+    accuracy                           0.76       733
+   macro avg       0.78      0.70      0.73       733
+weighted avg       0.77      0.76      0.75       733

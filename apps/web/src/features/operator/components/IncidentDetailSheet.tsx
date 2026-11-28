@@ -38,11 +38,26 @@ export function IncidentDetailSheet({
       <div className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-700/50">AI Evidence</h3>
         <FireSmokeEvidenceCard vision={evidence?.vision} />
+        {evidence?.voice ? (
+          <div className="rounded-2xl bg-sky-50/70 p-3 text-xs">
+            <p className="font-semibold text-sky-900">
+              Voice transcript ({evidence.voice.detectedLanguage}) · {Math.round(evidence.voice.confidence * 100)}%
+            </p>
+            <p className="mt-1 text-ink-800">"{evidence.voice.transcript}"</p>
+          </div>
+        ) : null}
         {evidence?.text ? (
           <div className="rounded-2xl bg-paper-100 p-3 text-xs">
-            <p className="font-semibold">
-              Text triage: {evidence.text.suggestedCategory.replaceAll("_", " ")} ({evidence.text.suggestedUrgency})
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-semibold">
+                Text triage: {evidence.text.suggestedCategory.replaceAll("_", " ")} ({evidence.text.suggestedUrgency})
+              </p>
+              {evidence.text.reviewRequired ? (
+                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                  Review Required
+                </span>
+              ) : null}
+            </div>
             <p className="mt-1 text-ink-700/70">{evidence.text.explanation}</p>
           </div>
         ) : null}

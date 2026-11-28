@@ -259,16 +259,40 @@ export function OperatorCommandCenter() {
               {/* Vision Assessment */}
               <FireSmokeEvidenceCard vision={detail?.evidence?.vision} />
 
+              {/* Voice Transcript */}
+              {detail?.evidence?.voice ? (
+                <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sky-900">
+                      Voice Transcript ({detail.evidence.voice.detectedLanguage})
+                    </span>
+                    <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-800">
+                      {Math.round(detail.evidence.voice.confidence * 100)}%
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-slate-700 leading-relaxed">
+                    "{detail.evidence.voice.transcript}"
+                  </p>
+                </div>
+              ) : null}
+
               {/* Text Assessment */}
               {detail?.evidence?.text ? (
                 <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 text-xs">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-slate-800">
                       AI Suggested: {detail.evidence.text.suggestedCategory.replaceAll("_", " ").toUpperCase()}
                     </span>
-                    <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-800">
-                      {detail.evidence.text.suggestedUrgency.toUpperCase()}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {detail.evidence.text.reviewRequired ? (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                          REVIEW
+                        </span>
+                      ) : null}
+                      <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-800">
+                        {detail.evidence.text.suggestedUrgency.toUpperCase()}
+                      </span>
+                    </div>
                   </div>
                   <p className="mt-1.5 text-slate-600 leading-relaxed">
                     {detail.evidence.text.explanation}

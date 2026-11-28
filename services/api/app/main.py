@@ -1,8 +1,12 @@
+import asyncio
+import contextlib
+import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.middleware import setup_middleware
+from app.ai.warmup import preload_live_models
 from app.core.exceptions import (
     AppException,
     app_exception_handler,
@@ -28,6 +32,40 @@ from app.modules.geospatial import geospatial_router
 
 # 1. Initialize logging
 setup_logging(level="DEBUG" if settings.ENVIRONMENT == "development" else "INFO")
+_main_logger = logging.getLogger("sentinelgrid.main")
+
+
+async def _inline_outbox_loop(interval_s: float) -> None:
+    from app.ai.celery_tasks import async_relay_outbox_events
+
+    while True:
+        try:
+            await async_relay_outbox_events(batch_size=25)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            _main_logger.warning("Inline outbox poll error: %s", exc)
+        await asyncio.sleep(interval_s)
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if settings.AI_PRELOAD_ON_STARTUP and settings.AI_ADAPTER_MODE != "mock":
+        await asyncio.to_thread(preload_live_models)
+
+    poller_task = None
+    if settings.AI_INLINE_OUTBOX_POLL_SECONDS > 0:
+        poller_task = asyncio.create_task(
+            _inline_outbox_loop(settings.AI_INLINE_OUTBOX_POLL_SECONDS)
+        )
+    try:
+        yield
+    finally:
+        if poller_task is not None:
+            poller_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await poller_task
+
 
 # 2. Create FastAPI application
 app = FastAPI(
@@ -37,6 +75,7 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
     docs_url=f"{settings.API_V1_PREFIX}/docs",
     redoc_url=f"{settings.API_V1_PREFIX}/redoc",
+    lifespan=lifespan,
 )
 
 # 3. Setup middleware

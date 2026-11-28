@@ -112,6 +112,7 @@ def build_incident_detail_response(incident: Incident) -> IncidentDetailResponse
     linked_reports = []
     loaded_links = state.dict.get("report_links")
     text_assessment = None
+    voice_assessment = None
     vision_assessment = None
     duplicates_list = []
 
@@ -127,9 +128,16 @@ def build_incident_detail_response(incident: Incident) -> IncidentDetailResponse
             rep_state = attributes.instance_state(rep)
             loaded_ass = rep_state.dict.get("ai_assessments")
             if loaded_ass:
-                for ass in loaded_ass:
+                sorted_ass = sorted(
+                    loaded_ass,
+                    key=lambda a: getattr(a, "created_at", None) or datetime.min,
+                    reverse=True,
+                )
+                for ass in sorted_ass:
                     if ass.pipeline_type == "text_classifier" and isinstance(ass.raw_output, dict) and "suggestedCategory" in ass.raw_output and not text_assessment:
                         text_assessment = ass.raw_output
+                    elif ass.pipeline_type == "voice_transcription" and isinstance(ass.raw_output, dict) and "transcript" in ass.raw_output and not voice_assessment:
+                        voice_assessment = ass.raw_output
                     elif ass.pipeline_type == "vision_fire_smoke" and isinstance(ass.raw_output, dict) and "finding" in ass.raw_output and not vision_assessment:
                         vision_assessment = ass.raw_output
                     elif ass.pipeline_type == "duplicate_matching" and isinstance(ass.raw_output, dict) and not duplicates_list:
@@ -170,12 +178,24 @@ def build_incident_detail_response(incident: Incident) -> IncidentDetailResponse
                 "distanceKm": asg.distance_km,
             })
 
+    has_image_attachment = any(
+        getattr(m, "file_type", None) == "image"
+        for l in incident.report_links
+        if l.report and l.report.media_assets
+        for m in l.report.media_assets
+    )
+    corroborating_visual = (
+        vision_assessment.get("finding") == "possible_fire_smoke_evidence"
+        if vision_assessment is not None
+        else has_image_attachment
+    )
+
     evidence_data = {
         "linkedReports": len(incident.report_links) if incident.report_links else 0,
         "temporalConsistency": "aligned",
         "locationConsistency": "aligned",
         "reusedMediaFlag": False,
-        "corroboratingVisual": any(len(l.report.media_assets) > 0 for l in incident.report_links if l.report and l.report.media_assets),
+        "corroboratingVisual": corroborating_visual,
         "missing": [],
         "conflicting": [],
         "duplicates": duplicates_list,
@@ -187,12 +207,14 @@ def build_incident_detail_response(incident: Incident) -> IncidentDetailResponse
         evidence_data["text"] = {
             "suggestedCategory": incident.category,
             "suggestedUrgency": incident.urgency,
-            "modelScore": 0.85,
+            "modelScore": 0.0,
             "scoreMeaning": "Relative classifier score, not probability the incident is real.",
-            "reviewRequired": False,
-            "explanation": f"Incident categorized as {incident.category}.",
-            "modelVersion": "distilbert-emergency-v1-mock",
+            "reviewRequired": True,
+            "explanation": f"Incident categorized as {incident.category}; AI text triage pending.",
+            "modelVersion": "pending-ai-triage",
         }
+    if voice_assessment:
+        evidence_data["voice"] = voice_assessment
     if vision_assessment:
         evidence_data["vision"] = vision_assessment
 
@@ -271,10 +293,10 @@ async def cluster_report_to_incident(
     else:
         code = str(random.randint(100, 999))
 
-    # Guarantee unique public_code
+    # Guarantee unique public_code across high-volume ingestion
     check_code = await db.scalar(select(Incident.id).where(Incident.public_code == code))
     if check_code:
-        code = f"{code}-{uuid.uuid4().hex[:2].upper()}"
+        code = f"{code}-{uuid.uuid4().hex[:6].upper()}"
 
     title = f"Incident {code} · {report.category.replace('_', ' ').title()}"
     new_incident = Incident(
@@ -775,6 +797,8 @@ async def get_responders_roster(db: AsyncSession) -> List[Dict[str, Any]]:
 
 async def get_suspected_duplicates(db: AsyncSession) -> List[DuplicatePairing]:
     """Find active incident pairs within 300m for candidate merge recommendations."""
+    from app.ai.adapters.duplicate_matcher import DuplicateMatcherAdapter, _extract_incident_text
+
     stmt = (
         select(Incident)
         .where(Incident.status.notin_(["closed", "duplicate", "cancelled"]))
@@ -782,28 +806,27 @@ async def get_suspected_duplicates(db: AsyncSession) -> List[DuplicatePairing]:
         .limit(30)
     )
     incidents = (await db.execute(stmt)).scalars().all()
+    matcher = DuplicateMatcherAdapter()
+    coords = [extract_lat_lng(inc.location) for inc in incidents]
+    texts = [_extract_incident_text(inc) for inc in incidents]
 
-    pairings = []
+    pairings: List[DuplicatePairing] = []
     for i in range(len(incidents)):
         for j in range(i + 1, len(incidents)):
             inc_a = incidents[i]
             inc_b = incidents[j]
-
-            lat_a, lng_a = extract_lat_lng(inc_a.location)
-            lat_b, lng_b = extract_lat_lng(inc_b.location)
+            lat_a, lng_a = coords[i]
+            lat_b, lng_b = coords[j]
 
             dist_m = haversine_distance_meters(lat_a, lng_a, lat_b, lng_b)
             if dist_m <= 300.0:
-                signals = [f"Spatial proximity ({int(dist_m)}m apart)"]
-                if inc_a.category == inc_b.category:
-                    signals.append(f"Matching category: {inc_a.category}")
-                    rec = "likely_related" if dist_m <= 150.0 else "review"
-                    score = round(max(0.6, 1.0 - (dist_m / 400.0)), 2)
-                else:
-                    signals.append(f"Different categories ({inc_a.category} vs {inc_b.category})")
-                    rec = "weak"
-                    score = 0.5
-
+                score, signals, rec = await matcher.score_incident_pair(
+                    dist_m=dist_m,
+                    cat_a=inc_a.category,
+                    cat_b=inc_b.category,
+                    text_a=texts[i],
+                    text_b=texts[j],
+                )
                 pairings.append(
                     DuplicatePairing(
                         incidentIdA=inc_a.public_code,
@@ -816,6 +839,7 @@ async def get_suspected_duplicates(db: AsyncSession) -> List[DuplicatePairing]:
                     )
                 )
 
+    pairings.sort(key=lambda item: item.score, reverse=True)
     return pairings
 
 # --- Dispatch Recommendations & Operator Dispatch ---

@@ -45,7 +45,18 @@ class Settings(BaseSettings):
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
     
     # AI Pipeline & Adapters
-    AI_ADAPTER_MODE: str = "mock" # "mock" or "live"
+    AI_ADAPTER_MODE: str = "live" # "live" or "mock"
+    AI_PRELOAD_ON_STARTUP: bool = False
+    AI_INLINE_OUTBOX_POLL_SECONDS: float = 0.0
+    TEXT_CLASSIFIER_MODEL_DIR: str = ""
+    TEXT_CLASSIFIER_ONNX_FILE: str = "model_fp32.onnx"
+    VOICE_TRANSCRIBER_MODEL_DIR: str = ""
+    VOICE_TRANSCRIBER_DEVICE: str = "cpu"
+    VOICE_TRANSCRIBER_COMPUTE_TYPE: str = "int8"
+    DUPLICATE_MATCHER_MODEL_DIR: str = ""
+    DUPLICATE_MATCHER_ONNX_FILE: str = "model_int8.onnx"
+    VISION_DETECTOR_MODEL_DIR: str = ""
+    VISION_DETECTOR_ONNX_FILE: str = "model_fp32.onnx"
     GEMINI_API_KEY: str = ""
     VISION_INFERENCE_URL: str = ""
 
