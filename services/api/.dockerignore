@@ -1,0 +1,20 @@
+# Never bake local dev secrets/overrides into the image.
+# Render (and any other cloud Docker host) injects env vars via its dashboard.
+.env
+.env.*
+!.env.example
+
+# Python caches
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+venv
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Local model weights (never ship in image — streamed from HF Hub at runtime)
+models/
+ml/
