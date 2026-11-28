@@ -160,6 +160,8 @@ class VoiceTranscriberAdapter(BaseAIAdapter):
         )
 
     async def _live_transcribe(self, s3_key: Optional[str], file_bytes: Optional[bytes]) -> VoiceTranscriptionSchema:
+        import base64
+        from app.ai.remote_client import post_remote_inference, resolve_remote_endpoint
         from app.core.config import settings
 
         raw_bytes = file_bytes
@@ -167,6 +169,14 @@ class VoiceTranscriberAdapter(BaseAIAdapter):
             if not s3_key:
                 raise ValueError("Either file_bytes or s3_key must be provided for live transcription")
             raw_bytes = await asyncio.to_thread(_fetch_s3_audio_bytes, s3_key)
+
+        remote_url = resolve_remote_endpoint(settings.VOICE_INFERENCE_URL, "/transcribe-voice")
+        if remote_url:
+            payload: Dict[str, str] = {"audio_b64": base64.b64encode(raw_bytes).decode("ascii")}
+            if s3_key:
+                payload["s3_key"] = s3_key
+            data = await post_remote_inference(remote_url, payload)
+            return VoiceTranscriptionSchema(**data)
 
         runtime = get_whisper_runtime(
             configured_dir=settings.VOICE_TRANSCRIBER_MODEL_DIR,

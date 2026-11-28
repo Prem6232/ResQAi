@@ -256,25 +256,23 @@ class VisionDetectorAdapter(BaseAIAdapter):
         )
 
     async def _live_detection(self, s3_key: Optional[str], file_bytes: Optional[bytes]) -> VisionDetectionSchema:
+        import base64
+        from app.ai.remote_client import post_remote_inference, resolve_remote_endpoint
         from app.core.config import settings
-
-        if settings.VISION_INFERENCE_URL:
-            import httpx
-
-            async with httpx.AsyncClient(timeout=8.0) as client:
-                resp = await client.post(
-                    settings.VISION_INFERENCE_URL.rstrip("/") + "/detect",
-                    json={"s3_key": s3_key},
-                )
-                if resp.status_code == 200:
-                    return VisionDetectionSchema(**resp.json())
-                raise ValueError(f"Vision service responded with HTTP {resp.status_code}")
 
         raw_bytes = file_bytes
         if raw_bytes is None:
             if not s3_key:
                 raise ValueError("Either file_bytes or s3_key must be provided for live vision detection")
             raw_bytes = await asyncio.to_thread(_fetch_s3_image_bytes, s3_key)
+
+        remote_url = resolve_remote_endpoint(settings.VISION_INFERENCE_URL, "/detect")
+        if remote_url:
+            payload: Dict[str, Any] = {"image_b64": base64.b64encode(raw_bytes).decode("ascii")}
+            if s3_key:
+                payload["s3_key"] = s3_key
+            data = await post_remote_inference(remote_url, payload)
+            return VisionDetectionSchema(**data)
 
         runtime = _get_runtime()
         return await asyncio.to_thread(runtime.detect_sync, raw_bytes)

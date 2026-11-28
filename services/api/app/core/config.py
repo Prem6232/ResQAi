@@ -98,6 +98,12 @@ class Settings(BaseSettings):
     VISION_DETECTOR_MODEL_DIR: str = ""
     VISION_DETECTOR_ONNX_FILE: str = "model_fp32.onnx"
     GEMINI_API_KEY: str = ""
+    ML_INFERENCE_BASE_URL: str = ""
+    ML_INFERENCE_API_KEY: str = ""
+    ML_REMOTE_TIMEOUT_SECONDS: float = 25.0
+    TEXT_INFERENCE_URL: str = ""
+    VOICE_INFERENCE_URL: str = ""
+    DUPLICATE_INFERENCE_URL: str = ""
     VISION_INFERENCE_URL: str = ""
 
     @field_validator("DATABASE_URL", mode="before")

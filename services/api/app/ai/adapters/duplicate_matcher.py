@@ -164,7 +164,10 @@ class DuplicateMatcherAdapter(BaseAIAdapter):
         text_a: Optional[str],
         text_b: Optional[str],
     ) -> Tuple[float, List[str], str]:
-        """Score a nearby (<=300m) pair synchronously via heuristic or live ONNX E5."""
+        """Score a nearby (<=300m) pair synchronously via remote ML server, local ONNX E5, or heuristic."""
+        from app.ai.remote_client import post_remote_inference, resolve_remote_endpoint
+        from app.core.config import settings
+
         if (
             not self.is_mock
             and text_a
@@ -172,6 +175,31 @@ class DuplicateMatcherAdapter(BaseAIAdapter):
             and text_b
             and text_b.strip()
         ):
+            remote_url = resolve_remote_endpoint(settings.DUPLICATE_INFERENCE_URL, "/match-duplicates")
+            if remote_url:
+                try:
+                    data = await post_remote_inference(
+                        remote_url,
+                        {
+                            "category": cat_a,
+                            "text": text_a.strip(),
+                            "candidates": [
+                                {
+                                    "incidentId": "pair",
+                                    "category": cat_b,
+                                    "dist_m": float(dist_m),
+                                    "text": text_b.strip(),
+                                }
+                            ],
+                        },
+                    )
+                    cands = data.get("candidates") or []
+                    if cands:
+                        c0 = DuplicateCandidateSchema(**cands[0])
+                        return c0.score, c0.signals, c0.recommendation
+                except Exception as e:
+                    logger.warning("Remote duplicate matcher failed: %s. Falling back.", e)
+
             try:
                 return await asyncio.to_thread(
                     self._live_score_pair_sync,
@@ -310,6 +338,35 @@ class DuplicateMatcherAdapter(BaseAIAdapter):
                     nearby.append((inc, dist_m))
 
             if nearby and not self.is_mock and text and text.strip():
+                from app.ai.remote_client import post_remote_inference, resolve_remote_endpoint
+                from app.core.config import settings
+
+                remote_url = resolve_remote_endpoint(settings.DUPLICATE_INFERENCE_URL, "/match-duplicates")
+                if remote_url:
+                    try:
+                        cand_payload = [
+                            {
+                                "incidentId": inc.public_code,
+                                "category": inc.category,
+                                "dist_m": float(dist_m),
+                                "text": _extract_incident_text(inc),
+                            }
+                            for inc, dist_m in nearby
+                        ]
+                        data = await post_remote_inference(
+                            remote_url,
+                            {
+                                "category": category,
+                                "text": text.strip(),
+                                "candidates": cand_payload,
+                            },
+                        )
+                        cands = [DuplicateCandidateSchema(**c) for c in (data.get("candidates") or [])]
+                        cands.sort(key=lambda item: item.score, reverse=True)
+                        return cands
+                    except Exception as e:
+                        logger.warning("Remote duplicate matcher failed: %s. Falling back to local/heuristic.", e)
+
                 try:
                     return await asyncio.to_thread(
                         self._live_score_candidates_sync,

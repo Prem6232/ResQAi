@@ -17,19 +17,27 @@ services:
           name: resqai-postgres
           property: connectionString
       - key: REDIS_URL
-        value: redis://localhost:6379/0
+        value: ""
       - key: CELERY_BROKER_URL
-        value: redis://localhost:6379/0
+        value: ""
       - key: CELERY_RESULT_BACKEND
-        value: redis://localhost:6379/0
+        value: ""
+      - key: S3_BUCKET_NAME
+        value: sentinelgrid-evidence
+      - key: S3_ADDRESSING_STYLE
+        value: path
       - key: JWT_SECRET
         generateValue: true
       - key: AI_ADAPTER_MODE
-        value: mock
+        value: live
+      - key: AI_PRELOAD_ON_STARTUP
+        value: "false"
+      - key: AI_INLINE_OUTBOX_POLL_SECONDS
+        value: "2.0"
       - key: OSRM_BASE_URL
         value: https://router.project-osrm.org
       - key: CORS_ORIGINS
-        value: '["*"]'
+        value: '["https://res-q-ai-coral.vercel.app"]'
 
 databases:
   - name: resqai-postgres

@@ -256,7 +256,13 @@ class TextClassifierAdapter(BaseAIAdapter):
         )
 
     async def _live_inference(self, text: str) -> TextAssessmentSchema:
+        from app.ai.remote_client import post_remote_inference, resolve_remote_endpoint
         from app.core.config import settings
+
+        remote_url = resolve_remote_endpoint(settings.TEXT_INFERENCE_URL, "/classify-text")
+        if remote_url:
+            data = await post_remote_inference(remote_url, {"text": text})
+            return TextAssessmentSchema(**data)
 
         runtime = get_onnx_runtime(
             configured_dir=settings.TEXT_CLASSIFIER_MODEL_DIR,

@@ -533,3 +533,86 @@ def test_cloud_asyncpg_redis_and_hf_hub_bootstrap(monkeypatch, tmp_path):
     assert len(fake_snapshot_calls) == 1
     assert all((models_root / k).is_dir() and report[k] == str(models_root / k) for k in report)
     assert hf_bootstrap.resolve_model_dir("text_classifier", "", Path("/app/app/ai/adapters/text_classifier.py")) == models_root / "text_classifier"
+
+
+def test_remote_ml_server_and_adapter_routing(monkeypatch):
+    """
+    Exercises Option A end-to-end:
+    1) ml/server.py serves real live MuRIL, Whisper, FCOS, and E5 behind API-key auth
+    2) Remote adapters in services/api forward text, audio_b64, image_b64, and duplicate candidates
+    3) preload_live_models() skips local heavy downloads/loads when ML_INFERENCE_BASE_URL is set
+    """
+    import importlib.util
+    import httpx
+    from types import SimpleNamespace
+    from app.core.config import settings
+    from app.ai.warmup import preload_live_models
+    import app.ai.remote_client as remote_client
+
+    import sys
+    repo_root = Path(__file__).resolve().parents[4]
+    spec = importlib.util.spec_from_file_location("resqai_ml_server", repo_root / "ml" / "server.py")
+    assert spec is not None and spec.loader is not None
+    ml_srv = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = ml_srv
+    spec.loader.exec_module(ml_srv)
+
+    monkeypatch.setenv("ML_INFERENCE_API_KEY", "secret-ml-key")
+    monkeypatch.setattr(settings, "AI_ADAPTER_MODE", "live")
+    monkeypatch.setattr(settings, "ML_INFERENCE_BASE_URL", "http://remote-ml")
+    monkeypatch.setattr(settings, "ML_INFERENCE_API_KEY", "secret-ml-key")
+    for attr in ("TEXT_INFERENCE_URL", "VOICE_INFERENCE_URL", "DUPLICATE_INFERENCE_URL", "VISION_INFERENCE_URL"):
+        monkeypatch.setattr(settings, attr, "")
+
+    warmup_res = preload_live_models()
+    assert warmup_res["text_classifier"] == "remote:http://remote-ml/classify-text"
+    assert warmup_res["voice_transcriber"] == "remote:http://remote-ml/transcribe-voice"
+    assert warmup_res["duplicate_matcher"] == "remote:http://remote-ml/match-duplicates"
+    assert warmup_res["vision_detector"] == "remote:http://remote-ml/detect"
+
+    # Patch remote_client.httpx.AsyncClient to route requests directly into ml/server.py ASGI app
+    real_async_client = httpx.AsyncClient
+    transport = httpx.ASGITransport(app=ml_srv.app)
+
+    def _asgi_client(**kwargs):
+        return real_async_client(transport=transport, base_url="http://remote-ml", timeout=kwargs.get("timeout", 25.0))
+
+    monkeypatch.setattr(remote_client.httpx, "AsyncClient", _asgi_client)
+
+    memo_wav = repo_root / "ml" / "voice_transcriber" / "datasets" / "raw" / "emergency_memos" / "memo_fire_01.wav"
+    fire_jpg = repo_root / "ml" / "vision_detector" / "datasets" / "raw" / "images" / "test_dfire_ood" / "test-00002-of-00003_00056_WEB10428.jpg"
+
+    async def _run_all():
+        # Unauthorized direct call rejected cleanly with HTTP 401
+        async with real_async_client(transport=transport, base_url="http://remote-ml") as raw_client:
+            unauth = await raw_client.post("/classify-text", json={"text": "fire"})
+            assert unauth.status_code == 401
+
+        txt = await TextClassifierAdapter(mode="live").predict("MP Nagar transformer me aag aur dhuwa")
+        voice = await VoiceTranscriberAdapter(mode="live").predict(file_bytes=memo_wav.read_bytes())
+        vis = await VisionDetectorAdapter(mode="live").predict(file_bytes=fire_jpg.read_bytes())
+        cands = await DuplicateMatcherAdapter(mode="live").predict(
+            category="fire_smoke",
+            text="MP Nagar transformer mein blast se aag aur kaala dhuwa",
+            lat=23.2310,
+            lng=77.4340,
+            candidates=[
+                SimpleNamespace(
+                    public_code="REM-402",
+                    category="fire_smoke",
+                    title="MP Nagar transformer fire and dense smoke reported",
+                    location="SRID=4326;POINT(77.4348 23.2315)",
+                    location_label="MP Nagar Zone 2",
+                )
+            ],
+        )
+        return txt, voice, vis, cands
+
+    txt, voice, vis, cands = asyncio.run(_run_all())
+    assert txt.suggestedCategory == "fire_smoke"
+    assert txt.modelVersion.startswith("muril-indian-emergency-v1-onnx")
+    assert voice.modelVersion.startswith("faster-whisper-small-ct2")
+    assert len(voice.transcript.strip()) > 10
+    assert vis.adapter == "live_model" and vis.finding == "possible_fire_smoke_evidence"
+    assert len(cands) == 1 and cands[0].incidentId == "REM-402"
+    assert cands[0].recommendation == "likely_related"
